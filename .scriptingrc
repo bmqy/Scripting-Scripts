@@ -1,9 +1,15 @@
 {
-  "name": "BeijingTrafficRestriction",
+  "name": "Scripting-Scripts",
   "version": "1.0.0",
-  "description": "北京限行小组件",
-  "main": "widget.tsx",
-  "preview": "index.tsx",
+  "description": "Scripting App脚本集合",
   "author": "",
-  "dependencies": {}
+  "scriptsDir": "scripts",
+  "dependencies": {},
+  "settings": {
+    "typeScript": {
+      "enabled": true,
+      "configPath": "tsconfig.json"
+    },
+    "jsxRuntime": "jsx-runtime.ts"
+  }
 }
