@@ -1,5 +1,5 @@
 // 限号助手小组件 - 主文件
-import { HStack, RoundedRectangle, Spacer, Text, VStack, Widget, ZStack } from "scripting"
+import { Circle, HStack, Image, RoundedRectangle, Spacer, Text, VStack, Widget, ZStack } from "scripting"
 
 // 声明Storage以避免与DOM类型冲突
 declare const Storage: any;
@@ -19,96 +19,19 @@ async function createWidget() {
       getLimitNumbers()
     ]);
 
-    // 创建Widget界面 - Kindle墨水屏风格，优化布局
-    // 特点：顶部左侧标题、右上角城市、右下角时间、中间突出显示限号信息
-    const widgetView = (
-      <ZStack>
-        {/* 模拟Kindle墨水屏的米白色背景 */}
-        <RoundedRectangle fill="#f5f5f5" cornerRadius={12} />
-        
-        {/* 主容器 - 增加内边距防止内容被裁剪 */}
-        <VStack padding={15} spacing={8} frame={{ maxWidth: Infinity, maxHeight: Infinity }}>
-          {/* 顶部区域 - 简化标题显示，确保不出现省略号 */}
-          <HStack spacing={8}>
-            <Text font="caption" foregroundStyle="#707070" fontWeight="bold">限号助手</Text>
-            <Spacer />
-            <Text font="caption" foregroundStyle="#909090">{limitData.city}</Text>
-          </HStack>
-          
-          {/* 核心限号信息区域 - 居中显示，优化间距确保完整显示 */}
-          <Spacer />
-          <VStack alignment="center" padding={{ vertical: 0 }}>
-            {/* 根据内容类型调整字体大小和样式 */}
-            {/* 使用大字体并添加缩放属性，确保在小尺寸小组件上也能完整显示 */}
-              {/* 将限号信息拆分为数字和逗号，使用不同的字体大小显示 */}
-              <HStack alignment="bottom" spacing={8} frame={{ maxWidth: Infinity }}>
-                {
-                  // 处理限号信息，分离数字和逗号
-                  (() => {
-                    const limitText = getShortLimitInfo(limitData.limitInfo);
-                    
-                    // 检查是否包含逗号的双数字情况
-                    if (limitText.includes(',')) {
-                      const [firstNum, secondNum] = limitText.split(',');
-                      return (
-                        <>
-                          <Text 
-                            font={60} 
-                            foregroundStyle="#000000" 
-                            fontWeight="bold"
-                            minScaleFactor={0.7}
-                          >
-                            {firstNum}
-                          </Text>
-                          <Text 
-                            font="caption2" 
-                            foregroundStyle="#000000" 
-                            fontWeight="bold"
-                            padding={{ bottom: 5 }}
-                          >
-                            ,
-                          </Text>
-                          <Text 
-                            font={60} 
-                            foregroundStyle="#000000" 
-                            fontWeight="bold"
-                            minScaleFactor={0.7}
-                          >
-                            {secondNum}
-                          </Text>
-                        </>
-                      );
-                    }
-                    
-                    // 单数字或其他情况，直接显示
-                    return (
-                      <Text 
-                        font={60} 
-                        foregroundStyle="#000000" 
-                        fontWeight="bold" 
-                        frame={{ maxWidth: Infinity }}
-                        minScaleFactor={0.5}
-                      >
-                        {limitText}
-                      </Text>
-                    );
-                  })()
-                }
-              </HStack>
-          </VStack>
-          <Spacer />
-          
-          {/* 底部更新时间区域 - 右下角显示，只显示时间 */}
-          <Spacer />
-          <HStack>
-            <Spacer />
-            <Text font="caption" foregroundStyle="#909090">
-              更新: {currentTime}
-            </Text>
-          </HStack>
-        </VStack>
-      </ZStack>
-    );
+    // 获取小组件类型
+    const family = Widget.family;
+    let widgetView;
+
+    // 根据不同的小组件类型创建不同的视图
+    if (family === "accessoryCircular") {
+      // 锁屏圆形小组件视图
+      widgetView = createCircularWidgetView(limitData);
+    } else {
+      // 标准小组件视图 - Kindle墨水屏风格，优化布局
+      // 特点：顶部左侧标题、右上角城市、右下角时间、中间突出显示限号信息
+      widgetView = createStandardWidgetView(limitData, currentTime);
+    }
 
     // 显示Widget
     // 设置重载策略，在每天午夜12点刷新
@@ -124,22 +47,163 @@ async function createWidget() {
   } catch (e) {
     console.error('Widget运行失败:', e);
     
-    // 显示错误信息 - 同样采用Kindle墨水屏风格
-    Widget.present(
-      <ZStack>
-        <RoundedRectangle fill="#f5f5f5" cornerRadius={12} />
-        <VStack alignment="center" spacing={8} padding={20}>
-          
-          <Text font="title" foregroundStyle="#707070">发生错误</Text>
-          <Text font="body" foregroundStyle="#000000">{e instanceof Error ? e.message : '未知错误'}</Text>
-        </VStack>
-      </ZStack>,
-      {
-        policy: "after",
-        date: new Date(Date.now() + 1000 * 60 * 5) // 5分钟后重试
-      }
-    );
+    // 获取小组件类型
+    const family = Widget.family;
+    
+    // 根据小组件类型显示不同的错误信息
+    if (family === "accessoryCircular") {
+      // 锁屏圆形小组件错误视图
+      Widget.present(
+        <ZStack>
+          <Text font={24} foregroundStyle="#ff0000">错误</Text>
+        </ZStack>,
+        {
+          policy: "after",
+          date: new Date(Date.now() + 1000 * 60 * 5) // 5分钟后重试
+        }
+      );
+    } else {
+      // 标准小组件错误视图 - Kindle墨水屏风格
+      Widget.present(
+        <ZStack>
+          <RoundedRectangle fill="#f5f5f5" cornerRadius={12} />
+          <VStack alignment="center" spacing={8} padding={20}>
+            
+            <Text font="title" foregroundStyle="#707070">发生错误</Text>
+            <Text font="body" foregroundStyle="#000000">{e instanceof Error ? e.message : '未知错误'}</Text>
+          </VStack>
+        </ZStack>,
+        {
+          policy: "after",
+          date: new Date(Date.now() + 1000 * 60 * 5) // 5分钟后重试
+        }
+      );
+    }
   }
+}
+
+/**
+ * 创建标准小组件视图
+ */
+function createStandardWidgetView(limitData: any, currentTime: string) {
+  return (
+    <ZStack>
+      {/* 模拟Kindle墨水屏的米白色背景 */}
+      <RoundedRectangle fill="#f5f5f5" cornerRadius={12} />
+      
+      {/* 主容器 - 增加内边距防止内容被裁剪 */}
+      <VStack padding={15} spacing={8} frame={{ maxWidth: Infinity, maxHeight: Infinity }}>
+        {/* 顶部区域 - 简化标题显示，确保不出现省略号 */}
+        <HStack spacing={8}>
+          <Text font="caption" foregroundStyle="#707070" fontWeight="bold">限号助手</Text>
+          <Spacer />
+          <Text font="caption" foregroundStyle="#909090">{limitData.city}</Text>
+        </HStack>
+        
+        {/* 核心限号信息区域 - 居中显示，优化间距确保完整显示 */}
+        <Spacer />
+        <VStack alignment="center" padding={{ vertical: 0 }}>
+          {/* 根据内容类型调整字体大小和样式 */}
+          {/* 使用大字体并添加缩放属性，确保在小尺寸小组件上也能完整显示 */}
+            {/* 将限号信息拆分为数字和逗号，使用不同的字体大小显示 */}
+            <HStack alignment="bottom" spacing={8} frame={{ maxWidth: Infinity }}>
+              {
+                // 处理限号信息，分离数字和逗号
+                (() => {
+                  const limitText = getShortLimitInfo(limitData.limitInfo);
+                  
+                  // 检查是否包含逗号的双数字情况
+                  if (limitText.includes(',')) {
+                    const [firstNum, secondNum] = limitText.split(',');
+                    return (
+                      <>
+                        <Text 
+                          font={60} 
+                          foregroundStyle="#000000" 
+                          fontWeight="bold"
+                          minScaleFactor={0.7}
+                        >
+                          {firstNum}
+                        </Text>
+                        <Text 
+                          font="caption2" 
+                          foregroundStyle="#000000" 
+                          fontWeight="bold"
+                          padding={{ bottom: 5 }}
+                        >
+                          ,
+                        </Text>
+                        <Text 
+                          font={60} 
+                          foregroundStyle="#000000" 
+                          fontWeight="bold"
+                          minScaleFactor={0.7}
+                        >
+                          {secondNum}
+                        </Text>
+                      </>
+                    );
+                  }
+                  
+                  // 单数字或其他情况，直接显示
+                  return (
+                    <Text 
+                      font={60} 
+                      foregroundStyle="#000000" 
+                      fontWeight="bold" 
+                      frame={{ maxWidth: Infinity }}
+                      minScaleFactor={0.5}
+                    >
+                      {limitText}
+                    </Text>
+                  );
+                })()
+              }
+            </HStack>
+        </VStack>
+        <Spacer />
+        
+        {/* 底部更新时间区域 - 右下角显示，只显示时间 */}
+        <Spacer />
+        <HStack>
+          <Spacer />
+          <Text font="caption" foregroundStyle="#909090">
+            更新: {currentTime}
+          </Text>
+        </HStack>
+      </VStack>
+    </ZStack>
+  );
+}
+
+/**
+ * 创建锁屏圆形小组件视图
+ */
+function createCircularWidgetView(limitData: any) {
+  const limitText = getShortLimitInfo(limitData.limitInfo);
+  
+  return (
+    <ZStack>
+      {/* 圆形背景 */}
+      <Circle fill="#f5f5f5" />
+      
+      {/* 中心显示限号信息 */}
+      <VStack alignment="center" spacing={2}>
+        {/* 汽车图标 - 替换城市名称 */}
+        <Image systemName="car.fill" foregroundStyle="#707070" />
+        
+        {/* 限号数字 - 减小字体大小，避免超出边界 */}
+        <Text 
+          font={24} 
+          foregroundStyle="#000000" 
+          fontWeight="bold"
+          minScaleFactor={0.5}
+        >
+          {limitText}
+        </Text>
+      </VStack>
+    </ZStack>
+  );
 }
 
 // 启动Widget
