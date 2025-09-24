@@ -1,0 +1,22 @@
+{
+  "localizedDescriptions" : null,
+  "name" : "限号",
+  "author" : {
+    "name" : "bmqy",
+    "email" : "notice@bmqy.net",
+    "homepage" : "https:\/\/bmqy.net"
+  },
+  "color" : "rgba(28, 140, 255,1)",
+  "contributors" : [
+
+  ],
+  "runInApp" : false,
+  "description" : null,
+  "version" : "1.0.0",
+  "intentInputTypes" : [
+
+  ],
+  "icon" : "car.fill",
+  "remoteResource" : null,
+  "localizedNames" : null
+}

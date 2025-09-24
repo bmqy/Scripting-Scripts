@@ -1,0 +1,9 @@
+{
+  "name": "BeijingTrafficRestriction",
+  "version": "1.0.0",
+  "description": "北京限行小组件",
+  "main": "widget.tsx",
+  "preview": "index.tsx",
+  "author": "",
+  "dependencies": {}
+}
