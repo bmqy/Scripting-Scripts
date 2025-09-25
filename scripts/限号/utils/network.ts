@@ -2,9 +2,6 @@
 
 import { CITY_WEEKEND_RULES, WEEK_DAYS } from './city';
 
-// 声明Storage以避免与DOM类型冲突
-declare const Storage: any;
-
 /**
  * 缓存键前缀
  */

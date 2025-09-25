@@ -1,33 +1,29 @@
 {
   "compilerOptions": {
     "target": "ESNext",
-    "module": "ESNext",
-    "moduleResolution": "node",
-    "jsx": "preserve",
-    "allowJs": true,
-    "esModuleInterop": true,
-    "skipLibCheck": true,
-    "forceConsistentCasingInFileNames": true,
-    "strict": false,
-    "noImplicitAny": false,
-    "strictNullChecks": false,
-    "resolveJsonModule": true,
-    "isolatedModules": true,
-    "noEmit": true,
     "lib": [
-      "ESNext",
-      "DOM"
+      "esnext"
     ],
-    "typeRoots": [
-      "./dts",
-      "./node_modules/@types"
-    ]
+    "allowJs": true,
+    "strict": true,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "forceConsistentCasingInFileNames": true,
+    "noFallthroughCasesInSwitch": true,
+    "module": "CommonJS",
+    "resolveJsonModule": true,
+    "skipLibCheck": true,
+    "jsx": "react",
+    "jsxFactory": "createElement",
+    "jsxFragmentFactory": "Fragment",
+    "paths": {
+      "scripting": [
+        "./dts/scripting.d.ts"
+      ]
+    }
   },
   "include": [
     "./dts/global.d.ts",
     "scripts"
-  ],
-  "exclude": [
-    "node_modules"
   ]
 }

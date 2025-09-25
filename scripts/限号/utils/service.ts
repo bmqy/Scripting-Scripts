@@ -1,19 +1,19 @@
 // 限号信息服务模块
 
-import { getUserCity, DEFAULT_CITY } from './city';
-import { CACHE_KEY_PREFIX, fetchLimitNumbersFromNetwork } from './network';
-import { getTodayDateKey } from './base';
-
-// 声明Storage以避免与DOM类型冲突
-declare const Storage: any;
+import { getTodayDateKey } from './base'
+import { DEFAULT_CITY, getUserCity } from './city'
+import { CACHE_KEY_PREFIX, fetchLimitNumbersFromNetwork } from './network'
 
 /**
  * 获取限号信息（带缓存功能，仅在新的一天开始时重新获取）
+ * @param options 配置选项
+ * @param options.forceRefreshCity 是否强制刷新城市信息
  * @returns 包含城市和限号信息的对象
  */
-export async function getLimitNumbers(): Promise<{city: string, limitInfo: string}> {
+export async function getLimitNumbers(options?: { forceRefreshCity?: boolean }): Promise<{city: string, limitInfo: string}> {
   try {
-    const city = await getUserCity();
+    const { forceRefreshCity = false } = options || {};
+    const city = await getUserCity({ forceRefresh: forceRefreshCity });
     const cacheKey = `${CACHE_KEY_PREFIX}${city}_${getTodayDateKey()}`;
     
     // 尝试从缓存获取限号信息
