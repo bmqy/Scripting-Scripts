@@ -184,13 +184,13 @@ function createCircularWidgetView(limitData: any) {
   
   return (
     <ZStack>
-      {/* 圆形背景 */}
-      <Circle fill="#f5f5f5" />
+      {/* 圆形背景 - 使用白色增强对比度 */}
+      <Circle fill="#ffffff" />
       
       {/* 中心显示限号信息 */}
       <VStack alignment="center" spacing={2}>
-        {/* 汽车图标 - 替换城市名称 */}
-        <Image systemName="car.fill" foregroundStyle="#707070" />
+        {/* 汽车图标 - 使用黑色增强可见性 */}
+        <Image systemName="car.fill" foregroundStyle="#000000" />
         
         {/* 限号数字 - 减小字体大小，避免超出边界 */}
         <Text 

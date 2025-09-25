@@ -8,7 +8,7 @@ import { getTodayDateKey } from './base';
 declare const Storage: any;
 
 /**
- * 获取限号信息（开发阶段：先清除缓存直接从网络获取）
+ * 获取限号信息（带缓存功能，仅在新的一天开始时重新获取）
  * @returns 包含城市和限号信息的对象
  */
 export async function getLimitNumbers(): Promise<{city: string, limitInfo: string}> {
@@ -16,13 +16,22 @@ export async function getLimitNumbers(): Promise<{city: string, limitInfo: strin
     const city = await getUserCity();
     const cacheKey = `${CACHE_KEY_PREFIX}${city}_${getTodayDateKey()}`;
     
-    // 开发阶段临时措施：先清除缓存，每次都从网络获取最新信息
-    Storage.remove(cacheKey);
-    console.log(`开发阶段：已清除缓存，将直接从网络获取${city}限号信息`);
+    // 尝试从缓存获取限号信息
+    const cachedLimitInfo = Storage.get(cacheKey);
+    if (cachedLimitInfo) {
+      console.log(`从缓存获取${city}限号信息`);
+      return { city, limitInfo: cachedLimitInfo };
+    }
     
-    // 直接从网络获取限号信息
+    // 缓存不存在，从网络获取限号信息
     console.log(`从网络获取${city}限号信息`);
     const limitInfo = await fetchLimitNumbersFromNetwork(city);
+    
+    // 保存到缓存
+    if (limitInfo && limitInfo !== '获取限号信息失败') {
+      Storage.set(cacheKey, limitInfo);
+      console.log(`已缓存${city}限号信息`);
+    }
     
     return { city, limitInfo };
 
