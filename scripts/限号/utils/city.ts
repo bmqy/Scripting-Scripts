@@ -64,7 +64,8 @@ export async function getUserCity(options?: { forceRefresh?: boolean }) {
         
         // 使用反向地理编码获取地址信息
         const placemarks = await Location.reverseGeocode({
-          location: locationInfo,
+          latitude: locationInfo.latitude,
+          longitude: locationInfo.longitude,
           locale: 'zh_CN'
         });
         
@@ -75,7 +76,7 @@ export async function getUserCity(options?: { forceRefresh?: boolean }) {
           // 提取城市名称
           // 根据placemark的实际结构来提取城市名
           // 这里是一个简化的实现，实际应用中需要根据具体情况调整
-          let city = extractCityFromPlacemark(placemark);
+          let city = placemark.locality;
           
           if (city) {
             console.log('提取到城市:', city);
@@ -150,29 +151,4 @@ export async function getUserCity(options?: { forceRefresh?: boolean }) {
       
       return DEFAULT_CITY;
     }
-}
-
-/**
- * 从Placemark中提取城市名称
- * @param placemark 地址信息对象
- * @returns 城市名称
- */
-function extractCityFromPlacemark(placemark) {
-  // 根据placemark的实际结构来提取城市名
-  // 这里是一个简化的实现，实际应用中需要根据具体情况调整
-  if (placemark.city) {
-    return placemark.city;
-  } else if (placemark.addressDictionary && placemark.addressDictionary.City) {
-    return placemark.addressDictionary.City;
-  } else if (placemark.locality) {
-    return placemark.locality;
-  } else if (placemark.name) {
-    // 尝试从名称中提取城市信息
-    // 这里是一个简单的正则匹配，可能需要根据实际情况调整
-    const cityMatch = placemark.name.match(/[省市]\s*([^市]+市|[^省]+省)/);
-    if (cityMatch && cityMatch[1]) {
-      return cityMatch[1];
-    }
-  }
-  return null;
 }
