@@ -4,13 +4,6 @@ import { getTodayDateKey } from './base'
 import { DEFAULT_CITY, getUserCity, WEEK_DAYS } from './city'
 import { CACHE_KEY_PREFIX, fetchLimitNumbersFromNetwork } from './network'
 
-// 声明全局API
-declare const Storage: {
-  set: <T>(key: string, value: T) => boolean;
-  get: <T>(key: string) => T | null;
-  remove: (key: string) => boolean;
-  contains: (key: string) => boolean;
-};
 /**
  * 获取一周的限行信息
  * @param options 配置选项

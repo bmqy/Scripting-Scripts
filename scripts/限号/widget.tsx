@@ -5,7 +5,6 @@ import { getCurrentTime, getShortLimitInfo } from './utils/base'
 import { getLimitNumbers, getWeeklyLimitNumbers } from './utils/service'
 
 // 声明全局API
-declare const console: any;
 
 // 开发测试配置 - 控制是否强制刷新城市信息
 // 设置为true可以清除城市缓存并重新获取

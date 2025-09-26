@@ -1,14 +1,6 @@
 // 网络请求和数据获取模块
 
-import { CITY_WEEKEND_RULES, WEEK_DAYS } from './city';
-
-// 声明全局API
-declare const Storage: {
-  set: <T>(key: string, value: T) => boolean;
-  get: <T>(key: string) => T | null;
-  remove: (key: string) => boolean;
-  contains: (key: string) => boolean;
-};
+import { CITY_WEEKEND_RULES, WEEK_DAYS } from './city'
 
 /**
  * 缓存键前缀

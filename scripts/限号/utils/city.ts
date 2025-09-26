@@ -1,5 +1,5 @@
 // 城市相关工具模块
-import { notification as Notification } from 'scripting'
+import { Notification } from 'scripting'
 /**
  * 默认城市，当无法获取位置时使用
  * 现在默认为空，获取不到城市时会发送通知
@@ -25,43 +25,6 @@ export const CITY_WEEKEND_RULES: Record<string, boolean> = {
   // 注意：某些城市在特定时期可能会临时调整政策，实施周末限行
   // 例如成都在特定活动期间（如2025年8月3日至17日）曾实施周末限行
   // 可以根据实际情况添加更多城市的规则
-};
-
-// 声明全局API
-declare const setTimeout: (callback: (...args: any[]) => void, ms: number, ...args: any[]) => number;
-declare const clearTimeout: (timeoutId: number) => void;
-declare const Storage: {
-  set: <T>(key: string, value: T) => boolean;
-  get: <T>(key: string) => T | null;
-  remove: (key: string) => boolean;
-  contains: (key: string) => boolean;
-};
-
-declare const Location: {
-  requestCurrent: () => Promise<{
-    latitude: number;
-    longitude: number;
-    timestamp?: Date;
-    altitude?: number;
-    horizontalAccuracy?: number;
-    verticalAccuracy?: number;
-    speed?: number;
-    course?: number;
-  }>;
-  reverseGeocode: (options: {
-    latitude: number;
-    longitude: number;
-    locale?: string;
-  }) => Promise<Array<{
-    locality?: string;
-    administrativeArea?: string;
-    country?: string;
-    postalCode?: string;
-    thoroughfare?: string;
-    subThoroughfare?: string;
-    subLocality?: string;
-    isoCountryCode?: string;
-  }>>;
 };
 
 /**
