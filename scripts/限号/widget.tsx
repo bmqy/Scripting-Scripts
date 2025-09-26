@@ -4,6 +4,9 @@ import { Circle, HStack, Image, RoundedRectangle, Spacer, Text, VStack, Widget, 
 import { getCurrentTime, getShortLimitInfo } from './utils/base'
 import { getLimitNumbers, getWeeklyLimitNumbers } from './utils/service'
 
+// 声明全局API
+declare const console: any;
+
 // 开发测试配置 - 控制是否强制刷新城市信息
 // 设置为true可以清除城市缓存并重新获取
 const FORCE_REFRESH_CITY = false;
@@ -19,7 +22,7 @@ async function createWidget() {
     let currentTime = getCurrentTime();
     
     // 根据不同的小组件类型选择不同的数据获取方式
-    if (family === "accessoryMedium") {
+    if (family === "systemMedium") { // 桌面中号小组件
       // 中号小组件需要获取一周的限行信息
       const weeklyLimitData = await getWeeklyLimitNumbers({ forceRefreshCity: FORCE_REFRESH_CITY });
       widgetView = createMediumWidgetView(weeklyLimitData, currentTime);
@@ -56,7 +59,7 @@ async function createWidget() {
     const family = Widget.family;
     
     // 根据小组件类型显示不同的错误信息
-    if (family === "accessoryCircular") {
+      if (family === "accessoryCircular") {
       // 锁屏圆形小组件错误视图
       Widget.present(
         <ZStack>
@@ -67,7 +70,7 @@ async function createWidget() {
           date: new Date(Date.now() + 1000 * 60 * 5) // 5分钟后重试
         }
       );
-    } else if (family === "accessoryMedium") {
+    } else if (family === "systemMedium") { // 桌面中号小组件
       // 中号小组件错误视图
       Widget.present(
         <ZStack>
@@ -117,7 +120,7 @@ function createStandardWidgetView(limitData: any, currentTime: string) {
       <VStack padding={15} spacing={8} frame={{ maxWidth: Infinity, maxHeight: Infinity }}>
         {/* 顶部区域 - 简化标题显示，确保不出现省略号 */}
         <HStack spacing={8}>
-          <Text font="caption" foregroundStyle="#707070" fontWeight="bold">限号助手</Text>
+          <Text font="caption" foregroundStyle="#707070" fontWeight="semibold">限号助手</Text>
           <Spacer />
           <Text font="caption" foregroundStyle="#909090">{limitData.city}</Text>
         </HStack>
@@ -142,7 +145,7 @@ function createStandardWidgetView(limitData: any, currentTime: string) {
                         <Text 
                           font={60} 
                           foregroundStyle="#000000" 
-                          fontWeight="bold"
+                          fontWeight="semibold"
                           minScaleFactor={0.7}
                         >
                           {firstNum}
@@ -158,8 +161,8 @@ function createStandardWidgetView(limitData: any, currentTime: string) {
                         <Text 
                           font={60} 
                           foregroundStyle="#000000" 
-                          fontWeight="bold"
-                          minScaleFactor={0.7}
+                          fontWeight="semibold"
+                          minScaleFactor={0.5}
                         >
                           {secondNum}
                         </Text>
@@ -204,11 +207,19 @@ function createStandardWidgetView(limitData: any, currentTime: string) {
 function createMediumWidgetView(weeklyLimitData: any, currentTime: string) {
   const { city, weeklyLimitInfo } = weeklyLimitData;
   
-  // 计算当前日期范围
+  // 计算当前日期范围 - 显示本周一到周日
   const today = new Date();
+  const dayOfWeek = today.getDay(); // 0-6, 0是周日
+  
+  // 计算本周一的日期
   const startDate = new Date(today);
-  const endDate = new Date(today);
-  endDate.setDate(today.getDate() + 6);
+  // 如果今天是周日，需要特殊处理（因为getDay()返回0）
+  const daysToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+  startDate.setDate(today.getDate() + daysToMonday);
+  
+  // 计算本周日的日期（在周一的基础上加6天）
+  const endDate = new Date(startDate);
+  endDate.setDate(startDate.getDate() + 6);
   
   // 格式化日期范围显示
   const dateRange = `${startDate.getFullYear()}年${startDate.getMonth() + 1}月${startDate.getDate()}日-${endDate.getMonth() + 1}月${endDate.getDate()}日`;
@@ -218,8 +229,8 @@ function createMediumWidgetView(weeklyLimitData: any, currentTime: string) {
       {/* 背景 */}
       <RoundedRectangle fill="#ffffff" cornerRadius={12} />
       
-      {/* 主容器 */}
-      <VStack spacing={10} padding={15} frame={{ maxWidth: Infinity, maxHeight: Infinity }}>
+      {/* 主容器 - 优化垂直布局，确保主体信息居中 */}
+      <VStack spacing={6} padding={15} frame={{ maxWidth: Infinity, maxHeight: Infinity }}>
         {/* 顶部标题和城市信息 */}
         <HStack spacing={8} frame={{ maxWidth: Infinity }}>
           <Text font="caption" foregroundStyle="#707070" fontWeight="bold">限号助手</Text>
@@ -227,12 +238,18 @@ function createMediumWidgetView(weeklyLimitData: any, currentTime: string) {
           <Text font="caption" foregroundStyle="#909090">{city}</Text>
         </HStack>
         
+        {/* 增加顶部间隔，使日期范围文本位置更靠下 */}
+        <Spacer minLength={4} />
+        
         {/* 日期范围 */}
-        <Text font="caption" foregroundStyle="#909090" textAlignment="leading">
+        <Text font="caption" foregroundStyle="#909090" multilineTextAlignment="leading">
           本周尾号限行（{dateRange}）
         </Text>
         
-        {/* 星期限行信息行 */}
+        {/* 增加小间隔，让内容更好地分组 */}
+        <Spacer minLength={2} />
+        
+        {/* 星期限行信息行 - 主体内容 */}
         <HStack spacing={5} frame={{ maxWidth: Infinity }}>
           {weeklyLimitInfo.map((dayInfo: any) => {
             // 处理限行信息文本
@@ -241,33 +258,45 @@ function createMediumWidgetView(weeklyLimitData: any, currentTime: string) {
             limitText = limitText.replace(',', '和');
             
             // 根据是否为今天设置不同的样式
-            const textStyle = dayInfo.isToday ? {
-              foregroundStyle: "#007AFF", // 今天使用蓝色
-              fontWeight: "bold"
-            } : {
-              foregroundStyle: "#333333"
-            };
-            
-            return (
-              <VStack alignment="center" spacing={2} frame={{ flex: 1 }}>
-                {/* 星期 */}
-                <Text font="caption2" {...textStyle}>
-                  {dayInfo.day}
-                </Text>
-                {/* 限行信息 */}
-                <Text font="caption2" {...textStyle}>
-                  {limitText === '不限行' ? '不限' : limitText}
-                </Text>
-              </VStack>
-            );
-          })}
+            if (dayInfo.isToday) {
+              return (
+                <VStack alignment="center" spacing={2} frame={{ maxWidth: 'infinity' }}>
+                  {/* 星期 */}
+                  <Text font="caption2" foregroundStyle="#007AFF" fontWeight="bold">
+                    {dayInfo.day}
+                  </Text>
+                  {/* 限行信息 */}
+                  <Text font="caption2" foregroundStyle="#007AFF" fontWeight="bold">
+                    {limitText === '不限行' ? '不限' : limitText}
+                  </Text>
+                </VStack>
+              );
+            } else {
+              return (
+                <VStack alignment="center" spacing={2} frame={{ maxWidth: 'infinity' }}>
+                  {/* 星期 */}
+                  <Text font="caption2" foregroundStyle="#333333">
+                    {dayInfo.day}
+                  </Text>
+                  {/* 限行信息 */}
+                  <Text font="caption2" foregroundStyle="#333333">
+                    {limitText === '不限行' ? '不限' : limitText}
+                  </Text>
+                </VStack>
+              );
+            }})}
         </HStack>
         
-        {/* 底部更新时间 */}
-        <Spacer />
-        <Text font="caption2" foregroundStyle="#999999" textAlignment="trailing">
-          更新: {currentTime}
-        </Text>
+        {/* 增加底部间隔，确保内容居中 */}
+        <Spacer minLength={8} />
+        
+        {/* 底部更新时间 - 调整为靠右对齐 */}
+        <HStack frame={{ maxWidth: Infinity }}>
+          <Spacer />
+          <Text font="caption2" foregroundStyle="#999999">
+            更新: {currentTime}
+          </Text>
+        </HStack>
       </VStack>
     </ZStack>
   );

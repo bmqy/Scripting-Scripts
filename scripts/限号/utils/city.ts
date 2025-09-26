@@ -1,15 +1,15 @@
 // 城市相关工具模块
-import { Notification } from 'scripting';
+import { notification as Notification } from 'scripting'
 /**
  * 默认城市，当无法获取位置时使用
  * 现在默认为空，获取不到城市时会发送通知
  */
-export const DEFAULT_CITY = '';
+export const DEFAULT_CITY = '北京';
 
 /**
  * 一周的日期数组
  */
-export const WEEK_DAYS = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
+export const WEEK_DAYS = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'];
 
 /**
  * 城市特定的周末限行规则配置
@@ -25,6 +25,43 @@ export const CITY_WEEKEND_RULES: Record<string, boolean> = {
   // 注意：某些城市在特定时期可能会临时调整政策，实施周末限行
   // 例如成都在特定活动期间（如2025年8月3日至17日）曾实施周末限行
   // 可以根据实际情况添加更多城市的规则
+};
+
+// 声明全局API
+declare const setTimeout: (callback: (...args: any[]) => void, ms: number, ...args: any[]) => number;
+declare const clearTimeout: (timeoutId: number) => void;
+declare const Storage: {
+  set: <T>(key: string, value: T) => boolean;
+  get: <T>(key: string) => T | null;
+  remove: (key: string) => boolean;
+  contains: (key: string) => boolean;
+};
+
+declare const Location: {
+  requestCurrent: () => Promise<{
+    latitude: number;
+    longitude: number;
+    timestamp?: Date;
+    altitude?: number;
+    horizontalAccuracy?: number;
+    verticalAccuracy?: number;
+    speed?: number;
+    course?: number;
+  }>;
+  reverseGeocode: (options: {
+    latitude: number;
+    longitude: number;
+    locale?: string;
+  }) => Promise<Array<{
+    locality?: string;
+    administrativeArea?: string;
+    country?: string;
+    postalCode?: string;
+    thoroughfare?: string;
+    subThoroughfare?: string;
+    subLocality?: string;
+    isoCountryCode?: string;
+  }>>;
 };
 
 /**
@@ -115,7 +152,7 @@ export async function getUserCity(options?: { forceRefresh?: boolean }) {
           
           // 提取城市名称
           // 根据placemark的实际结构来提取城市名
-          let city = placemark.locality;
+          let city = placemark.locality || '';
           
           if (city) {
             console.log('提取到城市:', city);

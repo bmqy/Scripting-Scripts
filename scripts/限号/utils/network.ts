@@ -2,6 +2,14 @@
 
 import { CITY_WEEKEND_RULES, WEEK_DAYS } from './city';
 
+// 声明全局API
+declare const Storage: {
+  set: <T>(key: string, value: T) => boolean;
+  get: <T>(key: string) => T | null;
+  remove: (key: string) => boolean;
+  contains: (key: string) => boolean;
+};
+
 /**
  * 缓存键前缀
  */
@@ -403,7 +411,7 @@ export async function fetchLimitNumbersFromNetwork(city: string): Promise<string
     }
     
     // 缓存结果
-    Storage.set(`${CACHE_KEY_PREFIX}${city}_${new Date().toLocaleDateString()}`, finalResult);
+    Storage.set<string>(`${CACHE_KEY_PREFIX}${city}_${new Date().toLocaleDateString()}`, finalResult);
     console.log(`最终提取结果: ${finalResult}`);
     
     return finalResult;
