@@ -1,7 +1,8 @@
 // 限号助手小组件 - 主文件
+import { Circle, HStack, Image, RoundedRectangle, Spacer, Text, VStack, Widget, ZStack } from "scripting"
 // 导入拆分出去的模块
-import { getCurrentTime, getShortLimitInfo } from './utils/base';
-import { getLimitNumbers, getWeeklyLimitNumbers } from './utils/service';
+import { getCurrentTime, getShortLimitInfo } from './utils/base'
+import { getLimitNumbers, getWeeklyLimitNumbers } from './utils/service'
 
 // 开发测试配置 - 控制是否强制刷新城市信息
 // 设置为true可以清除城市缓存并重新获取
