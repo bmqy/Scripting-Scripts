@@ -13,9 +13,9 @@
     "ios",
     "widget",
     "traffic",
-    "beijing"
+    "限行"
   ],
-  "author": "",
+  "author": "bmqy",
   "license": "MIT",
   "devDependencies": {
     "typescript": "^5.9.2"
