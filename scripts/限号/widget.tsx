@@ -317,14 +317,14 @@ function createCircularWidgetView(limitData: any) {
         {/* 汽车图标 - 使用黑色增强可见性 */}
         <Image systemName="car.fill" foregroundStyle="#000000" />
         
-        {/* 限号数字 - 减小字体大小，避免超出边界 */}
+        {/* 根据内容调整字体大小 - 减小不限行文字大小，保持数字大小不变 */}
         <Text 
-          font={24} 
+          font={limitText === '不限行' ? 18 : 24} 
           foregroundStyle="#000000" 
           fontWeight="bold"
           minScaleFactor={0.5}
         >
-          {limitText}
+          {limitText === '不限行' ? '不限' : limitText}
         </Text>
       </VStack>
     </ZStack>
