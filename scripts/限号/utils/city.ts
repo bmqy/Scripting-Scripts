@@ -84,9 +84,6 @@ export async function getUserCity(options?: { forceRefresh?: boolean }) {
           console.log('尝试使用Location API获取当前位置...');
           
           try {
-            // 设置位置精度
-            await Location.setAccuracy('hundredMeters');
-            
             // 请求获取当前位置
             return await Location.requestCurrent();
           } catch (error) {
