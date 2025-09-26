@@ -7,7 +7,7 @@ import { getLimitNumbers } from './utils/service'
 
 // 开发测试配置 - 控制是否强制刷新城市信息
 // 设置为true可以清除城市缓存并重新获取
-const FORCE_REFRESH_CITY = true;
+const FORCE_REFRESH_CITY = false;
 
 /**
  * 创建并显示Widget

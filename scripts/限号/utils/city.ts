@@ -1,10 +1,10 @@
 // 城市相关工具模块
-import { Notification } from 'scripting';
+import { Notification, Location, Storage } from 'scripting';
 /**
  * 默认城市，当无法获取位置时使用
  * 现在默认为空，获取不到城市时会发送通知
  */
-export const DEFAULT_CITY = '';
+export const DEFAULT_CITY = '北京';
 
 /**
  * 一周的日期数组
@@ -26,6 +26,32 @@ export const CITY_WEEKEND_RULES: Record<string, boolean> = {
   // 例如成都在特定活动期间（如2025年8月3日至17日）曾实施周末限行
   // 可以根据实际情况添加更多城市的规则
 };
+
+/**
+ * 带超时的异步操作包装器
+ * @param promise 原始Promise
+ * @param timeoutMs 超时时间（毫秒）
+ * @param fallbackValue 超时时的回退值
+ */
+async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, fallbackValue: T): Promise<T> {
+  return new Promise((resolve) => {
+    const timeoutId = setTimeout(() => {
+      console.log(`操作超时（${timeoutMs}ms），使用回退值`);
+      resolve(fallbackValue);
+    }, timeoutMs);
+    
+    promise.then(
+      (value) => {
+        clearTimeout(timeoutId);
+        resolve(value);
+      },
+      () => {
+        clearTimeout(timeoutId);
+        resolve(fallbackValue);
+      }
+    );
+  });
+}
 
 /**
  * 获取用户所在城市
@@ -51,24 +77,40 @@ export async function getUserCity(options?: { forceRefresh?: boolean }) {
     }
 
     try {
-      // 使用Scripting App的Location API获取当前位置
-      console.log('尝试使用Location API获取当前位置...');
-      
-      // 设置位置精度
-      await Location.setAccuracy('hundredMeters');
-      
-      // 请求获取当前位置
-      const locationInfo = await Location.requestCurrent();
+      // 在小组件环境中，位置请求可能会卡住或需要较长时间
+      // 因此添加超时处理，确保程序不会无限期等待
+      const locationInfo = await withTimeout(
+        (async () => {
+          console.log('尝试使用Location API获取当前位置...');
+          
+          try {
+            // 设置位置精度
+            await Location.setAccuracy('hundredMeters');
+            
+            // 请求获取当前位置
+            return await Location.requestCurrent();
+          } catch (error) {
+            console.log('位置请求失败:', error);
+            return null;
+          }
+        })(), 
+        5000, // 5秒超时
+        null
+      );
       
       if (locationInfo) {
         console.log('获取位置信息成功:', locationInfo);
         
         // 使用反向地理编码获取地址信息
-        const placemarks = await Location.reverseGeocode({
-          latitude: locationInfo.latitude,
-          longitude: locationInfo.longitude,
-          locale: 'zh_CN'
-        });
+        const placemarks = await withTimeout(
+          Location.reverseGeocode({
+            latitude: locationInfo.latitude,
+            longitude: locationInfo.longitude,
+            locale: 'zh_CN'
+          }),
+          3000, // 3秒超时
+          []
+        );
         
         if (placemarks && placemarks.length > 0) {
           const placemark = placemarks[0];
@@ -88,7 +130,6 @@ export async function getUserCity(options?: { forceRefresh?: boolean }) {
       }
     } catch (geocodeError) {
       console.log('获取地理位置信息失败:', geocodeError);
-      console.log('尝试使用IP或其他方式获取城市...');
     }
     
     console.log('无法获取城市信息，使用默认城市:', DEFAULT_CITY);
@@ -98,22 +139,26 @@ export async function getUserCity(options?: { forceRefresh?: boolean }) {
         try {
           console.log('发送通知提示用户给予定位权限');
           // 使用Notification API发送通知
-          Notification.schedule({
-            title: '限号查询',
-            body: '无法获取您的城市信息，请检查定位权限并重试',
-            subtitle: '位置服务不可用',
-            interruptionLevel: 'active',
-            actions: [
-              {
-                title: '重试',
-                url: 'scripting://open?scriptName=限号'
+          await withTimeout(
+            Notification.schedule({
+              title: '限号查询',
+              body: '无法获取您的城市信息，请检查定位权限并重试',
+              subtitle: '位置服务不可用',
+              interruptionLevel: 'active',
+              actions: [
+                {
+                  title: '重试',
+                  url: 'scripting://open?scriptName=限号'
+                }
+              ],
+              tapAction: {
+                type: 'runScript',
+                scriptName: '限号'
               }
-            ],
-            tapAction: {
-              type: 'runScript',
-              scriptName: '限号'
-            }
-          });
+            }),
+            2000, // 2秒超时
+            null
+          );
         } catch (notificationError) {
           console.error('发送通知失败:', notificationError);
         }
@@ -128,22 +173,26 @@ export async function getUserCity(options?: { forceRefresh?: boolean }) {
         try {
           console.log('发送通知提示用户给予定位权限');
           // 使用Notification API发送通知
-          Notification.schedule({
-            title: '限号查询',
-            body: '获取城市信息时发生错误，请检查定位权限并重试',
-            subtitle: '位置服务错误',
-            interruptionLevel: 'active',
-            actions: [
-              {
-                title: '重试',
-                url: 'scripting://open?scriptName=限号'
+          await withTimeout(
+            Notification.schedule({
+              title: '限号查询',
+              body: '获取城市信息时发生错误，请检查定位权限并重试',
+              subtitle: '位置服务错误',
+              interruptionLevel: 'active',
+              actions: [
+                {
+                  title: '重试',
+                  url: 'scripting://open?scriptName=限号'
+                }
+              ],
+              tapAction: {
+                type: 'runScript',
+                scriptName: '限号'
               }
-            ],
-            tapAction: {
-              type: 'runScript',
-              scriptName: '限号'
-            }
-          });
+            }),
+            2000, // 2秒超时
+            null
+          );
         } catch (notificationError) {
           console.error('发送通知失败:', notificationError);
         }
