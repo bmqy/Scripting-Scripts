@@ -12,15 +12,15 @@
   ],
   "runInApp" : false,
   "description" : null,
-  "version" : "1.0.1",
+  "version" : "1.1.0",
   "intentInputTypes" : [
 
   ],
   "icon" : "car.fill",
-  "widgetFamilies" : [
-    "accessoryCircular",
+  "supportedFamilies" : [
     "accessoryRectangular",
-    "accessoryInline"
+    "accessoryCircular",
+    "accessoryMedium"
   ],
   "remoteResource" : {
     "url" : "https:\/\/raw.githubusercontent.com\/bmqy\/Scripting-Scripts\/refs\/heads\/master\/dist\/限行.scripting",
