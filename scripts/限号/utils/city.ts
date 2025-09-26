@@ -75,7 +75,6 @@ export async function getUserCity(options?: { forceRefresh?: boolean }) {
           
           // 提取城市名称
           // 根据placemark的实际结构来提取城市名
-          // 这里是一个简化的实现，实际应用中需要根据具体情况调整
           let city = placemark.locality;
           
           if (city) {
