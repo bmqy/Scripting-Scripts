@@ -17,6 +17,6 @@
 
   ],
   "icon" : "car.fill",
-  "remoteResource" : null,
+  "remoteResource" : "https:\/\/github.com\/bmqy\/Scripting-Scripts\/raw\/refs\/heads\/master\/dist\/限行.scripting",
   "localizedNames" : null
 }
