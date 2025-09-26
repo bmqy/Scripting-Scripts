@@ -1,10 +1,10 @@
 // 城市相关工具模块
-import { Notification, Location, Storage } from 'scripting';
+import { Notification } from 'scripting';
 /**
  * 默认城市，当无法获取位置时使用
  * 现在默认为空，获取不到城市时会发送通知
  */
-export const DEFAULT_CITY = '北京';
+export const DEFAULT_CITY = '';
 
 /**
  * 一周的日期数组
