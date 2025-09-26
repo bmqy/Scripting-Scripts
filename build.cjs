@@ -152,9 +152,33 @@ function main() {
     
     if (!hasUpdates) {
       console.log('No scripts need to be updated.');
+    } else {
+      // 如果有更新，尝试提交到Git仓库
+      try {
+        console.log('\nAttempting to commit changes to Git repository...');
+        
+        // 检查Git是否可用
+        execSync('git --version', { stdio: 'ignore' });
+        
+        // 添加dist目录到暂存区
+        execSync('git add dist/', { stdio: 'inherit' });
+        
+        // 检查是否有未提交的更改
+        try {
+          execSync('git diff --cached --quiet --exit-code', { stdio: 'ignore' });
+          console.log('No changes to commit in dist directory.');
+        } catch (diffError) {
+          // 有更改，执行提交
+          const commitMessage = `Auto-update: Build scripts at ${new Date().toISOString()}`;
+          execSync(`git commit -m "${commitMessage}"`, { stdio: 'inherit' });
+          console.log('Successfully committed changes to dist directory.');
+        }
+      } catch (gitError) {
+        console.warn('Git operations failed (this is expected if not in a git repository):', gitError.message);
+      }
     }
     
-    console.log('Build process completed successfully.');
+    console.log('\nBuild process completed successfully.');
   } catch (error) {
     console.error('Error during build process:', error);
     process.exit(1);
