@@ -12,11 +12,16 @@
   ],
   "runInApp" : false,
   "description" : null,
-  "version" : "1.0.0",
+  "version" : "1.0.1",
   "intentInputTypes" : [
 
   ],
   "icon" : "car.fill",
+  "widgetFamilies" : [
+    "accessoryCircular",
+    "accessoryRectangular",
+    "accessoryInline"
+  ],
   "remoteResource" : {
     "url" : "https:\/\/raw.githubusercontent.com\/bmqy\/Scripting-Scripts\/refs\/heads\/master\/dist\/限行.scripting",
     "autoUpdateInterval" : 86400

@@ -3,7 +3,7 @@ import { Circle, HStack, Image, RoundedRectangle, Spacer, Text, VStack, Widget, 
 
 // 导入拆分出去的模块
 import { getCurrentTime, getShortLimitInfo } from './utils/base'
-import { getLimitNumbers } from './utils/service'
+import { getLimitNumbers, getWeeklyLimitNumbers } from './utils/service'
 
 // 开发测试配置 - 控制是否强制刷新城市信息
 // 设置为true可以清除城市缓存并重新获取
@@ -15,9 +15,10 @@ const FORCE_REFRESH_CITY = false;
 async function createWidget() {
   try {
     // 并行获取时间和限号信息，提高性能
-    const [currentTime, limitData] = await Promise.all([
+    const [currentTime, limitData, weeklyLimitData] = await Promise.all([
       Promise.resolve(getCurrentTime()),
-      getLimitNumbers({ forceRefreshCity: FORCE_REFRESH_CITY })
+      getLimitNumbers({ forceRefreshCity: FORCE_REFRESH_CITY }),
+      getWeeklyLimitNumbers({ forceRefreshCity: FORCE_REFRESH_CITY })
     ]);
 
     // 获取小组件类型
@@ -28,6 +29,9 @@ async function createWidget() {
     if (family === "accessoryCircular") {
       // 锁屏圆形小组件视图
       widgetView = createCircularWidgetView(limitData);
+    } else if (family === "accessoryRectangular") {
+      // 中号小组件视图
+      widgetView = createMediumWidgetView(weeklyLimitData, currentTime);
     } else {
       // 标准小组件视图 - Kindle墨水屏风格，优化布局
       // 特点：顶部左侧标题、右上角城市、右下角时间、中间突出显示限号信息
@@ -202,6 +206,77 @@ function createCircularWidgetView(limitData: any) {
         >
           {limitText}
         </Text>
+      </VStack>
+    </ZStack>
+  );
+}
+
+/**
+ * 创建中号小组件视图 - 显示一周的限行信息
+ */
+function createMediumWidgetView(weeklyLimitData: any, currentTime: string) {
+  const { city, weeklyLimitInfo } = weeklyLimitData;
+  
+  // 查找今天的索引
+  const today = weeklyLimitInfo.find((item: any) => item.isToday);
+  
+  return (
+    <ZStack>
+      {/* 模拟Kindle墨水屏的米白色背景 */}
+      <RoundedRectangle fill="#f5f5f5" cornerRadius={12} />
+      
+      {/* 主容器 */}
+      <VStack padding={12} spacing={6} frame={{ maxWidth: Infinity, maxHeight: Infinity }}>
+        {/* 顶部标题和城市 */}
+        <HStack spacing={8}>
+          <Text font="caption" foregroundStyle="#707070" fontWeight="bold">限号助手</Text>
+          <Spacer />
+          <Text font="caption" foregroundStyle="#909090">{city}</Text>
+        </HStack>
+        
+        {/* 今日限行信息 */}
+        <VStack padding={{ horizontal: 4 }}>
+          <Text font="caption2" foregroundStyle="#707070">
+            {today?.day}限行: {getShortLimitInfo(today?.limitInfo || '未找到')}
+          </Text>
+        </VStack>
+        
+        {/* 本周限行信息标题 */}
+        <Text font="caption2" foregroundStyle="#707070">
+          本周限行信息
+        </Text>
+        
+        {/* 周限行信息网格 */}
+        <HStack spacing={4} padding={{ horizontal: 4 }}>
+          {weeklyLimitInfo.map((item: any) => {
+            // 提取简短的限行信息
+            const shortLimitInfo = getShortLimitInfo(item.limitInfo);
+            
+            // 设置样式，今天的信息高亮显示
+            const textColor = item.isToday ? "#0000ff" : (item.dayIndex === 0 || item.dayIndex === 6 ? "#909090" : "#000000");
+            const fontWeight = item.isToday ? "bold" : "regular";
+            
+            return (
+              <VStack alignment="center" spacing={2} frame={{ maxWidth: Infinity }}>
+                <Text font="caption2" foregroundStyle={textColor} fontWeight={fontWeight}>
+                  {item.day}
+                </Text>
+                <Text font="caption2" foregroundStyle={textColor} fontWeight={fontWeight}>
+                  {shortLimitInfo}
+                </Text>
+              </VStack>
+            );
+          })}
+        </HStack>
+        
+        {/* 底部更新时间 */}
+        <Spacer />
+        <HStack>
+          <Spacer />
+          <Text font="caption2" foregroundStyle="#909090">
+            更新: {currentTime}
+          </Text>
+        </HStack>
       </VStack>
     </ZStack>
   );
