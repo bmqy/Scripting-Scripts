@@ -2,7 +2,7 @@
 
 import { getTodayDateKey } from './base'
 import { DEFAULT_CITY, getUserCity, WEEK_DAYS } from './city'
-import { CACHE_KEY_PREFIX, fetchLimitNumbersFromNetwork } from './network'
+import { CACHE_KEY_PREFIX, fetchLimitNumbersFromNetwork, fetchWeeklyLimitNumbersFromNetwork } from './network'
 
 /**
  * 获取一周的限行信息
@@ -37,6 +37,14 @@ export async function getWeeklyLimitNumbers(options?: { forceRefreshCity?: boole
       '周日': '不限行'
     };
     
+    // 首先尝试从网络获取完整的一周限行信息
+    let weeklyLimitInfoFromNetwork: Record<string, string> = {};
+    try {
+      weeklyLimitInfoFromNetwork = await fetchWeeklyLimitNumbersFromNetwork(city);
+    } catch (e) {
+      console.error('尝试获取一周限行信息失败:', e);
+    }
+    
     // 获取今天的实际限行信息，用于确定当前的限行轮换周期
     const todayLimitData = await getLimitNumbers({ forceRefreshCity });
     const todayLimitInfo = todayLimitData.limitInfo;
@@ -46,36 +54,49 @@ export async function getWeeklyLimitNumbers(options?: { forceRefreshCity?: boole
       // 根据星期几获取对应的限行信息
       let limitInfo = standardWeeklyRules[day] || '暂无信息';
       
-      // 对于今天，使用实际获取到的限行信息
-      // 明确的日期转换逻辑
-      let weekDayIndex: number;
-      if (todayIndex === 0) {  // 今天是周日
-        weekDayIndex = 6;  // 对应WEEK_DAYS[6] = '周日'
-      } else if (todayIndex === 1) {  // 今天是周一
-        weekDayIndex = 0;  // 对应WEEK_DAYS[0] = '周一'
-      } else if (todayIndex === 2) {  // 今天是周二
-        weekDayIndex = 1;  // 对应WEEK_DAYS[1] = '周二'
-      } else if (todayIndex === 3) {  // 今天是周三
-        weekDayIndex = 2;  // 对应WEEK_DAYS[2] = '周三'
-      } else if (todayIndex === 4) {  // 今天是周四
-        weekDayIndex = 3;  // 对应WEEK_DAYS[3] = '周四'
-      } else if (todayIndex === 5) {  // 今天是周五
-        weekDayIndex = 4;  // 对应WEEK_DAYS[4] = '周五'
-      } else {  // 今天是周六 (todayIndex === 6)
-        weekDayIndex = 5;  // 对应WEEK_DAYS[5] = '周六'
+      // 首先尝试使用从网络获取的一周限行信息
+      if (weeklyLimitInfoFromNetwork && weeklyLimitInfoFromNetwork[day]) {
+        limitInfo = weeklyLimitInfoFromNetwork[day];
       }
-      
-      if (index === weekDayIndex) {
-        limitInfo = todayLimitInfo;
+      // 如果没有从网络获取到一周限行信息，或者今天的信息应该使用实际获取的
+      else {
+        // 明确的日期转换逻辑
+        let weekDayIndex: number;
+        if (todayIndex === 0) {  // 今天是周日
+          weekDayIndex = 6;  // 对应WEEK_DAYS[6] = '周日'
+        } else if (todayIndex === 1) {  // 今天是周一
+          weekDayIndex = 0;  // 对应WEEK_DAYS[0] = '周一'
+        } else if (todayIndex === 2) {  // 今天是周二
+          weekDayIndex = 1;  // 对应WEEK_DAYS[1] = '周二'
+        } else if (todayIndex === 3) {  // 今天是周三
+          weekDayIndex = 2;  // 对应WEEK_DAYS[2] = '周三'
+        } else if (todayIndex === 4) {  // 今天是周四
+          weekDayIndex = 3;  // 对应WEEK_DAYS[3] = '周四'
+        } else if (todayIndex === 5) {  // 今天是周五
+          weekDayIndex = 4;  // 对应WEEK_DAYS[4] = '周五'
+        } else {  // 今天是周六 (todayIndex === 6)
+          weekDayIndex = 5;  // 对应WEEK_DAYS[5] = '周六'
+        }
+        
+        if (index === weekDayIndex) {
+          limitInfo = todayLimitInfo;
+        }
       }
       
       return {
-        day,
-        dayIndex: index,
-        limitInfo,
-        isToday: index === weekDayIndex
-      };
+          day,
+          dayIndex: index,
+          limitInfo,
+          isToday: index === weekDayIndex
+        };
     });
+    
+    // 输出最终确定的一周限行信息
+    console.log(`\n===== 最终确定的一周限行信息 =====`);
+    weeklyLimitInfo.forEach(item => {
+      console.log(`${item.day}${item.isToday ? ' (今天)' : ''}: ${item.limitInfo}`);
+    });
+    console.log(`================================`);
     
     return { city, weeklyLimitInfo };
 

@@ -412,3 +412,103 @@ export async function fetchLimitNumbersFromNetwork(city: string): Promise<string
     return `获取${city}限号信息失败: ${e instanceof Error ? e.message : '未知错误'}`;
   }
 }
+
+/**
+ * 从网络获取指定城市的一周限行信息 - 增强版
+ * @param city 城市名称
+ * @returns 一周限行信息对象
+ */
+export async function fetchWeeklyLimitNumbersFromNetwork(city: string): Promise<Record<string, string>> {
+  try {
+    console.log(`===== 开始从网络获取${city}一周限号信息 =====`);
+    
+    // 首先尝试获取当天的限号信息，这样可以重用现有的请求和内容处理逻辑
+    const searchUrl = buildSearchUrl(city);
+    let response = await fetch(searchUrl);
+    let text = await response.text();
+    
+    // 构建一周限行信息对象
+    const weeklyLimitInfo: Record<string, string> = {};
+    
+    // 特殊处理：北京的一周限行信息提取
+    if (city === '北京市' || city === '北京') {
+      console.log(`✓ 开始提取${city}一周限行信息`);
+      
+      // 提取北京特有的一周限行轮换规则格式
+      const weeklyPatterns = [
+        // 匹配 "星期一至星期五限行机动车车牌尾号分别为：4和9、5和0、1和6、2和7、3和8。" 格式
+        /星期一至星期五限行机动车车牌尾号分别为：([\d和、，,]+)。/g,
+        // 匹配 "周一至周五限行尾号：4和9、5和0、1和6、2和7、3和8" 格式
+        /周一至周五限行尾号：([\d和、，,]+)/g,
+        // 匹配 "尾号限行规则：周一 4和9，周二 5和0，周三 1和6，周四 2和7，周五 3和8" 格式
+        /尾号限行规则：([\d和、，,\s一二三四五]+)/g,
+        // 匹配 "周一限行尾号:4和9 周二限行尾号:5和0 周三限行尾号:1和6 周四限行尾号:2和7 周五限行尾号:3和8" 格式
+        /周一限行尾号[:：](\d+和\d+)\s*周二限行尾号[:：](\d+和\d+)\s*周三限行尾号[:：](\d+和\d+)\s*周四限行尾号[:：](\d+和\d+)\s*周五限行尾号[:：](\d+和\d+)/g
+      ];
+      
+      let hasFoundWeeklyPattern = false;
+      
+      for (const pattern of weeklyPatterns) {
+        const match = text.match(pattern);
+        if (match && match.length > 0) {
+          console.log(`✓ 检测到一周限行规则模式: ${match[0].substring(0, 50)}...`);
+          
+          // 提取具体的限行尾号信息
+          if (match.length >= 6) {
+            // 处理最后一种格式（有明确的分组）
+            weeklyLimitInfo['周一'] = match[1];
+            weeklyLimitInfo['周二'] = match[2];
+            weeklyLimitInfo['周三'] = match[3];
+            weeklyLimitInfo['周四'] = match[4];
+            weeklyLimitInfo['周五'] = match[5];
+          } else {
+            // 处理其他格式
+            const tailNumbersText = match[1];
+            // 分割限行尾号信息
+            const tailNumbersArray = tailNumbersText.split(/[、，,\s]+/).filter(item => item.includes('和'));
+            
+            if (tailNumbersArray.length >= 5) {
+              weeklyLimitInfo['周一'] = tailNumbersArray[0];
+              weeklyLimitInfo['周二'] = tailNumbersArray[1];
+              weeklyLimitInfo['周三'] = tailNumbersArray[2];
+              weeklyLimitInfo['周四'] = tailNumbersArray[3];
+              weeklyLimitInfo['周五'] = tailNumbersArray[4];
+            }
+          }
+          
+          hasFoundWeeklyPattern = Object.keys(weeklyLimitInfo).length >= 5;
+          if (hasFoundWeeklyPattern) {
+            break;
+          }
+        }
+      }
+      
+      // 如果找到了一周限行规则，设置周末不限行
+      if (hasFoundWeeklyPattern) {
+        weeklyLimitInfo['周六'] = '不限行';
+        weeklyLimitInfo['周日'] = '不限行';
+        
+        // 输出从百度结果中提取的本周每天限行信息
+        console.log(`\n===== 从百度结果提取的本周限行信息 =====`);
+        WEEK_DAYS.forEach(day => {
+          console.log(`${day}: ${weeklyLimitInfo[day] || '未找到'}`);
+        });
+        console.log(`==================================`);
+        
+        // 缓存一周限行信息
+        Storage.set<string>(`${CACHE_KEY_PREFIX}${city}_weekly_${new Date().toLocaleDateString()}`, JSON.stringify(weeklyLimitInfo));
+        console.log(`已缓存${city}一周限行信息`);
+      }
+    }
+    
+    // 如果没有提取到一周限行信息，返回空对象
+    if (Object.keys(weeklyLimitInfo).length === 0) {
+      console.log(`未从百度结果中提取到完整的一周限行信息`);
+    }
+    
+    return weeklyLimitInfo;
+  } catch (e) {
+    console.error(`获取${city}一周限号信息失败:`, e);
+    return {};
+  }
+}
