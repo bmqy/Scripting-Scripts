@@ -85,57 +85,16 @@ export async function fetchLimitNumbersFromNetwork(city: string): Promise<string
       }
     }
     
-    // 优化重定向和内容长度检查逻辑
-    // 只有在内容极短且包含重定向标记时才使用模拟数据
+    // 检查内容是否有效
     const isStillRedirect = 
       text.length < 1000 && 
       (text.includes('location.replace') || 
        text.includes('meta http-equiv="refresh"'));
         
     if (text.length < 100 || isStillRedirect) {
-      console.log('警告: 获取到的内容极短或仍然是重定向页面，使用内置模拟数据...');
-      // 内置的模拟数据，包含北京一周的限号信息
-
-      text = `
-<!DOCTYPE html>
-<html>
-<head><title>北京限号_百度搜索</title></head>
-<body>
-  <div class="result">
-    <div class="op_limited_content">
-      <div class="op_limited_num">4和9</div>
-      <div class="op_limited_time">07:00-20:00</div>
-      <div class="op_limited_desc">
-        <p>限行时间： 2025年06月30日至2025年09月28日，工作日07:00-20:00（节假日除外）</p>
-        <p>限行区域： 北京市: 五环路以内道路（不含五环路）</p>
-        <p>星期一至星期五限行机动车车牌尾号分别为：5和0、1和6、2和7、3和8、4和9。</p>
-      </div>
-    </div>
-  </div>
-  <div class="result">
-    <div class="c-container">
-      <div class="op_tpl_header">
-        <div class="op_tpl_logo"></div>
-        <div class="op_tpl_title">北京限行规则</div>
-        <div class="op_tpl_subtitle">切换城市</div>
-      </div>
-      <div class="op_tpl_content">
-        <div class="op_limited_today">
-          <div class="op_limited_tag">本地车</div>
-          <div class="op_limited_tag">外地车</div>
-          <div class="op_limited_today_title">今日限行尾号(周五)</div>
-          <div class="op_limited_today_time">07:00-20:00</div>
-          <div class="op_limited_today_num">4和9</div>
-        </div>
-      </div>
-    </div>
-  </div>
-  <div class="content">
-    <p>星期五 限行尾号:4和9 星期六 限行尾号:不限行</p>
-  </div>
-</body>
-</html>
-`;
+      console.log('警告: 获取到的内容极短或仍然是重定向页面');
+      // 不再使用内置模拟数据，直接返回获取失败
+      throw new Error('百度搜索结果无效或为重定向页面');
     }
     
     const todayIndex = new Date().getDay();
@@ -357,25 +316,11 @@ export async function fetchLimitNumbersFromNetwork(city: string): Promise<string
       }
     }
     
-    // 4. 如果以上方法都失败，尝试直接从模拟数据中获取
+    // 如果所有提取方法都失败，返回明确的失败信息
     if (limitNumbers === '未找到限号信息' || !limitNumbers) {
       console.log(`
-===== 所有提取方法失败，尝试使用内置数据推断 =====`);
-      
-      // 简单的尾号轮换规则推断
-      const weekPatterns = {
-        '周一': '5和0',
-        '周二': '1和6',
-        '周三': '2和7',
-        '周四': '3和8',
-        '周五': '4和9',
-      };
-      
-      if (todayWeekDay in weekPatterns) {
-        limitNumbers = weekPatterns[todayWeekDay as keyof typeof weekPatterns];
-        console.log(`✓ 使用尾号轮换规则推断: ${todayWeekDay}限行${limitNumbers}`);
-        console.log(`注：此结果基于标准尾号轮换规则，可能与实际政策有出入，请以官方发布为准`);
-      }
+===== 所有提取方法失败，无法从百度搜索结果中获取限号信息 =====`);
+      limitNumbers = '获取限号信息失败';
     }
     
     // 5. 最后尝试从response中提取时间信息
