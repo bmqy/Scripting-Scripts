@@ -255,26 +255,35 @@ export async function fetchLimitNumbersFromNetwork(city: string): Promise<string
       
       // 先尝试提取具体数字
       let hasFound = false;
-      for (const numberPattern of numberPatterns) {
-        const numberMatches = text.match(numberPattern);
-        if (numberMatches && numberMatches.length > 0) {
-          // 提取匹配中的数字部分
-          for (const match of numberMatches) {
-            // 过滤掉明显不是今日限行的结果
-            if (!(match.includes(`今日`) || match.includes(`today`) || match.includes(todayWeekDay))) {
-              continue;
+      
+      // 新增：先尝试从包含今日的完整句子中提取
+      const todayFullSentencePattern = new RegExp(`今日\s*${todayWeekDay}\s*(?:限行|限号)(?:尾号)?[:：]?\s*([\d和、]+)`);
+      const fullSentenceMatch = text.match(todayFullSentencePattern);
+      if (fullSentenceMatch && fullSentenceMatch.length > 1) {
+        limitNumbers = fullSentenceMatch[1].trim();
+        console.log(`✓ 从完整句子中提取限行数字: ${limitNumbers}`);
+        hasFound = true;
+      }
+      
+      // 尝试使用现有的数字提取模式
+      if (!hasFound) {
+        for (const numberPattern of numberPatterns) {
+          const numberMatches = text.match(numberPattern);
+          if (numberMatches && numberMatches.length > 0) {
+            // 提取匹配中的数字部分
+            for (const match of numberMatches) {
+              // 放宽条件：即使不包含今日，也尝试提取
+              // 从匹配中提取数字部分
+              const numberPart = match.replace(/[^\d和、]/g, '').trim();
+              if (numberPart && numberPart.length > 0 && numberPart.length <= 10) { // 限制长度防止提取过长文本
+                limitNumbers = numberPart;
+                console.log(`✓ 从匹配中提取限行数字: ${limitNumbers}`);
+                hasFound = true;
+                break;
+              }
             }
-            
-            // 从匹配中提取数字部分
-            const numberPart = match.replace(/[^\d和、]/g, '').trim();
-            if (numberPart && numberPart.length > 0) {
-              limitNumbers = numberPart;
-              console.log(`✓ 从匹配中提取限行数字: ${limitNumbers}`);
-              hasFound = true;
-              break;
-            }
+            if (hasFound) break;
           }
-          if (hasFound) break;
         }
       }
       
@@ -287,6 +296,23 @@ export async function fetchLimitNumbersFromNetwork(city: string): Promise<string
             console.log(`✓ 检测到单双号限行: ${limitNumbers}`);
             hasFound = true;
             break;
+          }
+        }
+      }
+      
+      // 新增：如果还是没找到，尝试从一周限行规则中提取当天的
+      if (!hasFound && (city === '北京' || city === '北京市')) {
+        console.log(`✓ 尝试从一周限行规则中提取${todayWeekDay}的限行信息`);
+        // 匹配一周限行规则格式
+        const weeklyPattern = /星期一至星期五限行机动车车牌尾号分别为：([\d和、，,]+)/;
+        const weeklyMatch = text.match(weeklyPattern);
+        if (weeklyMatch && weeklyMatch.length > 1) {
+          const weekNumbers = weeklyMatch[1].split(/[、，,\s]+/).filter(item => item.includes('和'));
+          if (weekNumbers.length >= 5 && todayIndex >= 1 && todayIndex <= 5) {
+            // 周一到周五对应索引0-4
+            limitNumbers = weekNumbers[todayIndex - 1];
+            console.log(`✓ 从一周规则中提取${todayWeekDay}限行数字: ${limitNumbers}`);
+            hasFound = true;
           }
         }
       }
@@ -388,7 +414,11 @@ export async function fetchWeeklyLimitNumbersFromNetwork(city: string): Promise<
         // 匹配 "尾号限行规则：周一 4和9，周二 5和0，周三 1和6，周四 2和7，周五 3和8" 格式
         /尾号限行规则：([\d和、，,\s一二三四五]+)/g,
         // 匹配 "周一限行尾号:4和9 周二限行尾号:5和0 周三限行尾号:1和6 周四限行尾号:2和7 周五限行尾号:3和8" 格式
-        /周一限行尾号[:：](\d+和\d+)\s*周二限行尾号[:：](\d+和\d+)\s*周三限行尾号[:：](\d+和\d+)\s*周四限行尾号[:：](\d+和\d+)\s*周五限行尾号[:：](\d+和\d+)/g
+        /周一限行尾号[:：](\d+和\d+)\s*周二限行尾号[:：](\d+和\d+)\s*周三限行尾号[:：](\d+和\d+)\s*周四限行尾号[:：](\d+和\d+)\s*周五限行尾号[:：](\d+和\d+)/g,
+        // 增强格式：匹配 "周一至周五限行机动车车牌尾号分别为：4和9、5和0、1和6、2和7、3和8（机动车车牌尾号为英文字母的按0号管理）" 格式
+        /星期一至星期五限行机动车车牌尾号分别为：([\d和、，,]+)（/g,
+        // 增强格式：匹配 "周一限行尾号:4和9,周二限行尾号:5和0,周三限行尾号:1和6,周四限行尾号:2和7,周五限行尾号:3和8" 格式
+        /周一限行尾号[:：](\d+和\d+)[,，]周二限行尾号[:：](\d+和\d+)[,，]周三限行尾号[:：](\d+和\d+)[,，]周四限行尾号[:：](\d+和\d+)[,，]周五限行尾号[:：](\d+和\d+)/g
       ];
       
       let hasFoundWeeklyPattern = false;
