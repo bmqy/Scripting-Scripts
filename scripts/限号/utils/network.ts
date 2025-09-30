@@ -276,7 +276,15 @@ export async function fetchLimitNumbersFromNetwork(city: string): Promise<string
       new RegExp(`今日\s*(不限行|不限)`),
       new RegExp(`${todayWeekDay}\s*(不限行|不限)`),
       new RegExp(`${city}\s*今日\s*(不限行|不限)`),
-      new RegExp(`明日限行尾号\(${WEEK_DAYS[(todayIndex + 1) % 7]}\)[：:]*\s*(不限行|不限)`)
+      new RegExp(`明日限行尾号\(${WEEK_DAYS[(todayIndex + 1) % 7]}\)[：:]*\s*(不限行|不限)`),
+      // 新增：针对节假日不限行的特殊检测模式
+      new RegExp(`${city}\s*${todayWeekDay}\s*不限行?`),
+      new RegExp(`${todayWeekDay}\s*[:：]?\s*不限行?`),
+      new RegExp(`${todayWeekDay}\s+不限`),
+      new RegExp(`本周${todayWeekDay}\s+不限行?`),
+      // 新增：特殊处理北京节假日不限行的情况
+      new RegExp(`(?:节假日|法定节假日)\s*除外`),
+      new RegExp(`(?:节假日|法定节假日)\s*不限行`)
     ];
     
     console.log(`
@@ -290,18 +298,25 @@ export async function fetchLimitNumbersFromNetwork(city: string): Promise<string
         limitNumbers = noLimitMatch[1].trim();
         console.log(`✓ 检测到${todayWeekDay}不限行信息: ${limitNumbers}`);
         break;
+      } else if (noLimitMatch && noLimitMatch.length === 1) {
+        // 处理没有捕获组的匹配，比如节假日除外的情况
+        console.log(`✓ 不限行模式${i+1}匹配成功（无捕获组）：${noLimitMatch[0].substring(0, 100)}...`);
+        limitNumbers = '不限行';
+        console.log(`✓ 检测到可能的${todayWeekDay}不限行信息: ${limitNumbers}`);
+        break;
       } else {
         console.log(`✗ 不限行模式${i+1}未匹配到任何内容`);
       }
     }
     
+    // 先尝试提取具体数字
+    let hasFound = false;
+    
     // 3. 如果百度特有格式没有成功提取，尝试使用通用的正则匹配提取
-    if (limitNumbers === '未找到限号信息' || !limitNumbers) {
+    // 但如果已经检测到不限行信息，则不再尝试其他提取方法
+    if ((limitNumbers === '未找到限号信息' || !limitNumbers) && limitNumbers !== '不限行') {
       console.log(`
 ===== 使用通用正则提取限号信息 =====`);
-      
-      // 先尝试提取具体数字
-      let hasFound = false;
       
       // 优先：从一周限行规则中提取当天的（对北京等有固定轮换规则的城市）
       if (city === '北京' || city === '北京市') {
@@ -354,14 +369,14 @@ export async function fetchLimitNumbersFromNetwork(city: string): Promise<string
             }
             
             // 分割限行尾号信息
-            const weekNumbers = weekNumbersText.split(/[、，,\s]+/).filter(item => item && (item.includes('和') || item.length >= 2));
+            const weekNumbers = weekNumbersText.split(/[、，,\s]+/).filter(item => item && (item.includes('和') || item.length >= 2 || item.includes('不限')));
             console.log(`✓ 分割后的一周限行信息：${JSON.stringify(weekNumbers)}`);
             
             if (weekNumbers.length >= 5 && todayIndex >= 1 && todayIndex <= 5) {
               // 周一到周五对应索引0-4
               limitNumbers = weekNumbers[todayIndex - 1];
-              // 确保是完整的"X和X"格式
-              if (limitNumbers.includes('和')) {
+              // 确保是完整的"X和X"格式或"不限行"格式
+              if (limitNumbers.includes('和') || limitNumbers.includes('不限')) {
                 console.log(`✓ 从一周规则中提取${todayWeekDay}限行数字: ${limitNumbers}`);
                 hasFound = true;
                 break;
