@@ -107,8 +107,26 @@ export async function fetchLimitNumbersFromNetwork(city: string): Promise<string
       throw new Error('百度搜索结果无效或为重定向页面');
     }
     
-    const todayIndex = new Date().getDay();
-    const todayWeekDay = WEEK_DAYS[todayIndex];
+    // 获取当前日期对象
+    const currentDate = new Date();
+    const todayIndex = currentDate.getDay(); // 0-6, 0表示星期日
+    
+    // 映射Date.getDay()的结果到WEEK_DAYS数组的索引
+    // Date.getDay(): 0=星期日, 1=星期一, ..., 6=星期六
+    // WEEK_DAYS数组索引: 0=周一, 1=周二, ..., 6=周日
+    let weekDayIndex;
+    if (todayIndex === 0) { // 星期日
+      weekDayIndex = 6;
+    } else if (todayIndex === 6) { // 星期六
+      weekDayIndex = 5;
+    } else { // 周一到周五
+      weekDayIndex = todayIndex - 1;
+    }
+    
+    const todayWeekDay = WEEK_DAYS[weekDayIndex];
+    
+    // 获取格式化的日期字符串
+    const formattedDate = currentDate.toLocaleDateString();
     
     let limitNumbers = '未找到限号信息';
     let timeInfo = '';
@@ -186,7 +204,7 @@ export async function fetchLimitNumbersFromNetwork(city: string): Promise<string
     console.log(`根据网络搜索结果，中国大部分城市在正常情况下周末不限行，但部分城市在特定时期可能会临时调整政策`);
     console.log(`注：实际限行政策可能会根据当地交通状况和环境治理需要进行调整，请以官方发布为准`);
     console.log(`搜索城市: ${city}`);
-    console.log(`搜索日期: ${new Date().toLocaleDateString()}, 星期${todayWeekDay}`);
+    console.log(`搜索日期: ${formattedDate}, 星期${todayWeekDay}`);
     
     // 特殊处理：周末限行规则
     // 根据网络搜索结果分析，中国大部分城市在正常情况下周末不限行

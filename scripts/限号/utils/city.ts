@@ -63,16 +63,37 @@ export async function getUserCity(options?: { forceRefresh?: boolean }) {
   try {
     const { forceRefresh = false } = options || {};
     
+    // 检查是否有临时缓存（用于处理获取位置信息超时的情况）
+    const tempCityKey = 'tempUserCity';
+    const tempCityTimestampKey = 'tempUserCityTimestamp';
+    const cachedTempCity = Storage.get(tempCityKey);
+    const cachedTempCityTimestamp = Storage.get(tempCityTimestampKey);
+    
+    // 如果有临时缓存且未过期（30秒内），并且不是强制刷新，则使用临时缓存
+    if (!forceRefresh && cachedTempCity && cachedTempCityTimestamp) {
+      const now = Date.now();
+      const tempCacheAge = now - parseInt(cachedTempCityTimestamp, 10);
+      if (tempCacheAge < 30000) { // 30秒内
+        console.log('从临时缓存获取城市信息:', cachedTempCity);
+        return cachedTempCity;
+      }
+    }
+    
     // 如果不强制刷新，尝试从缓存获取城市信息
     if (!forceRefresh) {
       const cachedCity = Storage.get('userCity');
       if (cachedCity) {
         console.log('从缓存获取城市信息:', cachedCity);
+        // 清除临时缓存，因为我们有了正式的缓存
+        Storage.remove(tempCityKey);
+        Storage.remove(tempCityTimestampKey);
         return cachedCity;
       }
     } else {
       // 强制刷新时，清除缓存
       Storage.remove('userCity');
+      Storage.remove(tempCityKey);
+      Storage.remove(tempCityTimestampKey);
       console.log('清除城市缓存，强制重新获取');
     }
 
@@ -130,6 +151,10 @@ export async function getUserCity(options?: { forceRefresh?: boolean }) {
     }
     
     console.log('无法获取城市信息，使用默认城市:', DEFAULT_CITY);
+      
+      // 设置临时缓存，避免短时间内重复尝试获取位置信息
+      Storage.set(tempCityKey, DEFAULT_CITY);
+      Storage.set(tempCityTimestampKey, Date.now().toString());
       
       // 如果默认城市为空，发送通知提示用户
       if (!DEFAULT_CITY) {
