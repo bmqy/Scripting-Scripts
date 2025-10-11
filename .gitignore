@@ -45,3 +45,4 @@ tsconfig.json
 # Build cache and temp files
 .build-cache.json
 .temp
+test*

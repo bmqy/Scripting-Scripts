@@ -2,7 +2,7 @@
 
 import { getTodayDateKey } from './base'
 import { DEFAULT_CITY, getUserCity, WEEK_DAYS } from './city'
-import { CACHE_KEY_PREFIX, fetchLimitNumbersFromNetwork, fetchWeeklyLimitNumbersFromNetwork } from './network'
+import { CACHE_KEY_PREFIX, fetchLimitNumbersFromNetwork, fetchWeeklyLimitNumbersFromNetwork, CacheData } from './network'
 
 /**
  * 获取一周的限行信息
@@ -25,7 +25,22 @@ export async function getWeeklyLimitNumbers(options?: { forceRefreshCity?: boole
     const today = new Date();
     const todayIndex = today.getDay();
     
-    // 必须从网络获取完整的一周限行信息
+    // 首先尝试从缓存获取一周限行信息
+    const cacheKey = `${CACHE_KEY_PREFIX}${city}`;
+    const cachedData: CacheData | null = Storage.get<CacheData>(cacheKey);
+    
+    // 定义一周限行信息对象
+    let weeklyLimitInfoFromCache: Record<string, string> = {};
+    let todayLimitInfoFromCache = '';
+    
+    // 如果缓存存在且日期匹配，使用缓存数据
+    if (cachedData && cachedData.date === getTodayDateKey()) {
+      console.log(`从缓存获取${city}一周限行信息`);
+      weeklyLimitInfoFromCache = cachedData.weeklyData || {};
+      todayLimitInfoFromCache = cachedData.todayData || '';
+    }
+    
+    // 从网络获取一周限行信息（作为备用）
     let weeklyLimitInfoFromNetwork: Record<string, string> = {};
     try {
       weeklyLimitInfoFromNetwork = await fetchWeeklyLimitNumbersFromNetwork(city);
@@ -60,9 +75,18 @@ export async function getWeeklyLimitNumbers(options?: { forceRefreshCity?: boole
       // 如果是今天，使用实际获取的限行信息
       let limitInfo = '暂无信息';
       if (index === weekDayIndex) {
-        limitInfo = todayLimitInfo;
+        // 如果有缓存的当天数据且不为空，优先使用
+        if (todayLimitInfoFromCache && todayLimitInfoFromCache !== '暂无信息') {
+          limitInfo = todayLimitInfoFromCache;
+        } else {
+          limitInfo = todayLimitInfo;
+        }
       }
-      // 否则，使用从网络获取的一周限行信息
+      // 否则，优先使用缓存中的一周限行信息
+      else if (weeklyLimitInfoFromCache && weeklyLimitInfoFromCache[day]) {
+        limitInfo = weeklyLimitInfoFromCache[day];
+      }
+      // 最后，使用从网络获取的一周限行信息
       else if (weeklyLimitInfoFromNetwork && weeklyLimitInfoFromNetwork[day]) {
         limitInfo = weeklyLimitInfoFromNetwork[day];
       }
@@ -129,22 +153,39 @@ export async function getLimitNumbers(options?: { forceRefreshCity?: boolean }):
   try {
     const { forceRefreshCity = false } = options || {};
     const city = await getUserCity({ forceRefresh: forceRefreshCity });
-    const cacheKey = `${CACHE_KEY_PREFIX}${city}_${getTodayDateKey()}`;
+    const cacheKey = `${CACHE_KEY_PREFIX}${city}`;
+    const todayDateKey = getTodayDateKey();
     
     // 尝试从缓存获取限号信息
-    const cachedLimitInfo = Storage.get<string>(cacheKey);
-    if (cachedLimitInfo) {
+    const cachedData: CacheData | null = Storage.get<CacheData>(cacheKey);
+    if (cachedData && cachedData.date === todayDateKey && cachedData.todayData) {
       console.log(`从缓存获取${city}限号信息`);
-      return { city, limitInfo: cachedLimitInfo };
+      return { city, limitInfo: cachedData.todayData };
     }
     
-    // 缓存不存在，必须从网络获取限号信息
+    // 缓存不存在或已过期，从网络获取限号信息
     console.log(`===== 每天第一次获取：从百度搜索结果获取${city}限号信息 =====`);
     const limitInfo = await fetchLimitNumbersFromNetwork(city);
     
     // 保存到缓存
     if (limitInfo && limitInfo !== '获取限号信息失败') {
-      Storage.set(cacheKey, limitInfo);
+      // 如果已有缓存且日期相同，保留原有weeklyData
+      if (cachedData && cachedData.date === todayDateKey) {
+        const updatedCacheData: CacheData = {
+          date: todayDateKey,
+          todayData: limitInfo,
+          weeklyData: cachedData.weeklyData || {}
+        };
+        Storage.set(cacheKey, updatedCacheData);
+      } else {
+        // 新建或更新缓存
+        const newCacheData: CacheData = {
+          date: todayDateKey,
+          todayData: limitInfo,
+          weeklyData: {}
+        };
+        Storage.set(cacheKey, newCacheData);
+      }
       console.log(`已缓存${city}当天限号信息`);
     }
     

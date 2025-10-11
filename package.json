@@ -19,6 +19,11 @@
   "author": "bmqy",
   "license": "MIT",
   "devDependencies": {
+    "@types/node": "^24.6.0",
+    "ts-node": "^10.9.2",
     "typescript": "^5.9.2"
+  },
+  "dependencies": {
+    "node-fetch": "^3.3.2"
   }
 }

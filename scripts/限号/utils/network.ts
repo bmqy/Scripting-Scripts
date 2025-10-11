@@ -8,6 +8,16 @@ import { CITY_WEEKEND_RULES, WEEK_DAYS } from './city'
 export const CACHE_KEY_PREFIX = 'limitNumbers_';
 
 /**
+ * 缓存数据结构
+ */
+export interface CacheData {
+  today: string;          // 当天限号信息
+  weekly: Record<string, string>; // 一周限号信息
+  timestamp: number;      // 缓存时间戳
+  date: string;           // 缓存日期（YYYY-MM-DD格式）
+}
+
+/**
  * 构建搜索URL - 优化版（使用更可靠的搜索URL格式）
  * @param city 城市名称
  * @returns 搜索URL
@@ -301,9 +311,16 @@ export async function fetchLimitNumbersFromNetwork(city: string): Promise<string
       } else if (noLimitMatch && noLimitMatch.length === 1) {
         // 处理没有捕获组的匹配，比如节假日除外的情况
         console.log(`✓ 不限行模式${i+1}匹配成功（无捕获组）：${noLimitMatch[0].substring(0, 100)}...`);
-        limitNumbers = '不限行';
-        console.log(`✓ 检测到可能的${todayWeekDay}不限行信息: ${limitNumbers}`);
-        break;
+        
+        // 特殊处理：如果匹配到'节假日除外'或'法定节假日除外'，不要直接判定为不限行
+        if (noLimitMatch[0].includes('节假日除外') || noLimitMatch[0].includes('法定节假日除外')) {
+            console.log(`⚠️ 检测到'节假日除外'规则，不直接判定为不限行，继续尝试其他提取方法`);
+            continue; // 继续尝试其他模式
+        } else {
+            limitNumbers = '不限行';
+            console.log(`✓ 检测到${todayWeekDay}不限行信息: ${limitNumbers}`);
+            break;
+        }
       } else {
         console.log(`✗ 不限行模式${i+1}未匹配到任何内容`);
       }
@@ -549,8 +566,58 @@ export async function fetchLimitNumbersFromNetwork(city: string): Promise<string
       finalResult = `${limitNumbers} (${timeInfo})`;
     }
     
-    // 缓存结果
-    Storage.set<string>(`${CACHE_KEY_PREFIX}${city}_${new Date().toLocaleDateString()}`, finalResult);
+    // 缓存结果 - 优化版
+    // 获取现有缓存
+    let cacheData: CacheData | null = null;
+    const cacheKey = `${CACHE_KEY_PREFIX}${city}`;
+    const cachedValue = Storage.get<string>(cacheKey);
+    
+    if (cachedValue) {
+      try {
+        cacheData = JSON.parse(cachedValue);
+        // 验证缓存日期是否有效（是否是今天）
+        const todayDate = new Date().toISOString().split('T')[0];
+        if (cacheData.date !== todayDate) {
+          // 不是今天的数据，重置缓存
+          cacheData = null;
+        }
+      } catch (e) {
+        console.error('解析缓存数据失败:', e);
+        cacheData = null;
+      }
+    }
+    
+    // 如果没有有效缓存或需要更新缓存
+    if (!cacheData) {
+      // 初始化新的缓存数据
+      cacheData = {
+        today: finalResult,
+        weekly: {},
+        timestamp: Date.now(),
+        date: new Date().toISOString().split('T')[0]
+      };
+      
+      // 尝试获取一周限行信息（如果之前没有获取过）
+      try {
+        const weeklyInfo = await fetchWeeklyLimitNumbersFromNetwork(city);
+        if (Object.keys(weeklyInfo).length > 0) {
+          cacheData.weekly = weeklyInfo;
+        }
+      } catch (e) {
+        console.error('获取一周限行信息失败，将在下次请求时重试:', e);
+      }
+      
+      // 保存到缓存
+      Storage.set<string>(cacheKey, JSON.stringify(cacheData));
+      console.log(`已缓存${city}限号信息（当天和一周数据）`);
+    } else {
+      // 更新现有缓存中的当天数据
+      cacheData.today = finalResult;
+      cacheData.timestamp = Date.now();
+      Storage.set<string>(cacheKey, JSON.stringify(cacheData));
+      console.log(`已更新${city}缓存中的当天限号信息`);
+    }
+    
     console.log(`最终提取结果: ${finalResult}`);
     
     return finalResult;
@@ -646,9 +713,35 @@ export async function fetchWeeklyLimitNumbersFromNetwork(city: string): Promise<
         });
         console.log(`==================================`);
         
-        // 缓存一周限行信息
-        Storage.set<string>(`${CACHE_KEY_PREFIX}${city}_weekly_${new Date().toLocaleDateString()}`, JSON.stringify(weeklyLimitInfo));
-        console.log(`已缓存${city}一周限行信息`);
+        // 更新缓存中的一周限行信息
+        const cacheKey = `${CACHE_KEY_PREFIX}${city}`;
+        const cachedValue = Storage.get<string>(cacheKey);
+        let cacheData: CacheData | null = null;
+        
+        if (cachedValue) {
+          try {
+            cacheData = JSON.parse(cachedValue);
+          } catch (e) {
+            console.error('解析缓存数据失败:', e);
+          }
+        }
+        
+        if (!cacheData) {
+          // 创建新缓存
+          cacheData = {
+            today: '未找到限号信息',
+            weekly: weeklyLimitInfo,
+            timestamp: Date.now(),
+            date: new Date().toISOString().split('T')[0]
+          };
+        } else {
+          // 更新现有缓存
+          cacheData.weekly = weeklyLimitInfo;
+          cacheData.timestamp = Date.now();
+        }
+        
+        Storage.set<string>(cacheKey, JSON.stringify(cacheData));
+        console.log(`已更新${city}缓存中的一周限行信息`);
       }
     }
     
