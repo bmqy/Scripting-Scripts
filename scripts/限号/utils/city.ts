@@ -123,7 +123,7 @@ export async function getUserCity(options?: { forceRefresh?: boolean }) {
             return null;
           }
         })(), 
-        5000, // 5秒超时
+        30000, // 30秒超时
         null
       );
       
