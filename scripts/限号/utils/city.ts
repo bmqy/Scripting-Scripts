@@ -79,22 +79,33 @@ export async function getUserCity(options?: { forceRefresh?: boolean }) {
       }
     }
     
-    // 如果不强制刷新，尝试从缓存获取城市信息
-    if (!forceRefresh) {
-      const cachedCity = Storage.get('userCity');
-      if (cachedCity) {
-        console.log('从缓存获取城市信息:', cachedCity);
-        // 清除临时缓存，因为我们有了正式的缓存
-        Storage.remove(tempCityKey);
-        Storage.remove(tempCityTimestampKey);
-        return cachedCity;
-      }
-    } else {
-      // 强制刷新时，清除缓存
-      Storage.remove('userCity');
+    // 检查是否需要每天重新获取一次
+    const cityCacheDateKey = 'userCityCacheDate';
+    const cachedCity = Storage.get('userCity');
+    const cachedDate = Storage.get(cityCacheDateKey);
+    const today = new Date().toDateString(); // 获取当前日期的字符串表示（不含时间）
+    
+    // 如果不是强制刷新，并且缓存存在且日期是今天，则直接返回缓存的城市
+    if (!forceRefresh && cachedCity && cachedDate && cachedDate === today) {
+      console.log('从缓存获取城市信息（今日已更新）:', cachedCity);
+      // 清除临时缓存，因为我们有了正式的缓存
       Storage.remove(tempCityKey);
       Storage.remove(tempCityTimestampKey);
+      return cachedCity;
+    }
+    
+    // 强制刷新或缓存已过期（不是今天的），清除相关缓存
+    Storage.remove('userCity');
+    Storage.remove(cityCacheDateKey);
+    Storage.remove(tempCityKey);
+    Storage.remove(tempCityTimestampKey);
+    
+    if (forceRefresh) {
       console.log('清除城市缓存，强制重新获取');
+    } else if (cachedCity && cachedDate !== today) {
+      console.log('城市缓存已过期（日期不匹配），重新获取');
+    } else {
+      console.log('首次运行或无有效缓存，尝试获取位置信息');
     }
 
     try {
@@ -140,8 +151,9 @@ export async function getUserCity(options?: { forceRefresh?: boolean }) {
           
           if (city) {
             console.log('提取到城市:', city);
-            // 缓存城市信息
+            // 缓存城市信息和当前日期
             Storage.set('userCity', city);
+            Storage.set('userCityCacheDate', new Date().toDateString());
             return city;
           }
         }
