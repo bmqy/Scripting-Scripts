@@ -666,55 +666,116 @@ export async function fetchWeeklyLimitNumbersFromNetwork(city: string): Promise<
     if (city === '北京市' || city === '北京') {
       console.log(`✓ 开始提取${city}一周限行信息`);
       
-      // 提取北京特有的一周限行轮换规则格式
-      const weeklyPatterns = [
-        // 匹配 "星期一至星期五限行机动车车牌尾号分别为：4和9、5和0、1和6、2和7、3和8。" 格式
-        /星期一至星期五限行机动车车牌尾号分别为：([\d和、，,]+)。/g,
-        // 匹配 "周一至周五限行尾号：4和9、5和0、1和6、2和7、3和8" 格式
-        /周一至周五限行尾号：([\d和、，,]+)/g,
-        // 匹配 "尾号限行规则：周一 4和9，周二 5和0，周三 1和6，周四 2和7，周五 3和8" 格式
-        /尾号限行规则：([\d和、，,\s一二三四五]+)/g,
-        // 匹配 "周一限行尾号:4和9 周二限行尾号:5和0 周三限行尾号:1和6 周四限行尾号:2和7 周五限行尾号:3和8" 格式
-        /周一限行尾号[:：](\d+和\d+)\s*周二限行尾号[:：](\d+和\d+)\s*周三限行尾号[:：](\d+和\d+)\s*周四限行尾号[:：](\d+和\d+)\s*周五限行尾号[:：](\d+和\d+)/g,
-        // 增强格式：匹配 "周一至周五限行机动车车牌尾号分别为：4和9、5和0、1和6、2和7、3和8（机动车车牌尾号为英文字母的按0号管理）" 格式
-        /星期一至星期五限行机动车车牌尾号分别为：([\d和、，,]+)（/g,
-        // 增强格式：匹配 "周一限行尾号:4和9,周二限行尾号:5和0,周三限行尾号:1和6,周四限行尾号:2和7,周五限行尾号:3和8" 格式
-        /周一限行尾号[:：](\d+和\d+)[,，]周二限行尾号[:：](\d+和\d+)[,，]周三限行尾号[:：](\d+和\d+)[,，]周四限行尾号[:：](\d+和\d+)[,，]周五限行尾号[:：](\d+和\d+)/g
-      ];
-      
       let hasFoundWeeklyPattern = false;
       
-      for (const pattern of weeklyPatterns) {
-        const match = text.match(pattern);
-        if (match && match.length > 0) {
-          console.log(`✓ 检测到一周限行规则模式: ${match[0].substring(0, 50)}...`);
+      // 方法1：首先尝试使用简单直接的方法从文本中提取
+      try {
+        const startIndex = text.indexOf('分别为：');
+        if (startIndex > -1) {
+          // 从"分别为："后面开始提取
+          let tailInfo = text.substring(startIndex + 4);
           
-          // 提取具体的限行尾号信息
-          if (match.length >= 6) {
-            // 处理最后一种格式（有明确的分组）
-            weeklyLimitInfo['周一'] = match[1];
-            weeklyLimitInfo['周二'] = match[2];
-            weeklyLimitInfo['周三'] = match[3];
-            weeklyLimitInfo['周四'] = match[4];
-            weeklyLimitInfo['周五'] = match[5];
-          } else {
-            // 处理其他格式
-            const tailNumbersText = match[1];
-            // 分割限行尾号信息
-            const tailNumbersArray = tailNumbersText.split(/[、，,\s]+/).filter(item => item.includes('和'));
-            
-            if (tailNumbersArray.length >= 5) {
-              weeklyLimitInfo['周一'] = tailNumbersArray[0];
-              weeklyLimitInfo['周二'] = tailNumbersArray[1];
-              weeklyLimitInfo['周三'] = tailNumbersArray[2];
-              weeklyLimitInfo['周四'] = tailNumbersArray[3];
-              weeklyLimitInfo['周五'] = tailNumbersArray[4];
-            }
+          // 更精确地找到中文左括号作为结束
+          const endIndex = tailInfo.indexOf('（'); // 中文左括号
+          if (endIndex > 0) {
+            tailInfo = tailInfo.substring(0, endIndex);
           }
           
-          hasFoundWeeklyPattern = Object.keys(weeklyLimitInfo).length >= 5;
-          if (hasFoundWeeklyPattern) {
-            break;
+          // 分割成每天的限行信息
+          const dailyLimits = tailInfo.split(/、/).map(limit => {
+            // 清理每个尾号对，确保不包含任何括号或其他特殊字符
+            let cleanLimit = limit.trim();
+            // 检查是否包含括号
+            const bracketIndex = cleanLimit.indexOf('(');
+            if (bracketIndex > 0) {
+              cleanLimit = cleanLimit.substring(0, bracketIndex).trim();
+            }
+            return cleanLimit;
+          });
+          
+          // 映射到对应的星期
+          if (dailyLimits.length >= 5) {
+            weeklyLimitInfo['周一'] = dailyLimits[0];
+            weeklyLimitInfo['周二'] = dailyLimits[1];
+            weeklyLimitInfo['周三'] = dailyLimits[2];
+            weeklyLimitInfo['周四'] = dailyLimits[3];
+            weeklyLimitInfo['周五'] = dailyLimits[4];
+            hasFoundWeeklyPattern = true;
+          }
+        }
+      } catch (e) {
+        console.log('直接提取法失败，尝试使用正则表达式方法');
+      }
+      
+      // 如果方法1失败，尝试使用正则表达式方法
+      if (!hasFoundWeeklyPattern) {
+        // 提取北京特有的一周限行轮换规则格式
+        const weeklyPatterns = [
+          // 匹配 "星期一至星期五限行机动车车牌尾号分别为：4和9、5和0、1和6、2和7、3和8" 格式（改进版）
+          /星期一至星期五限行机动车车牌尾号分别为：([\d和、，,]+)(?:[。）]|$)/g,
+          // 匹配 "周一至周五限行尾号：4和9、5和0、1和6、2和7、3和8" 格式
+          /周一至周五限行尾号：([\d和、，,]+)/g,
+          // 匹配 "尾号限行规则：周一 4和9，周二 5和0，周三 1和6，周四 2和7，周五 3和8" 格式
+          /尾号限行规则：([\d和、，,\s一二三四五]+)/g,
+          // 匹配 "周一限行尾号:4和9 周二限行尾号:5和0 周三限行尾号:1和6 周四限行尾号:2和7 周五限行尾号:3和8" 格式
+          /周一限行尾号[:：](\d+和\d+)\s*周二限行尾号[:：](\d+和\d+)\s*周三限行尾号[:：](\d+和\d+)\s*周四限行尾号[:：](\d+和\d+)\s*周五限行尾号[:：](\d+和\d+)/g,
+          // 增强格式：匹配 "周一至星期五限行机动车车牌尾号分别为：4和9、5和0、1和6、2和7、3和8（机动车车牌尾号为英文字母的按0号管理）" 格式
+          /星期一至星期五限行机动车车牌尾号分别为：([\d和、，,]+)（/g,
+          // 增强格式：匹配 "周一限行尾号:4和9,周二限行尾号:5和0,周三限行尾号:1和6,周四限行尾号:2和7,周五限行尾号:3和8" 格式
+          /周一限行尾号[:：](\d+和\d+)[,，]周二限行尾号[:：](\d+和\d+)[,，]周三限行尾号[:：](\d+和\d+)[,，]周四限行尾号[:：](\d+和\d+)[,，]周五限行尾号[:：](\d+和\d+)/g
+        ];
+        
+        for (const pattern of weeklyPatterns) {
+          const match = text.match(pattern);
+          if (match && match.length > 0) {
+            console.log(`✓ 检测到一周限行规则模式: ${match[0].substring(0, 50)}...`);
+            
+            // 提取具体的限行尾号信息
+            if (match.length >= 6) {
+              // 处理有明确分组的格式
+              weeklyLimitInfo['周一'] = match[1];
+              weeklyLimitInfo['周二'] = match[2];
+              weeklyLimitInfo['周三'] = match[3];
+              weeklyLimitInfo['周四'] = match[4];
+              weeklyLimitInfo['周五'] = match[5];
+            } else {
+              // 处理其他格式
+              const tailNumbersText = match[1].replace(/[。，,)（]/g, '').trim();
+              // 特殊处理：如果文本中包含完整的一周描述
+              if (tailNumbersText.includes('周一') || tailNumbersText.includes('星期二')) {
+                // 尝试直接提取每个工作日的限行信息
+                const weekdayPatterns = {
+                  '周一': /周一[:：]?\s*([\d和]+)/,
+                  '周二': /周二[:：]?\s*([\d和]+)/,
+                  '周三': /周三[:：]?\s*([\d和]+)/,
+                  '周四': /周四[:：]?\s*([\d和]+)/,
+                  '周五': /周五[:：]?\s*([\d和]+)/
+                };
+                
+                for (const [day, pattern] of Object.entries(weekdayPatterns)) {
+                  const dayMatch = tailNumbersText.match(pattern);
+                  if (dayMatch && dayMatch.length > 1) {
+                    weeklyLimitInfo[day] = dayMatch[1].trim();
+                  }
+                }
+              } else {
+                // 标准的逗号/顿号分隔格式
+                const tailNumbersArray = tailNumbersText.split(/[、，,\s]+/).filter(item => item && (item.includes('和') || item.length >= 2));
+                
+                if (tailNumbersArray.length >= 5) {
+                  weeklyLimitInfo['周一'] = tailNumbersArray[0];
+                  weeklyLimitInfo['周二'] = tailNumbersArray[1];
+                  weeklyLimitInfo['周三'] = tailNumbersArray[2];
+                  weeklyLimitInfo['周四'] = tailNumbersArray[3];
+                  weeklyLimitInfo['周五'] = tailNumbersArray[4];
+                }
+              }
+            }
+            
+            hasFoundWeeklyPattern = Object.keys(weeklyLimitInfo).length >= 5;
+            if (hasFoundWeeklyPattern) {
+              break;
+            }
           }
         }
       }
