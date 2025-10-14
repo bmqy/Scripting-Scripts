@@ -1,0 +1,30 @@
+{
+  "localizedDescriptions" : null,
+  "name" : "限号",
+  "author" : {
+    "name" : "bmqy",
+    "email" : "notice@bmqy.net",
+    "homepage" : "https:\/\/bmqy.net"
+  },
+  "color" : "rgba(28, 140, 255,1)",
+  "contributors" : [
+
+  ],
+  "runInApp" : false,
+  "description" : "获取当前城市的限行信息",
+  "version" : "1.0.0",
+  "intentInputTypes" : [
+
+  ],
+  "icon" : "car.fill",
+  "supportedFamilies" : [
+    "accessoryRectangular",
+    "accessoryCircular",
+    "accessoryMedium"
+  ],
+  "remoteResource" : {
+    "url" : "https:\/\/raw.githubusercontent.com\/bmqy\/Scripting-Scripts\/refs\/heads\/master\/dist\/限行.scripting",
+    "autoUpdateInterval" : 86400
+  },
+  "localizedNames" : null
+}

@@ -1,0 +1,15 @@
+{
+  "name": "Scripting-Scripts",
+  "version": "1.0.0",
+  "description": "Scripting App脚本集合",
+  "author": "",
+  "scriptsDir": "scripts",
+  "dependencies": {},
+  "settings": {
+    "typeScript": {
+      "enabled": true,
+      "configPath": "tsconfig.json"
+    },
+    "jsxRuntime": "jsx-runtime.ts"
+  }
+}

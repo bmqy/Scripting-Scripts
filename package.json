@@ -1,0 +1,29 @@
+{
+  "name": "beijing-traffic-restriction-widget",
+  "version": "1.0.0",
+  "description": "北京限行小组件 - Scripting App小组件，用于显示北京当天的机动车限行尾号信息",
+  "type": "module",
+  "scripts": {
+    "dev": "npx scripting-cli start",
+    "dev:bonjour": "npx scripting-cli start --bonjour",
+    "dev:port": "npx scripting-cli start --port=4000",
+    "build": "node build.cjs"
+  },
+  "keywords": [
+    "scripting-app",
+    "ios",
+    "widget",
+    "traffic",
+    "限行"
+  ],
+  "author": "bmqy",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^24.6.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.2"
+  },
+  "dependencies": {
+    "node-fetch": "^3.3.2"
+  }
+}
