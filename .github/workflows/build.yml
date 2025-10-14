@@ -2,9 +2,9 @@ name: Build and Commit Scripting App
 
 on:
   push:
-    branches: [ master ]
+    branches: [ main ]
   pull_request:
-    branches: [ master ]
+    branches: [ main ]
   workflow_dispatch:
 
 jobs:
@@ -38,7 +38,7 @@ jobs:
           git add dist/
           git diff --cached --quiet --exit-code || (
             git commit -m "Auto-update: Build scripts at $(Get-Date -Format o)" &&
-            git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git HEAD:master
+            git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git HEAD:main
           )
         shell: pwsh
       

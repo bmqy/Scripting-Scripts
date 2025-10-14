@@ -23,7 +23,7 @@
     "accessoryMedium"
   ],
   "remoteResource" : {
-    "url" : "https:\/\/raw.githubusercontent.com\/bmqy\/Scripting-Scripts\/refs\/heads\/master\/dist\/限行.scripting",
+    "url" : "https:\/\/raw.githubusercontent.com\/bmqy\/Scripting-Scripts\/refs\/heads\/main\/dist\/限行.scripting",
     "autoUpdateInterval" : 86400
   },
   "localizedNames" : null
