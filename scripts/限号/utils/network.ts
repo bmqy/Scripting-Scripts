@@ -671,7 +671,7 @@ export async function fetchLimitNumbersFromNetwork(city: string): Promise<{today
     
     // 返回包含当天和一周限行信息的对象
     return {
-      todayData: finalResult,
+      todayData: newCacheData.todayData, // 返回更新后的数据，确保与缓存一致
       weeklyData: newCacheData.weeklyData
     };
   } catch (e) {
