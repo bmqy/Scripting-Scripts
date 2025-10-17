@@ -63,23 +63,17 @@ export async function getWeeklyLimitNumbers(options?: { forceRefreshCity?: boole
     
     // 初始化一周的限行信息数组
     const weeklyLimitInfo = WEEK_DAYS.map((day, index) => {
-      // 明确的日期转换逻辑
-      let weekDayIndex: number;
-      if (todayIndex === 0) {  // 今天是周日
-        weekDayIndex = 6;  // 对应WEEK_DAYS[6] = '周日'
-      } else if (todayIndex === 1) {  // 今天是周一
-        weekDayIndex = 0;  // 对应WEEK_DAYS[0] = '周一'
-      } else if (todayIndex === 2) {  // 今天是周二
-        weekDayIndex = 1;  // 对应WEEK_DAYS[1] = '周二'
-      } else if (todayIndex === 3) {  // 今天是周三
-        weekDayIndex = 2;  // 对应WEEK_DAYS[2] = '周三'
-      } else if (todayIndex === 4) {  // 今天是周四
-        weekDayIndex = 3;  // 对应WEEK_DAYS[3] = '周四'
-      } else if (todayIndex === 5) {  // 今天是周五
-        weekDayIndex = 4;  // 对应WEEK_DAYS[4] = '周五'
-      } else {  // 今天是周六 (todayIndex === 6)
-        weekDayIndex = 5;  // 对应WEEK_DAYS[5] = '周六'
-      }
+      // 直接根据day名称映射，避免索引转换错误
+      // isToday判断：如果是今天（根据getDay()返回值），则标记为今天
+      let isToday = false;
+      // JavaScript的getDay()：0-周日, 1-周一, 2-周二, 3-周三, 4-周四, 5-周五, 6-周六
+      if (todayIndex === 0 && day === '周日') isToday = true;
+      else if (todayIndex === 1 && day === '周一') isToday = true;
+      else if (todayIndex === 2 && day === '周二') isToday = true;
+      else if (todayIndex === 3 && day === '周三') isToday = true;
+      else if (todayIndex === 4 && day === '周四') isToday = true;
+      else if (todayIndex === 5 && day === '周五') isToday = true;
+      else if (todayIndex === 6 && day === '周六') isToday = true;
       
       // 获取限行信息的逻辑
       let limitInfo = '暂无信息';
@@ -87,7 +81,7 @@ export async function getWeeklyLimitNumbers(options?: { forceRefreshCity?: boole
       // 首先尝试从缓存中获取数据
       if (cachedData) {
         // 今天的数据优先使用todayData
-        if (index === weekDayIndex && cachedData.todayData) {
+        if (isToday && cachedData.todayData) {
           limitInfo = cachedData.todayData;
           console.log(`使用当天缓存数据 - ${day}: ${limitInfo}`);
         }
@@ -102,7 +96,7 @@ export async function getWeeklyLimitNumbers(options?: { forceRefreshCity?: boole
           day,
           dayIndex: index,
           limitInfo,
-          isToday: index === weekDayIndex
+          isToday
         };
     });
     
@@ -121,32 +115,27 @@ export async function getWeeklyLimitNumbers(options?: { forceRefreshCity?: boole
     // 返回错误数据
     const today = new Date();
     const todayIndex = today.getDay();
-    // 明确的日期转换逻辑
-    let weekDayIndex: number;
-    if (todayIndex === 0) {  // 今天是周日
-      weekDayIndex = 6;  // 对应WEEK_DAYS[6] = '周日'
-    } else if (todayIndex === 1) {  // 今天是周一
-      weekDayIndex = 0;  // 对应WEEK_DAYS[0] = '周一'
-    } else if (todayIndex === 2) {  // 今天是周二
-      weekDayIndex = 1;  // 对应WEEK_DAYS[1] = '周二'
-    } else if (todayIndex === 3) {  // 今天是周三
-      weekDayIndex = 2;  // 对应WEEK_DAYS[2] = '周三'
-    } else if (todayIndex === 4) {  // 今天是周四
-      weekDayIndex = 3;  // 对应WEEK_DAYS[3] = '周四'
-    } else if (todayIndex === 5) {  // 今天是周五
-      weekDayIndex = 4;  // 对应WEEK_DAYS[4] = '周五'
-    } else {  // 今天是周六 (todayIndex === 6)
-      weekDayIndex = 5;  // 对应WEEK_DAYS[5] = '周六'
-    }
     
     return {
       city: DEFAULT_CITY,
-      weeklyLimitInfo: WEEK_DAYS.map((day, index) => ({
-        day,
-        dayIndex: index,
-        limitInfo: '获取失败',
-        isToday: index === weekDayIndex
-      }))
+      weeklyLimitInfo: WEEK_DAYS.map((day) => {
+        // 直接根据day名称映射，避免索引转换错误
+        let isToday = false;
+        if (todayIndex === 0 && day === '周日') isToday = true;
+        else if (todayIndex === 1 && day === '周一') isToday = true;
+        else if (todayIndex === 2 && day === '周二') isToday = true;
+        else if (todayIndex === 3 && day === '周三') isToday = true;
+        else if (todayIndex === 4 && day === '周四') isToday = true;
+        else if (todayIndex === 5 && day === '周五') isToday = true;
+        else if (todayIndex === 6 && day === '周六') isToday = true;
+        
+        return {
+          day,
+          dayIndex: WEEK_DAYS.indexOf(day),
+          limitInfo: '获取失败',
+          isToday
+        };
+      })
     };
   }
 }

@@ -588,28 +588,29 @@ export async function fetchLimitNumbersFromNetwork(city: string): Promise<{today
     // 获取现有缓存
     let cacheData: CacheData | null = null;
     const cacheKey = `${CACHE_KEY_PREFIX}${city}`;
+    const todayDate = new Date().toISOString().split('T')[0]; // 预先计算今天的日期
     
     try {
       cacheData = Storage.get<CacheData>(cacheKey);
       // 验证缓存日期是否有效（是否是今天）
-      if (cacheData) {
-        const todayDate = new Date().toISOString().split('T')[0];
-        if (cacheData.date !== todayDate) {
-          // 不是今天的数据，重置缓存
-          cacheData = null;
-        }
+      if (cacheData && cacheData.date !== todayDate) {
+        // 不是今天的数据，保留weeklyData但重置其他字段
+        console.log(`检测到缓存日期为${cacheData.date}，当前日期为${todayDate}，将重置为今天的数据`);
+        // 保留weeklyData但确保日期是今天
+        const preservedWeeklyData = cacheData.weeklyData || {};
+        cacheData = { weeklyData: preservedWeeklyData } as CacheData;
       }
     } catch (e) {
       console.error('获取缓存数据失败:', e);
       cacheData = null;
     }
     
-    // 准备新的缓存数据
+    // 准备新的缓存数据，确保日期总是今天
     const newCacheData: CacheData = {
       todayData: finalResult,
       weeklyData: {},
       timestamp: Date.now(),
-      date: new Date().toISOString().split('T')[0]
+      date: todayDate // 使用预先计算的今天日期
     };
     
     // 如果有现有缓存，保留其中的weeklyData（如果存在）
