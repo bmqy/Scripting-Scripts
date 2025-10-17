@@ -43,6 +43,6 @@ tsconfig.json
 .env.production.local
 
 # Build cache and temp files
-.build-cache.json
+*cache*
 .temp
 test*
