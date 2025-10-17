@@ -3,6 +3,20 @@
 import { CITY_WEEKEND_RULES, WEEK_DAYS } from './city'
 
 /**
+ * 将日期字符串转换为对应的星期几文本
+ * @param dateString 日期字符串，格式为YYYY-MM-DD
+ * @returns 星期几文本，如'周一'、'周二'等
+ */
+function getWeekDayText(dateString: string): string {
+  const date = new Date(dateString);
+  const dayIndex = date.getDay(); // 0-周日, 1-周一, ..., 6-周六
+  
+  // 根据JavaScript的getDay()返回值映射到WEEK_DAYS数组中的索引
+  if (dayIndex === 0) return WEEK_DAYS[6]; // 周日对应WEEK_DAYS[6]
+  return WEEK_DAYS[dayIndex - 1]; // 周一到周六对应WEEK_DAYS[0]到WEEK_DAYS[5]
+}
+
+/**
  * 缓存键前缀
  */
 export const CACHE_KEY_PREFIX = 'limitNumbers_';
@@ -607,7 +621,7 @@ export async function fetchLimitNumbersFromNetwork(city: string): Promise<{today
     
     // 准备新的缓存数据，确保日期总是今天
     const newCacheData: CacheData = {
-      todayData: finalResult,
+      todayData: finalResult, // 初始设置为网络提取结果
       weeklyData: {},
       timestamp: Date.now(),
       date: todayDate // 使用预先计算的今天日期
@@ -625,6 +639,17 @@ export async function fetchLimitNumbersFromNetwork(city: string): Promise<{today
       if (Object.keys(weeklyInfo).length > 0) {
         newCacheData.weeklyData = weeklyInfo;
         console.log(`成功获取并更新了一周限行信息`);
+        
+        // 优先使用weeklyData中今天的数据更新todayData，确保数据一致性
+        const todayWeekDay = getWeekDayText(todayDate);
+        if (weeklyInfo[todayWeekDay] && weeklyInfo[todayWeekDay] !== '不限行') {
+          console.log(`优先使用weeklyData中今天(${todayWeekDay})的数据更新todayData`);
+          newCacheData.todayData = weeklyInfo[todayWeekDay];
+          // 如果有时间信息，也需要加上
+          if (timeInfo && newCacheData.todayData !== '不限行') {
+            newCacheData.todayData = `${newCacheData.todayData} (${timeInfo})`;
+          }
+        }
       } else if (Object.keys(newCacheData.weeklyData).length === 0) {
         console.log(`未能获取一周限行信息，缓存中将保留空对象`);
       }
