@@ -63,7 +63,7 @@ export async function fetchLimitNumbersFromNetwork(city: string): Promise<{today
       console.log(`准备发送请求到: ${searchUrl} (尝试${retries + 1}/${maxRetries})`);
       
       try {
-        response = await fetch(searchUrl);
+          response = await Context.fetch(searchUrl);
         
         if (!response.ok) {
           throw new Error(`HTTP错误: ${response.status}`);
@@ -86,13 +86,13 @@ export async function fetchLimitNumbersFromNetwork(city: string): Promise<{today
           if (retries === 1) {
             const alternativeUrl = `https://www.baidu.com/s?wd=${encodeURIComponent(`${city}限号`)}&tn=02003390_42_hao_pg`;
             console.log(`使用备用URL 1: ${alternativeUrl}`);
-            response = await fetch(alternativeUrl);
+            response = await Context.fetch(alternativeUrl);
             text = await response.text();
             console.log(`备用URL 1获取到HTML内容，长度: ${text.length}字符`);
           } else if (retries === 2) {
             const alternativeUrl = `https://www.baidu.com/s?wd=${encodeURIComponent(`${city}限行`)}&rn=10`;
             console.log(`使用备用URL 2: ${alternativeUrl}`);
-            response = await fetch(alternativeUrl);
+            response = await Context.fetch(alternativeUrl);
             text = await response.text();
             console.log(`备用URL 2获取到HTML内容，长度: ${text.length}字符`);
           }
@@ -265,7 +265,7 @@ export async function fetchLimitNumbersFromNetwork(city: string): Promise<{today
         }
       }
       
-      // 直接返回结果，跳过后续提取逻辑
+      // 直接返回结果对象，确保格式一致
       if (timeInfo) {
         limitNumbers = `${limitNumbers} (工作日${timeInfo})`;
       }
@@ -273,7 +273,11 @@ export async function fetchLimitNumbersFromNetwork(city: string): Promise<{today
       // 添加提示信息，说明这是基于普遍规则的判断，实际政策可能有变化
       console.log(`提示：本结果基于${city}的普遍限行规则，如有临时调整请以官方发布为准`);
       
-      return limitNumbers;
+      // 确保返回格式一致，包含todayData和weeklyData
+      return {
+        todayData: limitNumbers,
+        weeklyData: {}
+      };
     }
 
     // 1. 使用简单的字符串查找方法提取百度特有格式信息
@@ -694,7 +698,7 @@ export async function fetchWeeklyLimitNumbersFromNetwork(city: string): Promise<
     
     // 首先尝试获取当天的限号信息，这样可以重用现有的请求和内容处理逻辑
     const searchUrl = buildSearchUrl(city);
-    let response = await fetch(searchUrl);
+    let response = await Context.fetch(searchUrl);
     let text = await response.text();
     
     // 构建一周限行信息对象
@@ -816,7 +820,7 @@ export async function fetchWeeklyLimitNumbersFromNetwork(city: string): Promise<
           }
           
           // 分割成每天的限行信息
-          const dailyLimits = tailInfo.split(/[、，,\s]+/).filter(item => 
+          const dailyLimits = tailInfo.split(/[、，,\s]+/).filter((item: string) => 
             item && (item.includes('和') || (item.length >= 2 && /^\d+[和\d]*$/.test(item)))
           );
           
@@ -881,7 +885,7 @@ export async function fetchWeeklyLimitNumbersFromNetwork(city: string): Promise<
     
     return weeklyLimitInfo;
   } catch (e) {
-    console.error(`获取${city}一周限号信息失败:`, e);
+    console.error(`获取${city}一周限号信息失败:`, e instanceof Error ? e.message : String(e));
     return {};
   }
 }

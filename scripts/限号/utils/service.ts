@@ -183,7 +183,22 @@ export async function getLimitNumbers(options?: { forceRefreshCity?: boolean }):
     // 缓存不存在或已过期/无效，从网络获取限号信息
     console.log(`===== 从百度搜索结果获取${city}限号信息 =====`);
     const result = await fetchLimitNumbersFromNetwork(city);
-    const { todayData: limitInfo, weeklyData } = result;
+    
+    // 添加类型检查，确保正确处理返回值
+    let limitInfo = '';
+    let weeklyData = {};
+    
+    if (typeof result === 'object' && result !== null) {
+      // 正常情况：返回对象包含todayData和weeklyData
+      limitInfo = result.todayData || '获取限号信息失败';
+      weeklyData = result.weeklyData || {};
+    } else if (typeof result === 'string') {
+      // 兼容处理：如果只返回了字符串
+      limitInfo = result;
+    } else {
+      // 异常情况：返回值既不是对象也不是字符串
+      limitInfo = '获取限号信息失败：返回格式异常';
+    }
     
     // 验证结果并记录日志
     if (limitInfo && limitInfo !== '获取限号信息失败') {
