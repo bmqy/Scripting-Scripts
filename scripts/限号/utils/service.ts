@@ -24,34 +24,40 @@ export async function getWeeklyLimitNumbers(options?: { forceRefreshCity?: boole
     const today = new Date();
     const todayIndex = today.getDay();
     const cacheKey = `${CACHE_KEY_PREFIX}${city}`;
+    const todayDate = new Date().toISOString().split('T')[0]; // 计算今天的日期
     
     console.log(`开始获取${city}一周限行信息`);
+    console.log(`当前日期: ${todayDate}`);
     
-    // 直接从缓存获取数据，如果缓存不存在或过期，getLimitNumbers会从网络获取
+    // 从缓存获取数据
     let cachedData: CacheData | null = Storage.get<CacheData>(cacheKey);
+    
+    // 检查缓存是否存在且日期是否是今天
     if (cachedData) {
-      console.log('成功获取缓存数据');
+      console.log(`缓存数据存在，缓存日期: ${cachedData.date}`);
+      
+      // 核心修复：检查缓存日期是否与今天一致，不一致则需要重新获取
+      if (cachedData.date !== todayDate) {
+        console.log(`缓存日期(${cachedData.date})与当前日期(${todayDate})不一致，需要重新获取数据`);
+        cachedData = null; // 清除缓存引用，强制重新获取
+      } else {
+        console.log(`缓存日期有效，使用缓存数据`);
+      }
     } else {
-      console.log('缓存数据不存在或无法获取');
+      console.log('缓存数据不存在，需要重新获取');
     }
     
     // 如果缓存不存在或已过期，调用getLimitNumbers获取最新数据
-    // 这会同时更新当天和一周的限行信息并缓存
-    const todayDate = new Date().toISOString().split('T')[0];
-    if (!cachedData || cachedData.date !== todayDate) {
-      console.log(`缓存不存在或已过期，调用getLimitNumbers获取最新数据`);
-      // 注意：这里我们不直接使用getLimitNumbers的返回值，
-      // 因为它只返回当天数据，但它已经在内部更新了缓存
+    if (!cachedData) {
+      console.log(`调用getLimitNumbers获取最新数据`);
       await getLimitNumbers({ forceRefreshCity });
       // 重新从缓存获取更新后的数据
       cachedData = Storage.get<CacheData>(cacheKey);
       if (cachedData) {
-        console.log('成功获取更新后的缓存数据');
+        console.log(`成功获取更新后的缓存数据，新缓存日期: ${cachedData.date}`);
       } else {
         console.log('更新后的缓存数据不存在或无法获取');
       }
-    } else {
-      console.log(`从缓存获取${city}一周限行信息`);
     }
     
     // 打印缓存状态信息便于调试
@@ -152,22 +158,36 @@ export async function getLimitNumbers(options?: { forceRefreshCity?: boolean }):
     const cacheKey = `${CACHE_KEY_PREFIX}${city}`;
     const todayDate = new Date().toISOString().split('T')[0];
     
+    console.log(`开始获取${city}限号信息，当前日期: ${todayDate}`);
+    
     // 尝试从缓存获取限号信息
     const cachedData: CacheData | null = Storage.get<CacheData>(cacheKey);
-    if (cachedData && cachedData.date === todayDate && cachedData.todayData) {
-      console.log(`从缓存获取${city}限号信息`);
-      return { city, limitInfo: cachedData.todayData };
+    
+    // 核心修复：严格检查缓存日期是否与今天一致
+    if (cachedData) {
+      console.log(`缓存数据存在，缓存日期: ${cachedData.date}`);
+      
+      // 只有当缓存日期与今天一致且有有效数据时才使用缓存
+      if (cachedData.date === todayDate && cachedData.todayData) {
+        console.log(`缓存有效，使用缓存中的限号信息`);
+        return { city, limitInfo: cachedData.todayData };
+      } else if (cachedData.date !== todayDate) {
+        console.log(`缓存日期(${cachedData.date})与当前日期(${todayDate})不一致，需要重新获取`);
+      } else {
+        console.log(`缓存数据不完整，需要重新获取`);
+      }
+    } else {
+      console.log('缓存数据不存在，需要从网络获取');
     }
     
-    // 缓存不存在或已过期，从网络获取限号信息
-    console.log(`===== 每天第一次获取：从百度搜索结果获取${city}限号信息 =====`);
+    // 缓存不存在或已过期/无效，从网络获取限号信息
+    console.log(`===== 从百度搜索结果获取${city}限号信息 =====`);
     const result = await fetchLimitNumbersFromNetwork(city);
     const { todayData: limitInfo, weeklyData } = result;
     
-    // 保存到缓存 - 现在网络请求已经在内部处理了缓存，这里只做额外的确认
+    // 验证结果并记录日志
     if (limitInfo && limitInfo !== '获取限号信息失败') {
-      // 直接使用network.ts中已处理好的缓存
-      console.log(`已缓存${city}当天和一周限号信息`);
+      console.log(`成功获取并缓存${city}当天和一周限号信息`);
     }
     
     // 输出当天限号信息日志
