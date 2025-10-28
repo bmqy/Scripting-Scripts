@@ -1,5 +1,13 @@
 // 限号助手小组件 - 主文件
 import { Circle, HStack, Image, RoundedRectangle, Spacer, Text, VStack, Widget, ZStack } from "scripting"
+
+// 扩展Widget类型，添加registerEvent方法声明
+declare module "scripting" {
+  interface Widget {
+    registerEvent?: (eventName: string, handler: () => Promise<{success: boolean, message: string}>) => void
+  }
+}
+
 // 导入拆分出去的模块
 import { getCurrentTime, getShortLimitInfo } from './utils/base'
 import { getLimitNumbers, getWeeklyLimitNumbers } from './utils/service'
