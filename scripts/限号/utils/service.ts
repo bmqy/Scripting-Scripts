@@ -2,9 +2,20 @@
 
 import { log, Constants } from './common'
 import { DEFAULT_CITY, getUserCity, WEEK_DAYS } from './city'
-import { fetchLimitInfo } from './api'
+import { buildSearchUrl, fetchWithRetry } from './api'
 import { parseLimitInfo } from './parser'
 import { getCachedData, saveDataToCache } from './cache'
+
+/**
+ * 获取城市限号信息的HTML内容
+ * @param city 城市名称
+ * @returns HTML内容字符串
+ */
+async function fetchLimitInfo(city: string): Promise<string> {
+  const searchUrl = buildSearchUrl(city);
+  log(`===== 获取最新限号信息：${city} =====`);
+  return await fetchWithRetry(searchUrl);
+}
 
 /**
  * 获取一周的限行信息
