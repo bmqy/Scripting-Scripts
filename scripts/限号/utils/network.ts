@@ -646,17 +646,17 @@ export async function fetchLimitNumbersFromNetwork(city: string): Promise<{today
     }
     
     // 确保当天数据存在于weeklyData中
-    const todayWeekDay = WEEK_DAYS.find((_, index) => {
+    const currentWeekDay = WEEK_DAYS.find((_, index) => {
       const todayIndex = new Date().getDay();
       if (todayIndex === 0) return index === 6;
       if (todayIndex === 6) return index === 5;
       return index === todayIndex - 1;
     });
     
-    if (todayWeekDay && !newCacheData.weeklyData[todayWeekDay]) {
+    if (currentWeekDay && !newCacheData.weeklyData[currentWeekDay]) {
       // 如果一周数据中没有当天信息，使用当前提取的结果
-      newCacheData.weeklyData[todayWeekDay] = finalResult;
-      console.log(`确保当天(${todayWeekDay})数据存在于缓存中`);
+      newCacheData.weeklyData[currentWeekDay] = finalResult;
+      console.log(`确保当天(${currentWeekDay})数据存在于缓存中`);
     }
     
     // 统一保存缓存数据

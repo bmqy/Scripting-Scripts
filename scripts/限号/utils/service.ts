@@ -204,14 +204,14 @@ export async function getLimitNumbers(options?: { forceRefreshCity?: boolean, fo
       // 尝试使用缓存数据作为备选（即使已过期）
       if (cachedData && cachedData.weeklyData) {
         const todayIndex = new Date().getDay();
-        let todayWeekDay: string;
-        if (todayIndex === 0) todayWeekDay = '周日';
-        else if (todayIndex === 6) todayWeekDay = '周六';
-        else todayWeekDay = WEEK_DAYS[todayIndex - 1];
+        let backupTodayWeekDay: string;
+        if (todayIndex === 0) backupTodayWeekDay = '周日';
+        else if (todayIndex === 6) backupTodayWeekDay = '周六';
+        else backupTodayWeekDay = WEEK_DAYS[todayIndex - 1];
         
-        if (cachedData.weeklyData[todayWeekDay]) {
+        if (cachedData.weeklyData[backupTodayWeekDay]) {
           console.log(`⚠️ 使用过期缓存作为备选方案，请注意数据可能不准确`);
-          return { city, limitInfo: `${cachedData.weeklyData[todayWeekDay]} (数据可能已过期)` };
+          return { city, limitInfo: `${cachedData.weeklyData[backupTodayWeekDay]} (数据可能已过期)` };
         }
       }
     }
