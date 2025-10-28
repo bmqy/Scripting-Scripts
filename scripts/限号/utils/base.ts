@@ -32,8 +32,8 @@ export function getShortLimitInfo(limitInfo: string): string {
     return '不限行';
   }
   
-  // 提取核心数字信息，只返回数字部分，不包含"和"字
-  const numberMatch = shortInfo.match(/(\d+)[和与](\d+)/);
+  // 提取核心数字信息，支持"X和X"、"X,X"和"X，X"格式
+  const numberMatch = shortInfo.match(/(\d+)[和与,，](\d+)/);
   if (numberMatch && numberMatch.length >= 3) {
     // 返回两个数字，用逗号分隔
     return `${numberMatch[1]},${numberMatch[2]}`;
