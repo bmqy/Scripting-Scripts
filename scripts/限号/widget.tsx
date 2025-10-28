@@ -1,13 +1,7 @@
 // 限号助手小组件 - 主文件
 import { Circle, HStack, Image, RoundedRectangle, Spacer, Text, VStack, Widget, ZStack } from "scripting"
 
-// 扩展Widget类型，添加registerEvent方法声明
-declare module "scripting" {
-  interface Widget {
-    registerEvent?: (eventName: string, handler: () => Promise<{success: boolean, message: string}>) => void
-  }
-}
-
+// 移除不存在的Widget.registerEvent类型扩展，使用更安全的方式处理
 // 导入拆分出去的模块
 import { getCurrentTime, getShortLimitInfo } from './utils/base'
 import { getLimitNumbers, getWeeklyLimitNumbers } from './utils/service'
@@ -365,35 +359,7 @@ function createCircularWidgetView(limitData: LimitData) {
 // 启动Widget
 createWidget();
 
-// 尝试注册清除缓存事件处理（兼容处理）
-try {
-  // 检查Widget.registerEvent是否存在
-  if (typeof Widget.registerEvent === 'function') {
-    Widget.registerEvent('clearCache', async () => {
-      try {
-        // 获取当前城市信息用于清除特定城市的缓存
-        const cityInfo = await Storage.get('userCity');
-        if (cityInfo && typeof cityInfo === 'string') {
-          clearCityCache(cityInfo);
-          log(`成功清除城市 ${cityInfo} 的缓存`, 'info');
-          return { success: true, message: '缓存清除成功' };
-        } else {
-          // 如果没有城市信息，清除所有缓存
-          clearCityCache(DEFAULT_CITY); // 使用默认城市作为示例
-          log('成功清除缓存', 'info');
-          return { success: true, message: '缓存清除成功' };
-        }
-      } catch (error) {
-        const errorMsg = error instanceof Error ? error.message : '未知错误';
-        log(`清除缓存失败: ${errorMsg}`, 'error');
-        return { success: false, message: `清除缓存失败: ${errorMsg}` };
-      }
-    });
-  } else {
-    // 如果registerEvent不存在，使用降级方案或忽略
-    log('Widget.registerEvent 方法不可用，跳过事件注册', 'info');
-  }
-} catch (e) {
-  log(`事件注册失败: ${e}`, 'error');
-}
+// 注意：Widget.registerEvent 不是 Scripting 标准 API，已移除
+// 对于缓存管理，可以在 createWidget 函数内部实现必要的缓存逻辑
+// 或者使用 Storage API 进行手动缓存控制
 
