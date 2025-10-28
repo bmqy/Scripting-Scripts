@@ -1,9 +1,8 @@
 // 限号信息服务模块
 
-import { scriptable } from 'scripting'
+import { Storage } from 'scripting'
 import { DEFAULT_CITY, getUserCity, WEEK_DAYS } from './city'
 import { CACHE_KEY_PREFIX, CacheData, fetchLimitNumbersFromNetwork } from './network'
-const { Storage } = scriptable
 
 /**
  * 获取一周的限行信息

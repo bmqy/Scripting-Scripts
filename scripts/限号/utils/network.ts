@@ -1,7 +1,6 @@
 // 网络请求和数据获取模块
 
-import { scriptable } from 'scripting'
-const { Storage } = scriptable
+import { Storage } from 'scripting'
 import { CITY_WEEKEND_RULES, WEEK_DAYS } from './city'
 
 /**
