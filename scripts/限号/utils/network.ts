@@ -1,5 +1,6 @@
 // 网络请求和数据获取模块
 
+import { Storage } from 'scripting'
 import { CITY_WEEKEND_RULES, WEEK_DAYS } from './city'
 
 /**
@@ -8,11 +9,10 @@ import { CITY_WEEKEND_RULES, WEEK_DAYS } from './city'
 export const CACHE_KEY_PREFIX = 'limitNumbers_';
 
 /**
- * 缓存数据结构
+ * 缓存数据结构 - 简化版
  */
 export interface CacheData {
-  todayData: string;          // 当天限号信息
-  weeklyData: Record<string, string>; // 一周限号信息
+  weeklyData: Record<string, string>; // 一周限号信息（包含当天）
   timestamp: number;      // 缓存时间戳
   date: string;           // 缓存日期（YYYY-MM-DD格式）
 }
@@ -606,46 +606,47 @@ export async function fetchLimitNumbersFromNetwork(city: string): Promise<{today
     
     // 准备新的缓存数据
     const newCacheData: CacheData = {
-      todayData: finalResult,
       weeklyData: {},
       timestamp: Date.now(),
       date: new Date().toISOString().split('T')[0]
     };
     
-    // 如果有现有缓存，保留其中的weeklyData（如果存在）
-    if (cacheData && Object.keys(cacheData.weeklyData).length > 0) {
-      newCacheData.weeklyData = cacheData.weeklyData;
-      console.log(`保留了缓存中已有的一周限行信息`);
-    }
-    
-    // 统一尝试获取一周限行信息，无论是否有缓存
+    // 尝试获取一周限行信息
     try {
       const weeklyInfo = await fetchWeeklyLimitNumbersFromNetwork(city);
       if (Object.keys(weeklyInfo).length > 0) {
         newCacheData.weeklyData = weeklyInfo;
         console.log(`成功获取并更新了一周限行信息`);
-      } else if (Object.keys(newCacheData.weeklyData).length === 0) {
-        console.log(`未能获取一周限行信息，缓存中将保留空对象`);
+      } else {
+        console.log(`未能获取一周限行信息`);
       }
     } catch (e) {
-      console.error('获取一周限行信息时出错，将使用现有缓存（如果有）:', e);
+      console.error('获取一周限行信息时出错:', e);
     }
     
-    // 统一保存缓存数据，直接存储JSON对象，不使用字符串转换
+    // 确保当天数据存在于weeklyData中
+    const todayWeekDay = WEEK_DAYS.find((_, index) => {
+      const todayIndex = new Date().getDay();
+      if (todayIndex === 0) return index === 6;
+      if (todayIndex === 6) return index === 5;
+      return index === todayIndex - 1;
+    });
+    
+    if (todayWeekDay && !newCacheData.weeklyData[todayWeekDay]) {
+      // 如果一周数据中没有当天信息，使用当前提取的结果
+      newCacheData.weeklyData[todayWeekDay] = finalResult;
+      console.log(`确保当天(${todayWeekDay})数据存在于缓存中`);
+    }
+    
+    // 统一保存缓存数据
     Storage.set<CacheData>(cacheKey, newCacheData);
     
-    // 根据是否有旧缓存来输出不同的日志信息
-    if (cacheData) {
-      console.log(`已更新${city}缓存中的限号信息（当天和一周数据）`);
-    } else {
-      console.log(`已创建${city}新的限号信息缓存（当天和一周数据）`);
-    }
-    
+    console.log(`已更新${city}缓存中的限号信息`);
     console.log(`最终提取结果: ${finalResult}`);
     
     // 返回包含当天和一周限行信息的对象
     return {
-      todayData: newCacheData.todayData, // 返回更新后的数据，确保与缓存一致
+      todayData: finalResult, // 返回提取的当天数据
       weeklyData: newCacheData.weeklyData
     };
   } catch (e) {

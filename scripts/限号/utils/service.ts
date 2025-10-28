@@ -1,5 +1,6 @@
 // 限号信息服务模块
 
+import { Storage } from 'scripting'
 import { DEFAULT_CITY, getUserCity, WEEK_DAYS } from './city'
 import { CACHE_KEY_PREFIX, CacheData, fetchLimitNumbersFromNetwork } from './network'
 
@@ -35,14 +36,12 @@ export async function getWeeklyLimitNumbers(options?: { forceRefreshCity?: boole
       console.log('缓存数据不存在或无法获取');
     }
     
-    // 如果缓存不存在或已过期，调用getLimitNumbers获取最新数据
-    // 这会同时更新当天和一周的限行信息并缓存
+    // 如果缓存不存在或已过期，调用fetchLimitNumbersFromNetwork获取最新数据
     const todayDate = new Date().toISOString().split('T')[0];
     if (!cachedData || cachedData.date !== todayDate) {
-      console.log(`缓存不存在或已过期，调用getLimitNumbers获取最新数据`);
-      // 注意：这里我们不直接使用getLimitNumbers的返回值，
-      // 因为它只返回当天数据，但它已经在内部更新了缓存
-      await getLimitNumbers({ forceRefreshCity });
+      console.log(`缓存不存在或已过期，直接获取最新数据`);
+      // 直接调用fetchLimitNumbersFromNetwork获取最新数据并更新缓存
+      const result = await fetchLimitNumbersFromNetwork(city);
       // 重新从缓存获取更新后的数据
       cachedData = Storage.get<CacheData>(cacheKey);
       if (cachedData) {
@@ -56,7 +55,7 @@ export async function getWeeklyLimitNumbers(options?: { forceRefreshCity?: boole
     
     // 打印缓存状态信息便于调试
     if (cachedData) {
-      console.log(`缓存状态 - 日期: ${cachedData.date}, 当天数据: ${cachedData.todayData}, 一周数据: ${cachedData.weeklyData ? Object.keys(cachedData.weeklyData).length + '天' : '无'}`);
+      console.log(`缓存状态 - 日期: ${cachedData.date}, 一周数据: ${cachedData.weeklyData ? Object.keys(cachedData.weeklyData).length + '天' : '无'}`);
     } else {
       console.log(`缓存仍然为空，可能获取数据失败`);
     }
@@ -84,18 +83,10 @@ export async function getWeeklyLimitNumbers(options?: { forceRefreshCity?: boole
       // 获取限行信息的逻辑
       let limitInfo = '暂无信息';
       
-      // 首先尝试从缓存中获取数据
-      if (cachedData) {
-        // 今天的数据优先使用todayData
-        if (index === weekDayIndex && cachedData.todayData) {
-          limitInfo = cachedData.todayData;
-          console.log(`使用当天缓存数据 - ${day}: ${limitInfo}`);
-        }
-        // 非今天的数据从weeklyData获取
-        else if (cachedData.weeklyData && cachedData.weeklyData[day]) {
-          limitInfo = cachedData.weeklyData[day];
-          console.log(`使用一周缓存数据 - ${day}: ${limitInfo}`);
-        }
+      // 从缓存的weeklyData中获取数据
+      if (cachedData && cachedData.weeklyData && cachedData.weeklyData[day]) {
+        limitInfo = cachedData.weeklyData[day];
+        console.log(`使用缓存数据 - ${day}: ${limitInfo}`);
       }
       
       return {
@@ -165,9 +156,18 @@ export async function getLimitNumbers(options?: { forceRefreshCity?: boolean }):
     
     // 尝试从缓存获取限号信息
     const cachedData: CacheData | null = Storage.get<CacheData>(cacheKey);
-    if (cachedData && cachedData.date === todayDate && cachedData.todayData) {
-      console.log(`从缓存获取${city}限号信息`);
-      return { city, limitInfo: cachedData.todayData };
+    if (cachedData && cachedData.date === todayDate && cachedData.weeklyData) {
+      // 获取当天是星期几
+      const todayIndex = new Date().getDay();
+      let todayWeekDay: string;
+      if (todayIndex === 0) todayWeekDay = '周日';
+      else if (todayIndex === 6) todayWeekDay = '周六';
+      else todayWeekDay = WEEK_DAYS[todayIndex - 1];
+      
+      if (cachedData.weeklyData[todayWeekDay]) {
+        console.log(`从缓存获取${city}限号信息`);
+        return { city, limitInfo: cachedData.weeklyData[todayWeekDay] };
+      }
     }
     
     // 缓存不存在或已过期，从网络获取限号信息

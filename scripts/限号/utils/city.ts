@@ -1,5 +1,5 @@
 // 城市相关工具模块
-import { Notification } from 'scripting';
+import { Location, Notification, Storage } from 'scripting'
 /**
  * 默认城市，当无法获取位置时使用
  * 现在默认为空，获取不到城市时会发送通知
@@ -109,23 +109,14 @@ export async function getUserCity(options?: { forceRefresh?: boolean }) {
     }
 
     try {
-      // 在小组件环境中，位置请求可能会卡住或需要较长时间
-      // 因此添加超时处理，确保程序不会无限期等待
-      const locationInfo = await withTimeout(
-        (async () => {
-          console.log('尝试使用Location API获取当前位置...');
-          
-          try {
-            // 请求获取当前位置
-            return await Location.requestCurrent();
-          } catch (error) {
-            console.log('位置请求失败:', error);
-            return null;
-          }
-        })(), 
-        30000, // 30秒超时
-        null
-      );
+        // 在小组件环境中，位置请求可能会卡住或需要较长时间
+        // 因此添加超时处理，确保程序不会无限期等待
+        console.log('尝试使用Location API获取当前位置...');
+        const locationInfo = await withTimeout(
+          Location.requestCurrent(),
+          30000, // 30秒超时
+          null
+        );
       
       if (locationInfo) {
         console.log('获取位置信息成功:', locationInfo);
@@ -172,6 +163,9 @@ export async function getUserCity(options?: { forceRefresh?: boolean }) {
       if (!DEFAULT_CITY) {
         try {
           console.log('发送通知提示用户给予定位权限');
+          // 使用Script.createRunURLScheme创建正确的URL Scheme
+          const retryUrl = Script.createRunURLScheme('限号');
+          
           // 使用Notification API发送通知
           await withTimeout(
             Notification.schedule({
@@ -182,7 +176,7 @@ export async function getUserCity(options?: { forceRefresh?: boolean }) {
               actions: [
                 {
                   title: '重试',
-                  url: 'scripting://open?scriptName=限号'
+                  url: retryUrl
                 }
               ],
               tapAction: {
