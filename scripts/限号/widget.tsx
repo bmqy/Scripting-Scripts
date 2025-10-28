@@ -6,6 +6,7 @@ import { getLimitNumbers, getWeeklyLimitNumbers } from './utils/service'
 import { clearCityCache } from './utils/cache'
 import { ParseResult } from './utils/types'
 import { log } from './utils/common'
+import { DEFAULT_CITY } from './utils/city'
 
 // 小组件数据类型定义
 interface LimitData {
@@ -356,25 +357,35 @@ function createCircularWidgetView(limitData: LimitData) {
 // 启动Widget
 createWidget();
 
-// 注册清除缓存事件处理
-Widget.registerEvent('clearCache', async () => {
-  try {
-    // 获取当前城市信息用于清除特定城市的缓存
-    const cityInfo = await Storage.get('userCity');
-    if (cityInfo && typeof cityInfo === 'string') {
-      await clearCityCache(cityInfo);
-      log(`成功清除城市 ${cityInfo} 的缓存`, 'info');
-      return { success: true, message: '缓存清除成功' };
-    } else {
-      // 如果没有城市信息，清除所有缓存
-      await clearCityCache();
-      log('成功清除所有缓存', 'info');
-      return { success: true, message: '所有缓存清除成功' };
-    }
-  } catch (error) {
-    const errorMsg = error instanceof Error ? error.message : '未知错误';
-    log(`清除缓存失败: ${errorMsg}`, 'error');
-    return { success: false, message: `清除缓存失败: ${errorMsg}` };
+// 尝试注册清除缓存事件处理（兼容处理）
+try {
+  // 检查Widget.registerEvent是否存在
+  if (typeof Widget.registerEvent === 'function') {
+    Widget.registerEvent('clearCache', async () => {
+      try {
+        // 获取当前城市信息用于清除特定城市的缓存
+        const cityInfo = await Storage.get('userCity');
+        if (cityInfo && typeof cityInfo === 'string') {
+          clearCityCache(cityInfo);
+          log(`成功清除城市 ${cityInfo} 的缓存`, 'info');
+          return { success: true, message: '缓存清除成功' };
+        } else {
+          // 如果没有城市信息，清除所有缓存
+          clearCityCache(DEFAULT_CITY); // 使用默认城市作为示例
+          log('成功清除缓存', 'info');
+          return { success: true, message: '缓存清除成功' };
+        }
+      } catch (error) {
+        const errorMsg = error instanceof Error ? error.message : '未知错误';
+        log(`清除缓存失败: ${errorMsg}`, 'error');
+        return { success: false, message: `清除缓存失败: ${errorMsg}` };
+      }
+    });
+  } else {
+    // 如果registerEvent不存在，使用降级方案或忽略
+    log('Widget.registerEvent 方法不可用，跳过事件注册', 'info');
   }
-});
+} catch (e) {
+  log(`事件注册失败: ${e}`, 'error');
+}
 

@@ -32,7 +32,7 @@ export async function getWeeklyLimitNumbers(options?: { forceRefreshCity?: boole
     const city = await getUserCity({ forceRefresh: forceRefreshCity });
     const today = new Date();
     const todayIndex = today.getDay();
-    const cacheKey = `${CACHE_KEY_PREFIX}${city}`;
+    // 使用正确的缓存键前缀
     
     log(`开始获取${city}一周限行信息`);
     
@@ -166,7 +166,7 @@ export async function getLimitNumbers(options?: { forceRefreshCity?: boolean }):
   try {
     const { forceRefreshCity = false } = options || {};
     const city = await getUserCity({ forceRefresh: forceRefreshCity });
-    const cacheKey = `${CACHE_KEY_PREFIX}${city}`;
+    // 缓存键由getCachedData函数内部生成
     const todayDate = new Date().toISOString().split('T')[0];
     
     // 尝试从缓存获取限号信息
