@@ -1,14 +1,40 @@
 // 工具函数模块
 
 /**
- * 获取当前时间，格式化为HH:MM:SS
+ * 格式化日期为中文格式
+ * @param date 日期对象
+ * @returns 格式化后的日期字符串
+ */
+export function formatDate(date: Date): string {
+  const year = date.getFullYear();
+  const month = date.getMonth() + 1;
+  const day = date.getDate();
+  const weekDays = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
+  const weekDay = weekDays[date.getDay()];
+  
+  return `${year}年${month}月${day}日 ${weekDay}`;
+}
+
+/**
+ * 简化限号信息
+ * @param limitInfo 原始限号信息
+ * @returns 简化后的限号信息
+ */
+export function getSimplifiedLimitInfo(limitInfo: string): string {
+  // 简化限号信息，只保留核心内容
+  const simplified = limitInfo.replace(/限行|限号|尾号/g, '');
+  return simplified.trim() || limitInfo;
+}
+
+/**
+ * 获取当前时间
+ * @returns 当前时间字符串
  */
 export function getCurrentTime(): string {
   const now = new Date();
   const hours = now.getHours().toString().padStart(2, '0');
   const minutes = now.getMinutes().toString().padStart(2, '0');
-  const seconds = now.getSeconds().toString().padStart(2, '0');
-  return `${hours}:${minutes}:${seconds}`;
+  return `${hours}:${minutes}`;
 }
 
 /**
@@ -19,9 +45,9 @@ export function getTodayDateKey(): string {
 }
 
 /**
- * 简化限号信息，确保不会出现省略号
+ * 获取简短的限号信息
  * @param limitInfo 原始限号信息
- * @returns 简化后的限号信息
+ * @returns 简短的限号信息
  */
 export function getShortLimitInfo(limitInfo: string): string {
   // 移除所有省略号
