@@ -1,57 +1,33 @@
 // 限号助手小组件 - 主文件
 import { Circle, HStack, Image, RoundedRectangle, Spacer, Text, VStack, Widget, ZStack } from "scripting"
-
-// 移除不存在的Widget.registerEvent类型扩展，使用更安全的方式处理
 // 导入拆分出去的模块
 import { getCurrentTime, getShortLimitInfo } from './utils/base'
 import { getLimitNumbers, getWeeklyLimitNumbers } from './utils/service'
-import { clearCityCache } from './utils/cache'
-import { ParseResult } from './utils/types'
-import { log } from './utils/common'
-import { DEFAULT_CITY } from './utils/city'
 
-// 小组件数据类型定义
-interface LimitData {
-  city: string
-  limitInfo: string
-  error?: string
-}
+// 声明全局API
 
-interface WeeklyLimitData {
-  city: string
-  weeklyLimitInfo: Array<{
-    day: string
-    limitInfo: string
-    isToday: boolean
-  }>
-  error?: string
-}
+// 开发测试配置 - 控制是否强制刷新城市信息
+// 设置为true可以清除城市缓存并重新获取
+const FORCE_REFRESH_CITY = false;
 
 /**
  * 创建并显示Widget
  */
 async function createWidget() {
   try {
-    // 开发测试配置 - 控制是否强制刷新城市信息
-    const forceRefreshCity = false;
-    
     // 获取小组件类型
     const family = Widget.family;
     let widgetView;
     let currentTime = getCurrentTime();
     
-    log('Widget开始加载', 'info');
-    
     // 根据不同的小组件类型选择不同的数据获取方式
     if (family === "systemMedium") { // 桌面中号小组件
       // 中号小组件需要获取一周的限行信息
-      const weeklyLimitData = await getWeeklyLimitNumbers({ forceRefreshCity });
-      log(`获取中号小组件数据成功，城市: ${weeklyLimitData?.city}`, 'info');
+      const weeklyLimitData = await getWeeklyLimitNumbers({ forceRefreshCity: FORCE_REFRESH_CITY });
       widgetView = createMediumWidgetView(weeklyLimitData, currentTime);
     } else {
       // 其他类型小组件只需要获取当天的限行信息
-      const limitData = await getLimitNumbers({ forceRefreshCity });
-      log(`获取小组件数据成功，城市: ${limitData?.city}`, 'info');
+      const limitData = await getLimitNumbers({ forceRefreshCity: FORCE_REFRESH_CITY });
       
       // 根据不同的小组件类型创建不同的视图
       if (family === "accessoryCircular") {
@@ -76,14 +52,13 @@ async function createWidget() {
     });
 
   } catch (e) {
-    const errorMessage = e instanceof Error ? e.message : '未知错误';
-    log(`Widget运行失败: ${errorMessage}`, 'error');
+    console.error('Widget运行失败:', e);
     
     // 获取小组件类型
     const family = Widget.family;
     
     // 根据小组件类型显示不同的错误信息
-    if (family === "accessoryCircular") {
+      if (family === "accessoryCircular") {
       // 锁屏圆形小组件错误视图
       Widget.present(
         <ZStack>
@@ -134,7 +109,7 @@ async function createWidget() {
 /**
  * 创建标准小组件视图
  */
-function createStandardWidgetView(limitData: LimitData, currentTime: string) {
+function createStandardWidgetView(limitData: any, currentTime: string) {
   return (
     <ZStack>
       {/* 模拟Kindle墨水屏的米白色背景 */}
@@ -228,7 +203,7 @@ function createStandardWidgetView(limitData: LimitData, currentTime: string) {
 /**
  * 创建中号小组件视图 - 按星期显示每一天的限行信息
  */
-function createMediumWidgetView(weeklyLimitData: WeeklyLimitData, currentTime: string) {
+function createMediumWidgetView(weeklyLimitData: any, currentTime: string) {
   const { city, weeklyLimitInfo } = weeklyLimitData;
   
   // 计算当前日期范围 - 显示本周一到周日
@@ -329,7 +304,7 @@ function createMediumWidgetView(weeklyLimitData: WeeklyLimitData, currentTime: s
 /**
  * 创建圆形小组件视图
  */
-function createCircularWidgetView(limitData: LimitData) {
+function createCircularWidgetView(limitData: any) {
   const limitText = getShortLimitInfo(limitData.limitInfo);
   
   return (
@@ -358,8 +333,4 @@ function createCircularWidgetView(limitData: LimitData) {
 
 // 启动Widget
 createWidget();
-
-// 注意：Widget.registerEvent 不是 Scripting 标准 API，已移除
-// 对于缓存管理，可以在 createWidget 函数内部实现必要的缓存逻辑
-// 或者使用 Storage API 进行手动缓存控制
 
