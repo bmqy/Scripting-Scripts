@@ -1,29 +1,9 @@
 // 限号信息服务模块
 
-// 安全处理Storage对象
-let Storage;
-try {
-  // 尝试从全局获取Storage（如果network.ts已经初始化了它）
-  if (typeof globalThis !== 'undefined' && globalThis.scriptingStorage) {
-    Storage = globalThis.scriptingStorage;
-  } else {
-    // 否则提供自己的mock实现
-    Storage = {
-      get: () => null,
-      set: () => {},
-      remove: () => {}
-    };
-  }
-} catch (error) {
-  // 出错时使用mock实现
-  Storage = {
-    get: () => null,
-    set: () => {},
-    remove: () => {}
-  };
-}
+import { scriptable } from 'scripting'
 import { DEFAULT_CITY, getUserCity, WEEK_DAYS } from './city'
 import { CACHE_KEY_PREFIX, CacheData, fetchLimitNumbersFromNetwork } from './network'
+const { Storage } = scriptable
 
 /**
  * 获取一周的限行信息

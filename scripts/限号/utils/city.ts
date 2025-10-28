@@ -1,38 +1,6 @@
 // 城市相关工具模块
-// 安全处理scripting相关对象
-let Location = null;
-let Notification = null;
-let Storage;
-
-try {
-  // 在Scripting环境中，这些对象应该是全局可用的
-  // 但在构建环境中需要提供mock实现
-  Storage = {
-    get: () => null,
-    set: () => {},
-    remove: () => {}
-  };
-  
-  // 尝试使用全局变量（如果可用）
-  if (typeof globalThis !== 'undefined') {
-    if (globalThis.scriptingStorage) {
-      Storage = globalThis.scriptingStorage;
-    }
-    if (globalThis.scriptingLocation) {
-      Location = globalThis.scriptingLocation;
-    }
-    if (globalThis.scriptingNotification) {
-      Notification = globalThis.scriptingNotification;
-    }
-  }
-} catch (error) {
-    // 出错时使用默认实现
-    Storage = {
-      get: () => null,
-      set: () => {},
-      remove: () => {}
-    };
-  }
+import { scriptable } from 'scripting'
+const { Location, Notification, Storage } = scriptable
 /**
  * 默认城市，当无法获取位置时使用
  * 现在默认为空，获取不到城市时会发送通知
