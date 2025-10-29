@@ -67,53 +67,144 @@ function calculateDirHash(dirPath) {
 function buildScript(scriptName, scriptPath) {
   console.log(`Building script: ${scriptName}`);
   
-  // 创建临时目录
-  const tempDir = path.join(rootDir, '.temp', scriptName);
-  if (fs.existsSync(tempDir)) {
-    fs.rmSync(tempDir, { recursive: true, force: true });
-  }
-  fs.mkdirSync(tempDir, { recursive: true });
+  try {
+    // 创建临时目录
+    const tempDir = path.join(rootDir, '.temp', scriptName);
+    console.log(`Creating temp directory: ${tempDir}`);
+    
+    if (fs.existsSync(tempDir)) {
+      console.log(`Removing existing temp directory`);
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+    
+    console.log(`Creating new temp directory structure`);
+    // 确保.temp目录存在
+    const tempRootDir = path.join(rootDir, '.temp');
+    if (!fs.existsSync(tempRootDir)) {
+      fs.mkdirSync(tempRootDir, { recursive: true });
+    }
+    fs.mkdirSync(tempDir, { recursive: true });
+    console.log(`Temp directory created successfully`);
+    
+    // 检查目录权限
+    const stats = fs.statSync(tempDir);
+    console.log(`Temp directory stats: ${JSON.stringify(stats, null, 2)}`);
   
   // 复制脚本目录中的所有文件到临时目录
-  const scriptFiles = fs.readdirSync(scriptPath, { withFileTypes: true });
-  for (const file of scriptFiles) {
-    const sourcePath = path.join(scriptPath, file.name);
-    const targetPath = path.join(tempDir, file.name);
-    if (file.isDirectory()) {
-      fs.cpSync(sourcePath, targetPath, { recursive: true });
-    } else {
-      fs.copyFileSync(sourcePath, targetPath);
+  try {
+    console.log(`Copying files from ${scriptPath} to ${tempDir}`);
+    const scriptFiles = fs.readdirSync(scriptPath, { withFileTypes: true });
+    console.log(`Found ${scriptFiles.length} files/directories to copy`);
+    
+    for (const file of scriptFiles) {
+      const sourcePath = path.join(scriptPath, file.name);
+      const targetPath = path.join(tempDir, file.name);
+      console.log(`Copying: ${file.name} (${file.isDirectory() ? 'directory' : 'file'})`);
+      
+      if (file.isDirectory()) {
+        console.log(`Copying directory: ${sourcePath} -> ${targetPath}`);
+        try {
+          // 确保目标目录存在
+          if (!fs.existsSync(targetPath)) {
+            fs.mkdirSync(targetPath, { recursive: true });
+          }
+          // 手动递归复制目录内容，而不是使用cpSync，避免潜在问题
+          const dirContents = fs.readdirSync(sourcePath, { withFileTypes: true });
+          console.log(`Directory ${file.name} contains ${dirContents.length} items`);
+          
+          for (const item of dirContents) {
+            const itemSource = path.join(sourcePath, item.name);
+            const itemTarget = path.join(targetPath, item.name);
+            console.log(`Processing ${item.name} in ${file.name}`);
+            
+            if (item.isDirectory()) {
+              // 递归创建子目录
+              fs.mkdirSync(itemTarget, { recursive: true });
+            } else {
+              // 复制文件
+              fs.copyFileSync(itemSource, itemTarget);
+            }
+          }
+          console.log(`Directory copied successfully: ${file.name}`);
+        } catch (dirCopyError) {
+          console.error(`Failed to copy directory ${file.name}:`, dirCopyError);
+          throw new Error(`Directory copying failed: ${dirCopyError.message}`);
+        }
+      } else {
+        console.log(`Copying file: ${sourcePath} -> ${targetPath}`);
+        fs.copyFileSync(sourcePath, targetPath);
+        console.log(`File copied successfully: ${file.name}`);
+      }
     }
+    console.log(`All files copied successfully`);
+  } catch (copyError) {
+    console.error('Error during file copying:', copyError);
+    throw new Error(`File copying failed: ${copyError.message}`);
   }
   
   // 创建zip文件
   const outputZip = path.join(distDir, `${scriptName}.zip`);
   const outputScripting = path.join(distDir, `${scriptName}.scripting`);
+  console.log(`Output targets: ${outputZip}, ${outputScripting}`);
   
   // 根据操作系统使用不同的命令压缩文件
-  if (process.platform === 'win32') {
-    // PowerShell压缩，确保直接包含临时目录下的文件而不是临时目录本身
-    execSync(`powershell -Command "Get-ChildItem -Path ${tempDir} | Compress-Archive -DestinationPath ${outputZip} -Force"`, {
-      stdio: 'inherit'
-    });
-  } else {
-    // Linux/Mac压缩，直接在临时目录内执行命令
-    execSync(`zip -r ${outputZip} .`, {
-      cwd: tempDir,
-      stdio: 'inherit'
-    });
+  try {
+    console.log(`Attempting to compress files from ${tempDir}`);
+    if (process.platform === 'win32') {
+      // PowerShell压缩，确保直接包含临时目录下的文件而不是临时目录本身
+      console.log(`Running PowerShell compression command`);
+      // 使用更可靠的路径处理，避免路径中有空格等特殊字符导致的问题
+      const tempDirEscaped = tempDir.replace(/\\/g, '\\\\');
+      const outputZipEscaped = outputZip.replace(/\\/g, '\\\\');
+      execSync(`powershell -Command "Get-ChildItem -LiteralPath \"${tempDirEscaped}\" | Compress-Archive -DestinationPath \"${outputZipEscaped}\" -Force"`, {
+        stdio: 'inherit'
+      });
+    } else {
+      // Linux/Mac压缩，直接在临时目录内执行命令
+      execSync(`zip -r ${outputZip} .`, {
+        cwd: tempDir,
+        stdio: 'inherit'
+      });
+    }
+    
+    if (!fs.existsSync(outputZip)) {
+      throw new Error(`Failed to create zip file at ${outputZip}`);
+    }
+    
+    console.log(`Successfully created zip file: ${outputZip}`);
+  } catch (compressError) {
+    console.error('Error during file compression:', compressError);
+    throw new Error(`Compression failed: ${compressError.message}`);
   }
   
   // 重命名为.scripting文件
-  if (fs.existsSync(outputScripting)) {
-    fs.unlinkSync(outputScripting);
+  try {
+    if (fs.existsSync(outputScripting)) {
+      console.log(`Removing existing scripting file: ${outputScripting}`);
+      fs.unlinkSync(outputScripting);
+    }
+    
+    console.log(`Renaming ${outputZip} to ${outputScripting}`);
+    fs.renameSync(outputZip, outputScripting);
+    
+    // 验证文件是否成功创建
+    if (fs.existsSync(outputScripting)) {
+      console.log(`Successfully built ${outputScripting}`);
+    } else {
+      throw new Error(`Failed to create scripting file: ${outputScripting}`);
+    }
+    
+    // 清理临时目录
+    console.log(`Cleaning up temp directory: ${tempDir}`);
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  } catch (renameError) {
+    console.error('Error during file renaming:', renameError);
+    throw new Error(`Renaming failed: ${renameError.message}`);
   }
-  fs.renameSync(outputZip, outputScripting);
-  
-  // 清理临时目录
-  fs.rmSync(tempDir, { recursive: true, force: true });
-  
-  console.log(`Successfully built ${outputScripting}`);
+  } catch (error) {
+    console.error('Error in buildScript function:', error);
+    throw error;
+  }
 }
 
 // 主函数

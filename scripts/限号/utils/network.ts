@@ -1,6 +1,8 @@
 // 网络请求和数据获取模块
 
-import { Storage } from 'scripting'
+// 使用命名空间导入方式，避免编译后出现scripting_1.Storage的引用错误
+import * as scripting from "scripting"
+const { Storage } = scripting
 import { CITY_WEEKEND_RULES, WEEK_DAYS } from './city'
 
 /**
