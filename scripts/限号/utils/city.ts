@@ -1,7 +1,6 @@
 // 城市相关工具模块
-// 使用命名空间导入方式，避免编译后出现scripting_1.Storage的引用错误
-import * as scripting from "scripting"
-const { Location, Notification, Storage } = scripting
+// 根据官方文档，Storage是全局可用对象，不需要特殊导入
+import { Location, Notification } from "scripting"
 /**
  * 默认城市，当无法获取位置时使用
  * 现在默认为空，获取不到城市时会发送通知

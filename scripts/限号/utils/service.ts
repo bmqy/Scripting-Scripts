@@ -1,10 +1,8 @@
 // 限号信息服务模块
 
-// 使用命名空间导入方式，避免编译后出现scripting_1.Storage的引用错误
-import * as scripting from "scripting"
+// 根据官方文档，Storage是全局可用对象，不需要特殊导入
 import { DEFAULT_CITY, getUserCity, WEEK_DAYS } from './city'
 import { CACHE_KEY_PREFIX, CacheData, fetchLimitNumbersFromNetwork } from './network'
-const { Storage } = scripting
 
 /**
  * 获取一周的限行信息

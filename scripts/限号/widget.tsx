@@ -1,6 +1,5 @@
 // 限号助手小组件 - 主文件
-import * as scripting from "scripting"
-const { Circle, HStack, Image, RoundedRectangle, Spacer, Text, VStack, Widget, ZStack } = scripting
+import { Circle, HStack, Image, RoundedRectangle, Spacer, Text, VStack, Widget, ZStack } from "scripting"
 // 导入拆分出去的模块
 import { getCurrentTime, getShortLimitInfo } from './utils/base'
 import { getLimitNumbers, getWeeklyLimitNumbers } from './utils/service'
