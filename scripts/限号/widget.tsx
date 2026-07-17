@@ -1,13 +1,13 @@
 import {
-  Widget,
-  VStack,
-  HStack,
-  Text,
-  Spacer,
-  Divider,
-  AccessoryWidgetBackground,
-  ZStack,
-  modifiers,
+    AccessoryWidgetBackground,
+    HStack,
+    Image,
+    Spacer,
+    Text,
+    VStack,
+    Widget,
+    ZStack,
+    modifiers
 } from 'scripting'
 
 declare function fetch(input: string, init?: {
@@ -502,16 +502,14 @@ function AccessoryCircularWidget({ data }: { data: LimitData }) {
     <ZStack modifiers={modifiers().frame(Widget.displaySize)}>
       <AccessoryWidgetBackground />
       <VStack alignment="center" spacing={1} modifiers={modifiers().frame(Widget.displaySize)}>
-        <Text
+        <Image
+          systemName="car.fill"
           modifiers={modifiers()
-            .font(11)
-            .fontWeight('semibold')
+            .font(12)
             .foregroundStyle('secondaryLabel')
             .widgetAccentable()
             .lineLimit(1)}
-        >
-          限号
-        </Text>
+        />
         <Text
           modifiers={modifiers()
             .font(isFree ? 18 : 21)
