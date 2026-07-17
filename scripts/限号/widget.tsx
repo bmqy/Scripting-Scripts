@@ -1,336 +1,636 @@
-// 限号助手小组件 - 主文件
-import { Circle, HStack, Image, RoundedRectangle, Spacer, Text, VStack, Widget, ZStack } from "scripting"
-// 导入拆分出去的模块
-import { getCurrentTime, getShortLimitInfo } from './utils/base'
-import { getLimitNumbers, getWeeklyLimitNumbers } from './utils/service'
+import {
+  Widget,
+  VStack,
+  HStack,
+  Text,
+  Spacer,
+  Divider,
+  AccessoryWidgetBackground,
+  ZStack,
+  modifiers,
+} from 'scripting'
 
-// 声明全局API
+declare function fetch(input: string, init?: {
+  headers?: Record<string, string>
+}): Promise<{
+  ok: boolean
+  status: number
+  text(): Promise<string>
+}>
 
-// 开发测试配置 - 控制是否强制刷新城市信息
-// 设置为true可以清除城市缓存并重新获取
-const FORCE_REFRESH_CITY = false;
+type LimitDay = {
+  date: string
+  weekday: string
+  label: string
+  restriction: string
+  source?: string
+}
 
-/**
- * 创建并显示Widget
- */
-async function createWidget() {
+type LimitData = {
+  city: string
+  district?: string
+  updatedAt: number
+  dateKey: string
+  query: string
+  summary: string
+  today: LimitDay
+  tomorrow: LimitDay
+  week: LimitDay[]
+  sourceTitle?: string
+  sourceUrl?: string
+  searchEngine?: string
+  parserVersion?: number
+  rawText?: string
+  error?: string
+}
+
+type CacheFile = {
+  lastCity?: string
+  data?: LimitData
+}
+
+const CACHE_DIR = `${FileManager.appGroupDocumentsDirectory}/traffic-limit-widget`
+const CACHE_PATH = `${CACHE_DIR}/cache.json`
+const WEEKDAYS = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
+const BAIDU_SEARCH = 'https://www.baidu.com/s'
+const PARSER_VERSION = 2
+
+function pad(n: number) {
+  return `${n}`.padStart(2, '0')
+}
+
+function dateKey(date = new Date()) {
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
+}
+
+function addDays(date: Date, days: number) {
+  const next = new Date(date)
+  next.setDate(next.getDate() + days)
+  return next
+}
+
+function nextMidnight() {
+  const d = new Date()
+  d.setDate(d.getDate() + 1)
+  d.setHours(0, 5, 0, 0)
+  return d
+}
+
+function stripCitySuffix(name?: string | null) {
+  if (!name) return ''
+  return name
+    .replace(/(市辖区|地区|盟|自治州|特别行政区)$/g, '')
+    .replace(/市$/g, '')
+    .trim()
+}
+
+function htmlDecode(input: string) {
+  return input
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&quot;/g, '"')
+    .replace(/&#x27;/g, "'")
+    .replace(/&#39;/g, "'")
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+}
+
+function stripHtml(input: string) {
+  return htmlDecode(
+    input
+      .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+      .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+      .replace(/<[^>]+>/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim(),
+  )
+}
+
+async function readCache(): Promise<CacheFile | null> {
   try {
-    // 获取小组件类型
-    const family = Widget.family;
-    let widgetView;
-    let currentTime = getCurrentTime();
-    
-    // 根据不同的小组件类型选择不同的数据获取方式
-    if (family === "systemMedium") { // 桌面中号小组件
-      // 中号小组件需要获取一周的限行信息
-      const weeklyLimitData = await getWeeklyLimitNumbers({ forceRefreshCity: FORCE_REFRESH_CITY });
-      widgetView = createMediumWidgetView(weeklyLimitData, currentTime);
-    } else {
-      // 其他类型小组件只需要获取当天的限行信息
-      const limitData = await getLimitNumbers({ forceRefreshCity: FORCE_REFRESH_CITY });
-      
-      // 根据不同的小组件类型创建不同的视图
-      if (family === "accessoryCircular") {
-        // 锁屏圆形小组件视图
-        widgetView = createCircularWidgetView(limitData);
-      } else {
-        // 标准小组件视图 - Kindle墨水屏风格，优化布局
-        // 特点：顶部左侧标题、右上角城市、右下角时间、中间突出显示限号信息
-        widgetView = createStandardWidgetView(limitData, currentTime);
+    if (!FileManager.existsSync(CACHE_PATH)) return null
+    return JSON.parse(FileManager.readAsStringSync(CACHE_PATH)) as CacheFile
+  } catch {
+    return null
+  }
+}
+
+async function writeCache(cache: CacheFile) {
+  try {
+    if (!FileManager.existsSync(CACHE_DIR)) {
+      FileManager.createDirectorySync(CACHE_DIR, true)
+    }
+    FileManager.writeAsStringSync(CACHE_PATH, JSON.stringify(cache, null, 2))
+  } catch {
+    // Ignore cache write errors in widget context.
+  }
+}
+
+async function currentCityFromLocation(cache?: CacheFile | null) {
+  try {
+    await Location.setAccuracy('kilometer')
+    const loc = await Location.requestCurrent({ forceRequest: false })
+    if (!loc) throw new Error('无法获取定位')
+    const placemarks = await Location.reverseGeocode({
+      latitude: loc.latitude,
+      longitude: loc.longitude,
+      locale: 'zh-CN',
+    })
+    const p = placemarks?.[0]
+    const city = stripCitySuffix(p?.locality || p?.subAdministrativeArea || p?.administrativeArea)
+    if (!city) throw new Error('无法识别城市')
+    return {
+      city,
+      district: p?.subLocality || p?.name || undefined,
+    }
+  } catch {
+    if (cache?.lastCity) return { city: cache.lastCity, district: undefined }
+    if (cache?.data?.city) return { city: cache.data.city, district: undefined }
+    return { city: '北京', district: undefined }
+  }
+}
+
+function emptyWeek(city: string): LimitDay[] {
+  const today = new Date()
+  return Array.from({ length: 7 }).map((_, i) => {
+    const d = addDays(today, i)
+    return {
+      date: dateKey(d).slice(5),
+      weekday: WEEKDAYS[d.getDay()],
+      label: i === 0 ? '今天' : i === 1 ? '明天' : WEEKDAYS[d.getDay()],
+      restriction: city ? '待查询' : '未知',
+    }
+  })
+}
+
+function normalizeRestriction(text?: string) {
+  const s = (text || '').replace(/\s+/g, '').trim()
+  if (!s) return ''
+  if (/不限行|不实施|暂停|解除|无尾号|不限号|免限行|不限/.test(s)) return '不限'
+
+  const numberPair = s.match(/([0-9０-９]\s*(?:和|、|,|，|及|与)\s*[0-9０-９])/)?.[1]
+  if (numberPair) return formatRestriction(numberPair)
+
+  const explicit = s.match(/(?:尾号|限行|限号|车牌尾号|机动车尾号)(?:为|是|：|:)?([0-9０-９])/)
+  if (explicit?.[1]) return formatRestriction(explicit[1])
+
+  return ''
+}
+
+function formatRestriction(text: string) {
+  return text
+    .replace(/\s+/g, '')
+    .replace(/[，,及与和]/g, '、')
+    .replace(/０/g, '0')
+    .replace(/１/g, '1')
+    .replace(/２/g, '2')
+    .replace(/３/g, '3')
+    .replace(/４/g, '4')
+    .replace(/５/g, '5')
+    .replace(/６/g, '6')
+    .replace(/７/g, '7')
+    .replace(/８/g, '8')
+    .replace(/９/g, '9')
+}
+
+function makeDay(date: Date, label?: string, restriction = '待查询'): LimitDay {
+  return {
+    date: dateKey(date).slice(5),
+    weekday: WEEKDAYS[date.getDay()],
+    label: label || WEEKDAYS[date.getDay()],
+    restriction,
+  }
+}
+
+function currentWeek(city: string): LimitDay[] {
+  const today = new Date()
+  const day = today.getDay() || 7
+  const monday = addDays(today, 1 - day)
+  return Array.from({ length: 7 }).map((_, i) => {
+    const d = addDays(monday, i)
+    return makeDay(d, WEEKDAYS[d.getDay()], city ? '待查询' : '未知')
+  })
+}
+
+function extractAround(text: string, keyword: string) {
+  const index = text.indexOf(keyword)
+  if (index < 0) return ''
+  return text.slice(Math.max(0, index - 20), Math.min(text.length, index + 80))
+}
+
+function extractRestrictionForDay(text: string, weekday: string, labels: string[]) {
+  const compact = text.replace(/\s+/g, '')
+  for (const label of labels) {
+    const around = extractAround(compact, label)
+    const parsed = normalizeRestriction(around)
+    if (parsed) return parsed
+  }
+
+  const weekPattern = new RegExp(`${weekday}([^周]{0,20})`)
+  const weekMatch = compact.match(weekPattern)?.[1]
+  const parsedWeek = normalizeRestriction(weekMatch)
+  if (parsedWeek) return parsedWeek
+
+  return ''
+}
+
+function extractBaiduCardRestriction(text: string, label: '今日' | '明日') {
+  const match = text.match(new RegExp(`${label}限行尾号[\\s\\S]{0,70}?((?:[0-9０-９]\\s*(?:和|、|,|，|及|与)\\s*[0-9０-９])|不限(?:行)?)`))
+  return normalizeRestriction(match?.[1])
+}
+
+function extractBaiduWeekMap(text: string) {
+  const source = text.match(/本周尾号限行[\s\S]*?(?=下周尾号限行|限行时间|限行区域|$)/)?.[0] || text
+  const map: Record<string, string> = {}
+  for (const weekday of WEEKDAYS.slice(1).concat(WEEKDAYS[0])) {
+    const match = source.match(new RegExp(`${weekday}\\s*((?:[0-9０-９]\\s*(?:和|、|,|，|及|与)\\s*[0-9０-９])|不限(?:行)?)`))
+    const value = normalizeRestriction(match?.[1])
+    if (value) map[weekday] = value
+  }
+  return map
+}
+
+function parseBaidu(html: string, city: string, query: string): LimitData {
+  const results: { title: string; url?: string; snippet: string }[] = []
+  const blocks =
+    html.match(/<div[^>]+class="[^"]*(?:c-container|result)[^"]*"[\s\S]*?(?=<div[^>]+class="[^"]*(?:c-container|result)[^"]*"|<\/body>|$)/gi) || []
+
+  for (const block of blocks.slice(0, 10)) {
+    const titleHtml =
+      block.match(/<h3[^>]*>[\s\S]*?<a[^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>[\s\S]*?<\/h3>/i) ||
+      block.match(/<a[^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/i)
+    const url = htmlDecode(titleHtml?.[1] || '')
+    const title = stripHtml(titleHtml?.[2] || '')
+    const snippet = stripHtml(block)
+      .replace(title, '')
+      .replace(/百度快照|广告||\s+/g, ' ')
+      .trim()
+    if (title || snippet) results.push({ title, url, snippet })
+  }
+
+  // 百度页面结构经常调整；如果结果块解析不到，则退回使用整页可见文本做规则提取。
+  const pageText = stripHtml(html).replace(/\s+/g, ' ')
+  const combined = (results.length > 0
+    ? results.map(r => `${r.title}。${r.snippet}`).join('。')
+    : pageText
+  ).replace(/\s+/g, ' ')
+
+  const weekMap = extractBaiduWeekMap(combined)
+  const todayDate = new Date()
+  const tomorrowDate = addDays(todayDate, 1)
+
+  const week = currentWeek(city).map(item => ({
+    ...item,
+    restriction: weekMap[item.weekday] || extractRestrictionForDay(combined, item.weekday, [item.weekday, item.date]) || '以当地公告为准',
+    source: '百度',
+  }))
+
+  const today = {
+    ...makeDay(todayDate, '今天'),
+    restriction: extractBaiduCardRestriction(combined, '今日') || weekMap[WEEKDAYS[todayDate.getDay()]] || '以当地公告为准',
+    source: '百度',
+  }
+  const tomorrow = {
+    ...makeDay(tomorrowDate, '明天'),
+    restriction: extractBaiduCardRestriction(combined, '明日') || weekMap[WEEKDAYS[tomorrowDate.getDay()]] || '以当地公告为准',
+    source: '百度',
+  }
+  const best = results.find(r => /限行|限号|尾号|机动车/.test(`${r.title}${r.snippet}`)) || results[0]
+
+  return {
+    city,
+    updatedAt: Date.now(),
+    dateKey: dateKey(),
+    query,
+    summary: combined.slice(0, 180),
+    today,
+    tomorrow,
+    week,
+    sourceTitle: best?.title,
+    sourceUrl: best?.url,
+    searchEngine: 'baidu',
+    parserVersion: PARSER_VERSION,
+    rawText: combined.slice(0, 1200),
+  }
+}
+
+async function fetchLimitData(city: string, district?: string): Promise<LimitData> {
+  const q = `${city} 今日 限号 限行 尾号 本周 周一 周二 周三 周四 周五`
+  const url = `${BAIDU_SEARCH}?wd=${encodeURIComponent(q)}&rn=10&ie=utf-8`
+  const res = await fetch(url, {
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 Mobile/15E148 Safari/604.1',
+      'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.6',
+      Referer: 'https://www.baidu.com/',
+    },
+  })
+  if (!res.ok) throw new Error(`百度搜索失败：${res.status}`)
+  const html = await res.text()
+  const data = parseBaidu(html, city, q)
+  data.district = district
+  return data
+}
+
+async function loadData(): Promise<LimitData> {
+  const cache = await readCache()
+  const place = await currentCityFromLocation(cache)
+  const todayKey = dateKey()
+
+  if (cache?.data && cache.data.city === place.city && cache.data.dateKey === todayKey && cache.data.searchEngine === 'baidu' && cache.data.parserVersion === PARSER_VERSION) {
+    return { ...cache.data, district: place.district || cache.data.district }
+  }
+
+  try {
+    const data = await fetchLimitData(place.city, place.district)
+    await writeCache({ lastCity: place.city, data })
+    return data
+  } catch (error) {
+    const fallback = cache?.data
+    if (fallback) {
+      return {
+        ...fallback,
+        city: place.city || fallback.city,
+        district: place.district || fallback.district,
+        error: error instanceof Error ? error.message : '更新失败，显示缓存',
       }
     }
 
-    // 显示Widget
-    // 设置重载策略，在每天午夜12点刷新
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    tomorrow.setHours(0, 0, 0, 0);
-    
-    Widget.present(widgetView, {
-      policy: "after",
-      date: tomorrow
-    });
-
-  } catch (e) {
-    console.error('Widget运行失败:', e);
-    
-    // 获取小组件类型
-    const family = Widget.family;
-    
-    // 根据小组件类型显示不同的错误信息
-      if (family === "accessoryCircular") {
-      // 锁屏圆形小组件错误视图
-      Widget.present(
-        <ZStack>
-          <Text font={24} foregroundStyle="#ff0000">错误</Text>
-        </ZStack>,
-        {
-          policy: "after",
-          date: new Date(Date.now() + 1000 * 60 * 5) // 5分钟后重试
-        }
-      );
-    } else if (family === "systemMedium") { // 桌面中号小组件
-      // 中号小组件错误视图
-      Widget.present(
-        <ZStack>
-          <RoundedRectangle fill="#ffffff" cornerRadius={12} />
-          <VStack alignment="center" spacing={8} padding={15}>
-            <Text font="caption" foregroundStyle="#ff0000">获取数据失败</Text>
-            <Text font="caption2" foregroundStyle="#999999">
-              {e instanceof Error ? e.message : '未知错误'}
-            </Text>
-          </VStack>
-        </ZStack>,
-        {
-          policy: "after",
-          date: new Date(Date.now() + 1000 * 60 * 5) // 5分钟后重试
-        }
-      );
-    } else {
-      // 标准小组件错误视图 - Kindle墨水屏风格
-      Widget.present(
-        <ZStack>
-          <RoundedRectangle fill="#f5f5f5" cornerRadius={12} />
-          <VStack alignment="center" spacing={8} padding={20}>
-            
-            <Text font="title" foregroundStyle="#707070">发生错误</Text>
-            <Text font="body" foregroundStyle="#000000">{e instanceof Error ? e.message : '未知错误'}</Text>
-          </VStack>
-        </ZStack>,
-        {
-          policy: "after",
-          date: new Date(Date.now() + 1000 * 60 * 5) // 5分钟后重试
-        }
-      );
+    const week = emptyWeek(place.city)
+    return {
+      city: place.city,
+      district: place.district,
+      updatedAt: Date.now(),
+      dateKey: todayKey,
+      query: '',
+      summary: '未能获取限行信息，请确认定位和网络权限。',
+      today: week[0],
+      tomorrow: week[1],
+      week,
+      error: error instanceof Error ? error.message : '获取失败',
     }
   }
 }
 
-/**
- * 创建标准小组件视图
- */
-function createStandardWidgetView(limitData: any, currentTime: string) {
+function RestrictionPill({ text, large = false }: { text: string; large?: boolean }) {
+  const isFree = /不限|无|待|公告|未知/.test(text)
   return (
-    <ZStack>
-      {/* 模拟Kindle墨水屏的米白色背景 */}
-      <RoundedRectangle fill="#f5f5f5" cornerRadius={12} />
-      
-      {/* 主容器 - 增加内边距防止内容被裁剪 */}
-      <VStack padding={15} spacing={8} frame={{ maxWidth: Infinity, maxHeight: Infinity }}>
-        {/* 顶部区域 - 简化标题显示，确保不出现省略号 */}
-        <HStack spacing={8}>
-          <Text font="caption" foregroundStyle="#707070" fontWeight="semibold">限号助手</Text>
-          <Spacer />
-          <Text font="caption" foregroundStyle="#909090">{limitData.city}</Text>
-        </HStack>
-        
-        {/* 核心限号信息区域 - 居中显示，优化间距确保完整显示 */}
-        <Spacer />
-        <VStack alignment="center" padding={{ vertical: 0 }}>
-          {/* 根据内容类型调整字体大小和样式 */}
-          {/* 使用大字体并添加缩放属性，确保在小尺寸小组件上也能完整显示 */}
-            {/* 将限号信息拆分为数字和逗号，使用不同的字体大小显示 */}
-            <HStack alignment="bottom" spacing={8} frame={{ maxWidth: Infinity }}>
-              {
-                // 处理限号信息，分离数字和逗号
-                (() => {
-                  const limitText = getShortLimitInfo(limitData.limitInfo);
-                  
-                  // 检查是否包含逗号的双数字情况
-                  if (limitText.includes(',')) {
-                    const [firstNum, secondNum] = limitText.split(',');
-                    return (
-                      <>
-                        <Text 
-                          font={60} 
-                          foregroundStyle="#000000" 
-                          fontWeight="semibold"
-                          minScaleFactor={0.7}
-                        >
-                          {firstNum}
-                        </Text>
-                        <Text 
-                          font="caption2" 
-                          foregroundStyle="#000000" 
-                          fontWeight="bold"
-                          padding={{ bottom: 5 }}
-                        >
-                          ,
-                        </Text>
-                        <Text 
-                          font={60} 
-                          foregroundStyle="#000000" 
-                          fontWeight="semibold"
-                          minScaleFactor={0.5}
-                        >
-                          {secondNum}
-                        </Text>
-                      </>
-                    );
-                  }
-                  
-                  // 单数字或其他情况，直接显示
-                  return (
-                    <Text 
-                      font={60} 
-                      foregroundStyle="#000000" 
-                      fontWeight="bold" 
-                      frame={{ maxWidth: Infinity }}
-                      minScaleFactor={0.5}
-                    >
-                      {limitText}
-                    </Text>
-                  );
-                })()
-              }
-            </HStack>
-        </VStack>
-        <Spacer />
-        
-        {/* 底部更新时间区域 - 右下角显示，只显示时间 */}
-        <Spacer />
-        <HStack>
-          <Spacer />
-          <Text font="caption" foregroundStyle="#909090">
-            更新: {currentTime}
-          </Text>
-        </HStack>
-      </VStack>
-    </ZStack>
-  );
+    <Text
+      modifiers={modifiers()
+        .font(large ? 42 : 22)
+        .fontWeight('black')
+        .fontDesign('rounded')
+        .foregroundStyle(isFree ? '#14A44D' : '#D9480F')
+        .lineLimit(1)
+        .minScaleFactor(0.55)}
+    >
+      {text}
+    </Text>
+  )
 }
 
-/**
- * 创建中号小组件视图 - 按星期显示每一天的限行信息
- */
-function createMediumWidgetView(weeklyLimitData: any, currentTime: string) {
-  const { city, weeklyLimitInfo } = weeklyLimitData;
-  
-  // 计算当前日期范围 - 显示本周一到周日
-  const today = new Date();
-  const dayOfWeek = today.getDay(); // 0-6, 0是周日
-  
-  // 计算本周一的日期
-  const startDate = new Date(today);
-  // 如果今天是周日，需要特殊处理（因为getDay()返回0）
-  const daysToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
-  startDate.setDate(today.getDate() + daysToMonday);
-  
-  // 计算本周日的日期（在周一的基础上加6天）
-  const endDate = new Date(startDate);
-  endDate.setDate(startDate.getDate() + 6);
-  
-  // 格式化日期范围显示
-  const dateRange = `${startDate.getFullYear()}年${startDate.getMonth() + 1}月${startDate.getDate()}日-${endDate.getMonth() + 1}月${endDate.getDate()}日`;
-  
+function circularRestrictionText(text: string) {
+  const normalized = formatRestriction(text || '')
+  if (/不限|无/.test(normalized)) return '不限'
+  const digits = normalized.match(/[0-9]/g)
+  if (digits && digits.length >= 2) return digits.slice(0, 2).join(',')
+  if (digits && digits.length === 1) return digits[0]
+  return '不限'
+}
+
+function restrictionColor(text: string, _active = false) {
+  return /不限|无/.test(text) ? '#16A34A' : '#334155'
+}
+
+function isCurrentDay(item: LimitDay) {
+  return item.date === dateKey().slice(5)
+}
+
+function WeekDayColumn({ item, compact = false }: { item: LimitDay; compact?: boolean }) {
+  const active = isCurrentDay(item)
   return (
-    <ZStack>
-      {/* 背景 */}
-      <RoundedRectangle fill="#ffffff" cornerRadius={12} />
-      
-      {/* 主容器 - 优化垂直布局，确保主体信息居中 */}
-      <VStack spacing={6} padding={15} frame={{ maxWidth: Infinity, maxHeight: Infinity }}>
-        {/* 顶部标题和城市信息 */}
-        <HStack spacing={8} frame={{ maxWidth: Infinity }}>
-          <Text font="caption" foregroundStyle="#707070" fontWeight="bold">限号助手</Text>
-          <Spacer />
-          <Text font="caption" foregroundStyle="#909090">{city}</Text>
-        </HStack>
-        
-        {/* 增加顶部间隔，使日期范围文本位置更靠下 */}
-        <Spacer minLength={4} />
-        
-        {/* 日期范围 */}
-        <Text font="caption" foregroundStyle="#909090" multilineTextAlignment="leading">
-          本周尾号限行（{dateRange}）
+    <VStack
+      alignment="center"
+      spacing={compact ? 4 : 5}
+      modifiers={modifiers()
+        .frame({ width: compact ? 39 : 40, alignment: 'center' })
+        .padding({ top: compact ? 8 : 9, bottom: compact ? 8 : 9 })
+        .background(active ? '#DBEAFE' : '#FFFFFFCC')}
+    >
+      <Text modifiers={modifiers().font(compact ? 'caption' : 'callout').fontWeight('semibold').foregroundStyle('#475569').lineLimit(1)}>
+        {item.weekday.replace('周', '')}
+      </Text>
+      <Text modifiers={modifiers().font('caption2').foregroundStyle('#94A3B8').lineLimit(1)}>
+        {item.date.replace('-', '/')}
+      </Text>
+      <Text modifiers={modifiers().font(compact ? 'callout' : 'title3').fontWeight('bold').foregroundStyle(restrictionColor(item.restriction, active)).lineLimit(1).minScaleFactor(0.5)}>
+        {item.restriction}
+      </Text>
+    </VStack>
+  )
+}
+
+function WeekStrip({ week, compact = false }: { week: LimitDay[]; compact?: boolean }) {
+  return (
+    <HStack alignment="center" spacing={compact ? 3 : 4}>
+      {week.slice(0, 7).map(item => <WeekDayColumn item={item} compact={compact} />)}
+    </HStack>
+  )
+}
+
+function TodayTomorrowPanel({ data, compact = false }: { data: LimitData; compact?: boolean }) {
+  return (
+    <HStack alignment="center" spacing={compact ? 8 : 12}>
+      <VStack alignment="center" spacing={compact ? 2 : 3} modifiers={modifiers().frame({ width: compact ? 128 : 142, alignment: 'center' })}>
+        <Text modifiers={modifiers().font(compact ? 'caption2' : 'caption').foregroundStyle('#64748B').lineLimit(1)}>
+          今日限行尾号({data.today.weekday})
         </Text>
-        
-        {/* 增加小间隔，让内容更好地分组 */}
-        <Spacer minLength={2} />
-        
-        {/* 星期限行信息行 - 主体内容 */}
-        <HStack spacing={5} frame={{ maxWidth: Infinity }}>
-          {weeklyLimitInfo.map((dayInfo: any) => {
-            // 处理限行信息文本
-            let limitText = getShortLimitInfo(dayInfo.limitInfo);
-            // 将逗号替换为"和"
-            limitText = limitText.replace(',', '和');
-            
-            // 根据是否为今天设置不同的样式
-            if (dayInfo.isToday) {
-              return (
-                <VStack alignment="center" spacing={2} frame={{ maxWidth: 'infinity' }}>
-                  {/* 星期 */}
-                  <Text font="caption2" foregroundStyle="#007AFF" fontWeight="bold">
-                    {dayInfo.day}
-                  </Text>
-                  {/* 限行信息 */}
-                  <Text font="caption2" foregroundStyle="#007AFF" fontWeight="bold">
-                    {limitText === '不限行' ? '不限' : limitText}
-                  </Text>
-                </VStack>
-              );
-            } else {
-              return (
-                <VStack alignment="center" spacing={2} frame={{ maxWidth: 'infinity' }}>
-                  {/* 星期 */}
-                  <Text font="caption2" foregroundStyle="#333333">
-                    {dayInfo.day}
-                  </Text>
-                  {/* 限行信息 */}
-                  <Text font="caption2" foregroundStyle="#333333">
-                    {limitText === '不限行' ? '不限' : limitText}
-                  </Text>
-                </VStack>
-              );
-            }})}
-        </HStack>
-        
-        {/* 增加底部间隔，确保内容居中 */}
-        <Spacer minLength={8} />
-        
-        {/* 底部更新时间 - 调整为靠右对齐 */}
-        <HStack frame={{ maxWidth: Infinity }}>
-          <Spacer />
-          <Text font="caption2" foregroundStyle="#999999">
-            更新: {currentTime}
-          </Text>
-        </HStack>
+        <RestrictionPill text={data.today.restriction} large={!compact} />
       </VStack>
-    </ZStack>
-  );
+      <VStack alignment="center" spacing={compact ? 2 : 3} modifiers={modifiers().frame({ width: compact ? 128 : 142, alignment: 'center' })}>
+        <Text modifiers={modifiers().font(compact ? 'caption2' : 'caption').foregroundStyle('#64748B').lineLimit(1)}>
+          明日限行尾号({data.tomorrow.weekday})
+        </Text>
+        <RestrictionPill text={data.tomorrow.restriction} large={!compact} />
+      </VStack>
+    </HStack>
+  )
 }
 
-/**
- * 创建圆形小组件视图
- */
-function createCircularWidgetView(limitData: any) {
-  const limitText = getShortLimitInfo(limitData.limitInfo);
-  
+function Header({ data, compact = false }: { data: LimitData; compact?: boolean }) {
   return (
-    <ZStack>
-      {/* 圆形背景 - 使用白色增强对比度 */}
-      <Circle fill="#ffffff" />
-      
-      {/* 中心显示限号信息 */}
-      <VStack alignment="center" spacing={2}>
-        {/* 汽车图标 - 使用黑色增强可见性 */}
-        <Image systemName="car.fill" foregroundStyle="#000000" />
-        
-        {/* 根据内容调整字体大小 - 减小不限行文字大小，保持数字大小不变 */}
-        <Text 
-          font={limitText === '不限行' ? 18 : 24} 
-          foregroundStyle="#000000" 
-          fontWeight="bold"
-          minScaleFactor={0.5}
+    <HStack alignment="center" spacing={6}>
+      <Text modifiers={modifiers().font(compact ? 'caption' : 'footnote').fontWeight('semibold').foregroundStyle('#475569').lineLimit(1)}>
+        {data.city}限号
+      </Text>
+      <Spacer minLength={2} />
+      <Text modifiers={modifiers().font('caption2').foregroundStyle('#94A3B8').lineLimit(1)}>
+        {data.dateKey.slice(5)} 更新
+      </Text>
+    </HStack>
+  )
+}
+
+function DayRow({ item, emphasis = false, compact = false }: { item: LimitDay; emphasis?: boolean; compact?: boolean }) {
+  const active = emphasis
+  return (
+    <HStack
+      alignment="center"
+      spacing={6}
+      modifiers={modifiers()
+        .frame({ maxWidth: 'infinity', alignment: 'center' })
+        .padding({ horizontal: 8, vertical: compact ? 3 : 4 })
+        .background(active ? '#DBEAFE' : '#00000000')}
+    >
+      <VStack alignment="leading" spacing={0} modifiers={modifiers().frame({ width: compact ? 48 : 54, alignment: 'leading' })}>
+        <Text modifiers={modifiers().font(active && !compact ? 'callout' : 'caption').fontWeight('bold').foregroundStyle('#334155').lineLimit(1)}>
+          {item.label}
+        </Text>
+        <Text modifiers={modifiers().font('caption2').foregroundStyle('#94A3B8').lineLimit(1)}>{item.date.replace('-', '/')}</Text>
+      </VStack>
+      <Spacer minLength={2} />
+      <Text modifiers={modifiers().font(active && !compact ? 'title3' : 'callout').fontWeight('semibold').foregroundStyle(restrictionColor(item.restriction, active)).lineLimit(1).minScaleFactor(0.65)}>
+        {item.restriction}
+      </Text>
+    </HStack>
+  )
+}
+
+function AccessoryCircularWidget({ data }: { data: LimitData }) {
+  const text = circularRestrictionText(data.today.restriction)
+  const isFree = text === '不限'
+  return (
+    <ZStack modifiers={modifiers().frame(Widget.displaySize)}>
+      <AccessoryWidgetBackground />
+      <VStack alignment="center" spacing={1} modifiers={modifiers().frame(Widget.displaySize)}>
+        <Text
+          modifiers={modifiers()
+            .font(11)
+            .fontWeight('semibold')
+            .foregroundStyle('secondaryLabel')
+            .widgetAccentable()
+            .lineLimit(1)}
         >
-          {limitText === '不限行' ? '不限' : limitText}
+          限号
+        </Text>
+        <Text
+          modifiers={modifiers()
+            .font(isFree ? 18 : 21)
+            .fontWeight('black')
+            .fontDesign('rounded')
+            .foregroundStyle(isFree ? 'systemGreen' : 'label')
+            .lineLimit(1)
+            .minScaleFactor(0.55)}
+        >
+          {text}
         </Text>
       </VStack>
     </ZStack>
-  );
+  )
 }
 
-// 启动Widget
-createWidget();
+function SmallWidget({ data }: { data: LimitData }) {
+  return (
+    <VStack alignment="leading" spacing={8} modifiers={modifiers().padding(14).widgetBackground('#FFF7ED')}>
+      <Header data={data} compact />
+      <Spacer minLength={2} />
+      <Text modifiers={modifiers().font('caption').foregroundStyle('#64748B')}>今日 {data.today.weekday}</Text>
+      <RestrictionPill text={data.today.restriction} large />
+      <Spacer minLength={2} />
+      <Text modifiers={modifiers().font('caption2').foregroundStyle('#94A3B8').lineLimit(2)}>
+        明日：{data.tomorrow.restriction}
+      </Text>
+    </VStack>
+  )
+}
 
+function MediumWidget({ data }: { data: LimitData }) {
+  return (
+    <VStack alignment="leading" spacing={10} modifiers={modifiers().padding(14).widgetBackground('#FFF7ED')}>
+      <Header data={data} />
+      <TodayTomorrowPanel data={data} compact />
+      <WeekStrip week={data.week} compact />
+    </VStack>
+  )
+}
+
+function WeekList({ week, compact = false }: { week: LimitDay[]; compact?: boolean }) {
+  return (
+    <VStack alignment="leading" spacing={compact ? 5 : 7} modifiers={modifiers().frame({ maxWidth: 'infinity', alignment: 'leading' })}>
+      {week.slice(0, 7).map(item => <DayRow item={item} emphasis={isCurrentDay(item)} compact={compact} />)}
+    </VStack>
+  )
+}
+
+function LargeWidget({ data }: { data: LimitData }) {
+  return (
+    <VStack alignment="leading" spacing={10} modifiers={modifiers().padding(14).widgetBackground('#FFF7ED')}>
+      <Header data={data} />
+      <TodayTomorrowPanel data={data} compact />
+      <WeekList week={data.week} compact />
+    </VStack>
+  )
+}
+
+function WidgetView({ data }: { data: LimitData }) {
+  if (Widget.family === 'accessoryCircular') return <AccessoryCircularWidget data={data} />
+  if (Widget.family === 'systemSmall') return <SmallWidget data={data} />
+  if (Widget.family === 'systemLarge' || Widget.family === 'systemExtraLarge') return <LargeWidget data={data} />
+  return <MediumWidget data={data} />
+}
+
+function fallbackLimitData(): LimitData {
+  const city = '北京'
+  const week = emptyWeek(city)
+  return {
+    city,
+    updatedAt: Date.now(),
+    dateKey: dateKey(),
+    query: '',
+    summary: '暂无缓存',
+    today: { ...makeDay(new Date(), '今天'), restriction: '不限' },
+    tomorrow: week[1],
+    week,
+  }
+}
+
+function loadAccessoryCircularData(): LimitData {
+  try {
+    if (FileManager.existsSync(CACHE_PATH)) {
+      const cache = JSON.parse(FileManager.readAsStringSync(CACHE_PATH)) as CacheFile
+      if (cache?.data) {
+        const todayKey = dateKey()
+        const todayShort = todayKey.slice(5)
+        const todayFromWeek = cache.data.week?.find(item => item.date === todayShort)
+        return {
+          ...cache.data,
+          dateKey: todayKey,
+          today: todayFromWeek
+            ? { ...todayFromWeek, label: '今天' }
+            : cache.data.dateKey === todayKey
+              ? cache.data.today
+              : { ...makeDay(new Date(), '今天'), restriction: cache.data.today?.restriction || '不限' },
+        }
+      }
+    }
+  } catch {
+    // Lock Screen widgets should render something immediately even if cache parsing fails.
+  }
+  return fallbackLimitData()
+}
+
+function presentWidget(data: LimitData) {
+  Widget.present(<WidgetView data={data} />, {
+    reloadPolicy: {
+      policy: 'after',
+      date: nextMidnight(),
+    },
+  })
+}
+
+if (Widget.family === 'accessoryCircular') {
+  presentWidget(loadAccessoryCircularData())
+} else {
+  loadData()
+    .then(data => presentWidget(data))
+    .catch(() => presentWidget(fallbackLimitData()))
+}

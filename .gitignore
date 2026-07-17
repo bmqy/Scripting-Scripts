@@ -46,3 +46,4 @@ tsconfig.json
 .build-cache.json
 .temp
 test*
+AGENTS.md
