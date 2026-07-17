@@ -3,6 +3,7 @@ import {
     HStack,
     Image,
     Spacer,
+    Storage,
     Text,
     VStack,
     Widget,
@@ -51,9 +52,13 @@ type CacheFile = {
 
 const CACHE_DIR = `${FileManager.appGroupDocumentsDirectory}/traffic-limit-widget`
 const CACHE_PATH = `${CACHE_DIR}/cache.json`
+const STORAGE_CACHE_KEY = 'traffic-limit-widget-cache'
+const STORAGE_OPTIONS = { shared: true }
 const WEEKDAYS = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
 const BAIDU_SEARCH = 'https://www.baidu.com/s'
-const PARSER_VERSION = 2
+const PARSER_VERSION = 3
+const FREE_RESTRICTION = '不限'
+const NOTICE_RESTRICTION = '以当地公告为准'
 
 function pad(n: number) {
   return `${n}`.padStart(2, '0')
@@ -67,6 +72,23 @@ function addDays(date: Date, days: number) {
   const next = new Date(date)
   next.setDate(next.getDate() + days)
   return next
+}
+
+function isWeekend(date: Date) {
+  const day = date.getDay()
+  return day === 0 || day === 6
+}
+
+function dateFromShortDate(shortDate: string, reference = new Date()) {
+  const [month, day] = shortDate.split('-').map(Number)
+  const result = new Date(reference)
+  result.setMonth(month - 1, day)
+
+  const halfYear = 1000 * 60 * 60 * 24 * 180
+  const diff = result.getTime() - reference.getTime()
+  if (diff > halfYear) result.setFullYear(result.getFullYear() - 1)
+  if (diff < -halfYear) result.setFullYear(result.getFullYear() + 1)
+  return result
 }
 
 function nextMidnight() {
@@ -106,7 +128,25 @@ function stripHtml(input: string) {
   )
 }
 
-async function readCache(): Promise<CacheFile | null> {
+function readStorageCache(): CacheFile | null {
+  try {
+    const cache = Storage.get<CacheFile>(STORAGE_CACHE_KEY, STORAGE_OPTIONS)
+    if (cache?.data) return cache
+  } catch {
+    // Widget 扩展环境下 Storage 异常时继续走文件兜底。
+  }
+  return null
+}
+
+function writeStorageCache(cache: CacheFile) {
+  try {
+    Storage.set(STORAGE_CACHE_KEY, cache, STORAGE_OPTIONS)
+  } catch {
+    // Storage 写入失败不影响小组件继续展示文件缓存。
+  }
+}
+
+function readFileCacheSync(): CacheFile | null {
   try {
     if (!FileManager.existsSync(CACHE_PATH)) return null
     return JSON.parse(FileManager.readAsStringSync(CACHE_PATH)) as CacheFile
@@ -115,14 +155,24 @@ async function readCache(): Promise<CacheFile | null> {
   }
 }
 
+async function readCache(): Promise<CacheFile | null> {
+  const storageCache = readStorageCache()
+  if (storageCache) return storageCache
+
+  const fileCache = readFileCacheSync()
+  if (fileCache) writeStorageCache(fileCache)
+  return fileCache
+}
+
 async function writeCache(cache: CacheFile) {
+  writeStorageCache(cache)
   try {
     if (!FileManager.existsSync(CACHE_DIR)) {
       FileManager.createDirectorySync(CACHE_DIR, true)
     }
     FileManager.writeAsStringSync(CACHE_PATH, JSON.stringify(cache, null, 2))
   } catch {
-    // Ignore cache write errors in widget context.
+    // 文件缓存只作为 Storage 的兼容兜底。
   }
 }
 
@@ -166,7 +216,7 @@ function emptyWeek(city: string): LimitDay[] {
 function normalizeRestriction(text?: string) {
   const s = (text || '').replace(/\s+/g, '').trim()
   if (!s) return ''
-  if (/不限行|不实施|暂停|解除|无尾号|不限号|免限行|不限/.test(s)) return '不限'
+  if (/不限行|不实施|暂停|解除|无尾号|不限号|免限行|不限/.test(s)) return FREE_RESTRICTION
 
   const numberPair = s.match(/([0-9０-９]\s*(?:和|、|,|，|及|与)\s*[0-9０-９])/)?.[1]
   if (numberPair) return formatRestriction(numberPair)
@@ -234,6 +284,77 @@ function extractRestrictionForDay(text: string, weekday: string, labels: string[
   return ''
 }
 
+function restrictionPairs(text: string) {
+  return (text.match(/[0-9０-９]\s*(?:和|、|,|，|及|与)\s*[0-9０-９]/g) || []).map(formatRestriction)
+}
+
+function parseChineseDate(year: string, month: string, day: string) {
+  return new Date(Number(year), Number(month) - 1, Number(day))
+}
+
+function isDateInRange(date: Date, start: Date, end: Date) {
+  const key = Number(dateKey(date).replace(/-/g, ''))
+  const startKey = Number(dateKey(start).replace(/-/g, ''))
+  const endKey = Number(dateKey(end).replace(/-/g, ''))
+  return key >= startKey && key <= endKey
+}
+
+function assignWeekdayPairs(map: Record<string, string>, pairs: string[]) {
+  WEEKDAYS.slice(1, 6).forEach((weekday, index) => {
+    if (pairs[index]) map[weekday] = pairs[index]
+  })
+}
+
+function extractWorkdaySequenceMap(text: string, referenceDate = new Date()) {
+  const compact = text.replace(/\s+/g, '')
+  const map: Record<string, string> = {}
+  const periodPattern = /(?:自)?(\d{4})年(\d{1,2})月(\d{1,2})日(?:至|到|-)(\d{4})年(\d{1,2})月(\d{1,2})日[^。；;]{0,120}(?:星期一至星期五|周一至周五|工作日)[^。；;]{0,60}(?:分别为|依次为|分别是|为[:：])([^。；;]+)/g
+  let match: RegExpExecArray | null
+
+  while ((match = periodPattern.exec(compact))) {
+    const start = parseChineseDate(match[1], match[2], match[3])
+    const end = parseChineseDate(match[4], match[5], match[6])
+    const pairs = restrictionPairs(match[7])
+    if (pairs.length >= 5 && isDateInRange(referenceDate, start, end)) {
+      assignWeekdayPairs(map, pairs)
+      return map
+    }
+  }
+
+  const sequencePattern = /(?:星期一至星期五|周一至周五|工作日)[^。；;]{0,60}(?:分别为|依次为|分别是|为[:：])([^。；;]+)/g
+  while ((match = sequencePattern.exec(compact))) {
+    const pairs = restrictionPairs(match[1])
+    if (pairs.length >= 5) {
+      assignWeekdayPairs(map, pairs)
+      return map
+    }
+  }
+
+  return map
+}
+
+function hasWorkdayOnlyClue(text: string) {
+  const compact = text.replace(/\s+/g, '')
+  return /工作日|星期一至星期五|周一至周五|周一到周五|法定节假日|双休日/.test(compact)
+}
+
+function inferRestrictionForDate(text: string, date: Date) {
+  const compact = text.replace(/\s+/g, '')
+  const weekday = WEEKDAYS[date.getDay()]
+  const dateLabels = [
+    dateKey(date).slice(5),
+    dateKey(date).slice(5).replace('-', '/'),
+    `${date.getMonth() + 1}月${date.getDate()}日`,
+    `${pad(date.getMonth() + 1)}月${pad(date.getDate())}日`,
+  ]
+  const direct = extractRestrictionForDay(compact, weekday, [weekday, ...dateLabels])
+  if (direct) return direct
+
+  if (isWeekend(date) && hasWorkdayOnlyClue(compact)) return FREE_RESTRICTION
+
+  return ''
+}
+
 function extractBaiduCardRestriction(text: string, label: '今日' | '明日') {
   const match = text.match(new RegExp(`${label}限行尾号[\\s\\S]{0,70}?((?:[0-9０-９]\\s*(?:和|、|,|，|及|与)\\s*[0-9０-９])|不限(?:行)?)`))
   return normalizeRestriction(match?.[1])
@@ -241,11 +362,15 @@ function extractBaiduCardRestriction(text: string, label: '今日' | '明日') {
 
 function extractBaiduWeekMap(text: string) {
   const source = text.match(/本周尾号限行[\s\S]*?(?=下周尾号限行|限行时间|限行区域|$)/)?.[0] || text
-  const map: Record<string, string> = {}
+  const map: Record<string, string> = extractWorkdaySequenceMap(source)
   for (const weekday of WEEKDAYS.slice(1).concat(WEEKDAYS[0])) {
-    const match = source.match(new RegExp(`${weekday}\\s*((?:[0-9０-９]\\s*(?:和|、|,|，|及|与)\\s*[0-9０-９])|不限(?:行)?)`))
+    const match = source.match(new RegExp(`${weekday}\\s*((?:[0-9０-９]\\s*(?:和|、|,|，|及|与)\\s*[0-9０-９])|不限(?:行|号)?)`))
     const value = normalizeRestriction(match?.[1])
     if (value) map[weekday] = value
+  }
+  if (hasWorkdayOnlyClue(source)) {
+    map.周六 = map.周六 || FREE_RESTRICTION
+    map.周日 = map.周日 || FREE_RESTRICTION
   }
   return map
 }
@@ -281,18 +406,18 @@ function parseBaidu(html: string, city: string, query: string): LimitData {
 
   const week = currentWeek(city).map(item => ({
     ...item,
-    restriction: weekMap[item.weekday] || extractRestrictionForDay(combined, item.weekday, [item.weekday, item.date]) || '以当地公告为准',
+    restriction: weekMap[item.weekday] || inferRestrictionForDate(combined, dateFromShortDate(item.date, todayDate)) || NOTICE_RESTRICTION,
     source: '百度',
   }))
 
   const today = {
     ...makeDay(todayDate, '今天'),
-    restriction: extractBaiduCardRestriction(combined, '今日') || weekMap[WEEKDAYS[todayDate.getDay()]] || '以当地公告为准',
+    restriction: extractBaiduCardRestriction(combined, '今日') || weekMap[WEEKDAYS[todayDate.getDay()]] || inferRestrictionForDate(combined, todayDate) || NOTICE_RESTRICTION,
     source: '百度',
   }
   const tomorrow = {
     ...makeDay(tomorrowDate, '明天'),
-    restriction: extractBaiduCardRestriction(combined, '明日') || weekMap[WEEKDAYS[tomorrowDate.getDay()]] || '以当地公告为准',
+    restriction: extractBaiduCardRestriction(combined, '明日') || weekMap[WEEKDAYS[tomorrowDate.getDay()]] || inferRestrictionForDate(combined, tomorrowDate) || NOTICE_RESTRICTION,
     source: '百度',
   }
   const best = results.find(r => /限行|限号|尾号|机动车/.test(`${r.title}${r.snippet}`)) || results[0]
@@ -331,6 +456,39 @@ async function fetchLimitData(city: string, district?: string): Promise<LimitDat
   return data
 }
 
+function isUncertainRestriction(text?: string) {
+  return !text || text === NOTICE_RESTRICTION || text === '待查询' || text === '未知'
+}
+
+function cachedDayByDate(cache: CacheFile | null, shortDate: string) {
+  return cache?.data?.week?.find(item => item.date === shortDate)
+}
+
+function mergeCachedRestrictions(data: LimitData, cache: CacheFile | null): LimitData {
+  if (!cache?.data) return data
+
+  const week = data.week.map(item => {
+    const cached = cachedDayByDate(cache, item.date)
+    if (isUncertainRestriction(item.restriction) && cached && !isUncertainRestriction(cached.restriction)) {
+      return { ...item, restriction: cached.restriction, source: cached.source || '缓存' }
+    }
+    return item
+  })
+
+  const cachedToday = cachedDayByDate(cache, data.today.date)
+  const cachedTomorrow = cachedDayByDate(cache, data.tomorrow.date)
+  return {
+    ...data,
+    today: isUncertainRestriction(data.today.restriction) && cachedToday && !isUncertainRestriction(cachedToday.restriction)
+      ? { ...data.today, restriction: cachedToday.restriction, source: cachedToday.source || '缓存' }
+      : data.today,
+    tomorrow: isUncertainRestriction(data.tomorrow.restriction) && cachedTomorrow && !isUncertainRestriction(cachedTomorrow.restriction)
+      ? { ...data.tomorrow, restriction: cachedTomorrow.restriction, source: cachedTomorrow.source || '缓存' }
+      : data.tomorrow,
+    week,
+  }
+}
+
 async function loadData(): Promise<LimitData> {
   const cache = await readCache()
   const place = await currentCityFromLocation(cache)
@@ -341,7 +499,8 @@ async function loadData(): Promise<LimitData> {
   }
 
   try {
-    const data = await fetchLimitData(place.city, place.district)
+    const freshData = await fetchLimitData(place.city, place.district)
+    const data = mergeCachedRestrictions(freshData, cache)
     await writeCache({ lastCity: place.city, data })
     return data
   } catch (error) {
@@ -592,26 +751,20 @@ function fallbackLimitData(): LimitData {
 }
 
 function loadAccessoryCircularData(): LimitData {
-  try {
-    if (FileManager.existsSync(CACHE_PATH)) {
-      const cache = JSON.parse(FileManager.readAsStringSync(CACHE_PATH)) as CacheFile
-      if (cache?.data) {
-        const todayKey = dateKey()
-        const todayShort = todayKey.slice(5)
-        const todayFromWeek = cache.data.week?.find(item => item.date === todayShort)
-        return {
-          ...cache.data,
-          dateKey: todayKey,
-          today: todayFromWeek
-            ? { ...todayFromWeek, label: '今天' }
-            : cache.data.dateKey === todayKey
-              ? cache.data.today
-              : { ...makeDay(new Date(), '今天'), restriction: cache.data.today?.restriction || '不限' },
-        }
-      }
+  const cache = readStorageCache() || readFileCacheSync()
+  if (cache?.data) {
+    const todayKey = dateKey()
+    const todayShort = todayKey.slice(5)
+    const todayFromWeek = cache.data.week?.find(item => item.date === todayShort)
+    return {
+      ...cache.data,
+      dateKey: todayKey,
+      today: todayFromWeek
+        ? { ...todayFromWeek, label: '今天' }
+        : cache.data.dateKey === todayKey
+          ? cache.data.today
+          : { ...makeDay(new Date(), '今天'), restriction: cache.data.today?.restriction || '不限' },
     }
-  } catch {
-    // Lock Screen widgets should render something immediately even if cache parsing fails.
   }
   return fallbackLimitData()
 }
