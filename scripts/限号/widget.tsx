@@ -49,11 +49,10 @@ type CacheFile = {
   data?: LimitData
 }
 
-const STORAGE_CACHE_KEY = 'traffic-limit-widget-cache'
-const STORAGE_OPTIONS = { shared: true }
+const STORAGE_CACHE_KEY = '限号'
 const WEEKDAYS = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
 const BAIDU_SEARCH = 'https://www.baidu.com/s'
-const PARSER_VERSION = 3
+const PARSER_VERSION = 4
 const FREE_RESTRICTION = '不限'
 const NOTICE_RESTRICTION = '以当地公告为准'
 
@@ -127,8 +126,8 @@ function stripHtml(input: string) {
 
 function readStorageCache(): CacheFile | null {
   try {
-    const cache = Storage.get<CacheFile>(STORAGE_CACHE_KEY, STORAGE_OPTIONS)
-    if (cache?.data) return cache
+    const cache = Storage.get<CacheFile>(STORAGE_CACHE_KEY)
+    if (cache?.data && dataHasCertainRestriction(cache.data)) return cache
   } catch {
     // Storage 异常时返回空数据，由小组件展示默认状态。
   }
@@ -137,7 +136,7 @@ function readStorageCache(): CacheFile | null {
 
 function writeStorageCache(cache: CacheFile) {
   try {
-    Storage.set(STORAGE_CACHE_KEY, cache, STORAGE_OPTIONS)
+    Storage.set(STORAGE_CACHE_KEY, cache)
   } catch {
     // Storage 写入失败时忽略，下一次刷新会重新请求。
   }
@@ -428,11 +427,29 @@ async function fetchLimitData(city: string, district?: string): Promise<LimitDat
   const html = await res.text()
   const data = parseBaidu(html, city, q)
   data.district = district
+  assertUsableLimitData(data)
   return data
 }
 
 function isUncertainRestriction(text?: string) {
   return !text || text === NOTICE_RESTRICTION || text === '待查询' || text === '未知'
+}
+
+
+function dataHasCertainRestriction(data?: LimitData) {
+  if (!data) return false
+  return [data.today, data.tomorrow, ...(data.week || [])].some(item => !isUncertainRestriction(item?.restriction))
+}
+
+function isBaiduNoResultPage(data: LimitData) {
+  const text = `${data.sourceTitle || ''} ${data.rawText || ''}`.replace(/\s+/g, '')
+  return /抱歉[，,]?未找到相关结果|未找到相关结果|检查输入是否正确|尝试其他相关词/.test(text)
+}
+
+function assertUsableLimitData(data: LimitData) {
+  if (isBaiduNoResultPage(data) || !dataHasCertainRestriction(data)) {
+    throw new Error('未解析到有效限行结果')
+  }
 }
 
 function cachedDayByDate(cache: CacheFile | null, shortDate: string) {
