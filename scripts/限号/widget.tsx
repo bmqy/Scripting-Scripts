@@ -56,6 +56,53 @@ const PARSER_VERSION = 4
 const FREE_RESTRICTION = '不限'
 const NOTICE_RESTRICTION = '以当地公告为准'
 
+function previewText(text?: string, maxLength = 260) {
+  const value = (text || '').replace(/\s+/g, ' ').trim()
+  return value.length > maxLength ? `${value.slice(0, maxLength)}...` : value
+}
+
+function safeDebugString(details: unknown) {
+  try {
+    const text = JSON.stringify(details)
+    return text.length > 900 ? `${text.slice(0, 900)}...` : text
+  } catch {
+    return String(details)
+  }
+}
+
+function debugLog(message: string, details?: unknown) {
+  try {
+    if (details === undefined) {
+      console.log(`[限号] ${message}`)
+    } else {
+      console.log(`[限号] ${message}: ${safeDebugString(details)}`)
+    }
+  } catch {
+    // 调试日志失败不能影响小组件渲染。
+  }
+}
+
+function debugError(message: string, error: unknown, details?: unknown) {
+  const errorText = error instanceof Error ? error.message : String(error)
+  debugLog(message, { error: errorText, details })
+}
+
+function restrictionSnapshot(data?: LimitData) {
+  if (!data) return null
+  return {
+    city: data.city,
+    district: data.district,
+    dateKey: data.dateKey,
+    parserVersion: data.parserVersion,
+    sourceTitle: data.sourceTitle,
+    today: data.today?.restriction,
+    tomorrow: data.tomorrow?.restriction,
+    week: (data.week || []).map(item => `${item.weekday}:${item.restriction}`),
+    summary: previewText(data.summary),
+    rawText: previewText(data.rawText),
+  }
+}
+
 function pad(n: number) {
   return `${n}`.padStart(2, '0')
 }
@@ -127,21 +174,28 @@ function stripHtml(input: string) {
 function readStorageCache(): CacheFile | null {
   try {
     const cache = Storage.get<CacheFile>(STORAGE_CACHE_KEY)
-    if (cache?.data && dataHasCertainRestriction(cache.data)) return cache
-  } catch {
-    // Storage 异常时返回空数据，由小组件展示默认状态。
+    if (cache?.data && dataHasCertainRestriction(cache.data)) {
+      debugLog('Storage 缓存命中', { key: STORAGE_CACHE_KEY, cache: restrictionSnapshot(cache.data) })
+      return cache
+    }
+    if (cache?.data) {
+      debugLog('Storage 缓存无有效限行值，忽略', { key: STORAGE_CACHE_KEY, cache: restrictionSnapshot(cache.data) })
+    } else {
+      debugLog('Storage 缓存为空', { key: STORAGE_CACHE_KEY })
+    }
+  } catch (error) {
+    debugError('读取 Storage 缓存失败', error, { key: STORAGE_CACHE_KEY })
   }
   return null
 }
-
 function writeStorageCache(cache: CacheFile) {
   try {
-    Storage.set(STORAGE_CACHE_KEY, cache)
-  } catch {
-    // Storage 写入失败时忽略，下一次刷新会重新请求。
+    const ok = Storage.set(STORAGE_CACHE_KEY, cache)
+    debugLog('写入 Storage 缓存', { key: STORAGE_CACHE_KEY, ok, cache: restrictionSnapshot(cache.data) })
+  } catch (error) {
+    debugError('写入 Storage 缓存失败', error, { key: STORAGE_CACHE_KEY, cache: restrictionSnapshot(cache.data) })
   }
 }
-
 async function readCache(): Promise<CacheFile | null> {
   return readStorageCache()
 }
@@ -416,6 +470,7 @@ function parseBaidu(html: string, city: string, query: string): LimitData {
 async function fetchLimitData(city: string, district?: string): Promise<LimitData> {
   const q = `${city} 今日 限号 限行 尾号 本周 周一 周二 周三 周四 周五`
   const url = `${BAIDU_SEARCH}?wd=${encodeURIComponent(q)}&rn=10&ie=utf-8`
+  debugLog('开始请求百度限行', { city, district, query: q, url })
   const res = await fetch(url, {
     headers: {
       'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 Mobile/15E148 Safari/604.1',
@@ -423,14 +478,16 @@ async function fetchLimitData(city: string, district?: string): Promise<LimitDat
       Referer: 'https://www.baidu.com/',
     },
   })
+  debugLog('百度限行响应', { ok: res.ok, status: res.status })
   if (!res.ok) throw new Error(`百度搜索失败：${res.status}`)
   const html = await res.text()
+  debugLog('百度限行 HTML 已获取', { length: html.length, preview: previewText(html, 220) })
   const data = parseBaidu(html, city, q)
   data.district = district
+  debugLog('百度限行解析结果', restrictionSnapshot(data))
   assertUsableLimitData(data)
   return data
 }
-
 function isUncertainRestriction(text?: string) {
   return !text || text === NOTICE_RESTRICTION || text === '待查询' || text === '未知'
 }
@@ -446,12 +503,19 @@ function isBaiduNoResultPage(data: LimitData) {
   return /抱歉[，,]?未找到相关结果|未找到相关结果|检查输入是否正确|尝试其他相关词/.test(text)
 }
 
-function assertUsableLimitData(data: LimitData) {
-  if (isBaiduNoResultPage(data) || !dataHasCertainRestriction(data)) {
-    throw new Error('未解析到有效限行结果')
-  }
+function unusableLimitReason(data: LimitData) {
+  if (isBaiduNoResultPage(data)) return '百度返回未找到相关结果页面'
+  if (!dataHasCertainRestriction(data)) return '所有限行值都是不确定值'
+  return ''
 }
 
+function assertUsableLimitData(data: LimitData) {
+  const reason = unusableLimitReason(data)
+  if (reason) {
+    debugLog('限行结果无效，拒绝写入缓存', { reason, data: restrictionSnapshot(data) })
+    throw new Error(`未解析到有效限行结果：${reason}`)
+  }
+}
 function cachedDayByDate(cache: CacheFile | null, shortDate: string) {
   return cache?.data?.week?.find(item => item.date === shortDate)
 }
@@ -482,22 +546,28 @@ function mergeCachedRestrictions(data: LimitData, cache: CacheFile | null): Limi
 }
 
 async function loadData(): Promise<LimitData> {
+  debugLog('开始加载限号数据', { family: Widget.family, dateKey: dateKey(), parserVersion: PARSER_VERSION })
   const cache = await readCache()
   const place = await currentCityFromLocation(cache)
   const todayKey = dateKey()
+  debugLog('当前定位城市', { city: place.city, district: place.district, hasCache: Boolean(cache?.data) })
 
   if (cache?.data && cache.data.city === place.city && cache.data.dateKey === todayKey && cache.data.searchEngine === 'baidu' && cache.data.parserVersion === PARSER_VERSION) {
+    debugLog('使用当天有效缓存', restrictionSnapshot(cache.data))
     return { ...cache.data, district: place.district || cache.data.district }
   }
 
   try {
     const freshData = await fetchLimitData(place.city, place.district)
     const data = mergeCachedRestrictions(freshData, cache)
+    debugLog('准备写入新限号数据', restrictionSnapshot(data))
     await writeCache({ lastCity: place.city, data })
     return data
   } catch (error) {
+    debugError('限号数据更新失败', error, { city: place.city, district: place.district, cache: restrictionSnapshot(cache?.data) })
     const fallback = cache?.data
     if (fallback) {
+      debugLog('更新失败，显示缓存', restrictionSnapshot(fallback))
       return {
         ...fallback,
         city: place.city || fallback.city,
@@ -506,6 +576,7 @@ async function loadData(): Promise<LimitData> {
       }
     }
 
+    debugLog('无可用缓存，显示待查询默认数据', { city: place.city, district: place.district })
     const week = emptyWeek(place.city)
     return {
       city: place.city,
@@ -521,7 +592,6 @@ async function loadData(): Promise<LimitData> {
     }
   }
 }
-
 function RestrictionPill({ text, large = false }: { text: string; large?: boolean }) {
   const isFree = /不限|无|待|公告|未知/.test(text)
   return (
@@ -743,8 +813,10 @@ function fallbackLimitData(): LimitData {
 }
 
 function loadAccessoryCircularData(): LimitData {
+  debugLog('加载锁屏圆形小组件数据', { family: Widget.family })
   const cache = readStorageCache()
   if (cache?.data) {
+    debugLog('锁屏圆形使用缓存', restrictionSnapshot(cache.data))
     const todayKey = dateKey()
     const todayShort = todayKey.slice(5)
     const todayFromWeek = cache.data.week?.find(item => item.date === todayShort)
@@ -758,9 +830,9 @@ function loadAccessoryCircularData(): LimitData {
           : { ...makeDay(new Date(), '今天'), restriction: cache.data.today?.restriction || '不限' },
     }
   }
+  debugLog('锁屏圆形无缓存，显示默认数据')
   return fallbackLimitData()
 }
-
 function presentWidget(data: LimitData) {
   Widget.present(<WidgetView data={data} />, {
     reloadPolicy: {
