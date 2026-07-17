@@ -18,9 +18,11 @@
 
 #### 图片预览
 - 锁屏
-![锁屏小组件](https://image.bmqy.net/upload/2025-10/20251016134326_24_131.jpg)
-- 小号 & 中号
-![小号 & 中号](https://image.bmqy.net/upload/2025-10/20251016134423_25_131.jpg)
+![锁屏小组件](https://image.bmqy.net/upload/2026-07/微信图片_20260717100834_108_131.jpg)
+- 小号
+![小号](https://image.bmqy.net/upload/2026-07/微信图片_20260717100836_110_131.jpg)
+- 中号 & 大号
+![中号 & 大号](https://image.bmqy.net/upload/2026-07/微信图片_20260717100835_109_131.jpg)
 
 
 
