@@ -49,8 +49,6 @@ type CacheFile = {
   data?: LimitData
 }
 
-const CACHE_DIR = `${FileManager.appGroupDocumentsDirectory}/traffic-limit-widget`
-const CACHE_PATH = `${CACHE_DIR}/cache.json`
 const STORAGE_CACHE_KEY = 'traffic-limit-widget-cache'
 const STORAGE_OPTIONS = { shared: true }
 const WEEKDAYS = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
@@ -132,7 +130,7 @@ function readStorageCache(): CacheFile | null {
     const cache = Storage.get<CacheFile>(STORAGE_CACHE_KEY, STORAGE_OPTIONS)
     if (cache?.data) return cache
   } catch {
-    // Widget 扩展环境下 Storage 异常时继续走文件兜底。
+    // Storage 异常时返回空数据，由小组件展示默认状态。
   }
   return null
 }
@@ -141,38 +139,16 @@ function writeStorageCache(cache: CacheFile) {
   try {
     Storage.set(STORAGE_CACHE_KEY, cache, STORAGE_OPTIONS)
   } catch {
-    // Storage 写入失败不影响小组件继续展示文件缓存。
-  }
-}
-
-function readFileCacheSync(): CacheFile | null {
-  try {
-    if (!FileManager.existsSync(CACHE_PATH)) return null
-    return JSON.parse(FileManager.readAsStringSync(CACHE_PATH)) as CacheFile
-  } catch {
-    return null
+    // Storage 写入失败时忽略，下一次刷新会重新请求。
   }
 }
 
 async function readCache(): Promise<CacheFile | null> {
-  const storageCache = readStorageCache()
-  if (storageCache) return storageCache
-
-  const fileCache = readFileCacheSync()
-  if (fileCache) writeStorageCache(fileCache)
-  return fileCache
+  return readStorageCache()
 }
 
 async function writeCache(cache: CacheFile) {
   writeStorageCache(cache)
-  try {
-    if (!FileManager.existsSync(CACHE_DIR)) {
-      FileManager.createDirectorySync(CACHE_DIR, true)
-    }
-    FileManager.writeAsStringSync(CACHE_PATH, JSON.stringify(cache, null, 2))
-  } catch {
-    // 文件缓存只作为 Storage 的兼容兜底。
-  }
 }
 
 async function currentCityFromLocation(cache?: CacheFile | null) {
@@ -750,7 +726,7 @@ function fallbackLimitData(): LimitData {
 }
 
 function loadAccessoryCircularData(): LimitData {
-  const cache = readStorageCache() || readFileCacheSync()
+  const cache = readStorageCache()
   if (cache?.data) {
     const todayKey = dateKey()
     const todayShort = todayKey.slice(5)
