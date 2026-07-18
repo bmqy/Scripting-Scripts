@@ -520,6 +520,38 @@ function cachedDayByDate(cache: CacheFile | null, shortDate: string) {
   return cache?.data?.week?.find(item => item.date === shortDate)
 }
 
+function dayByShortDate(days: LimitDay[] | undefined, shortDate: string) {
+  return days?.find(item => item.date === shortDate)
+}
+
+function rebaseCachedFallbackForToday(data: LimitData): LimitData {
+  const todayDate = new Date()
+  const todayKey = dateKey(todayDate)
+  if (data.dateKey === todayKey) return data
+
+  const todayShort = todayKey.slice(5)
+  const todayFromWeek = dayByShortDate(data.week, todayShort)
+  if (!todayFromWeek) return data
+
+  const tomorrowDate = addDays(todayDate, 1)
+  const tomorrowShort = dateKey(tomorrowDate).slice(5)
+  const tomorrowFromWeek = dayByShortDate(data.week, tomorrowShort)
+
+  debugLog('跨日缓存按周列表重建今日展示', {
+    cacheDateKey: data.dateKey,
+    today: todayFromWeek,
+    tomorrow: tomorrowFromWeek,
+  })
+
+  return {
+    ...data,
+    today: { ...todayFromWeek, label: '今天', source: todayFromWeek.source || '缓存' },
+    tomorrow: tomorrowFromWeek
+      ? { ...tomorrowFromWeek, label: '明天', source: tomorrowFromWeek.source || '缓存' }
+      : { ...makeDay(tomorrowDate, '明天', NOTICE_RESTRICTION), source: '缓存' },
+  }
+}
+
 function mergeCachedRestrictions(data: LimitData, cache: CacheFile | null): LimitData {
   if (!cache?.data) return data
 
@@ -567,11 +599,12 @@ async function loadData(): Promise<LimitData> {
     debugError('限号数据更新失败', error, { city: place.city, district: place.district, cache: restrictionSnapshot(cache?.data) })
     const fallback = cache?.data
     if (fallback) {
-      debugLog('更新失败，显示缓存', restrictionSnapshot(fallback))
+      const displayFallback = rebaseCachedFallbackForToday(fallback)
+      debugLog('更新失败，显示缓存', restrictionSnapshot(displayFallback))
       return {
-        ...fallback,
-        city: place.city || fallback.city,
-        district: place.district || fallback.district,
+        ...displayFallback,
+        city: place.city || displayFallback.city,
+        district: place.district || displayFallback.district,
         error: error instanceof Error ? error.message : '更新失败，显示缓存',
       }
     }
@@ -622,12 +655,12 @@ function restrictionColor(text: string, _active = false) {
   return /不限|无/.test(text) ? '#16A34A' : '#334155'
 }
 
-function isCurrentDay(item: LimitDay) {
-  return item.date === dateKey().slice(5)
+function isCurrentDay(item: LimitDay, activeDate?: string) {
+  return item.date === (activeDate || dateKey().slice(5))
 }
 
-function WeekDayColumn({ item, compact = false }: { item: LimitDay; compact?: boolean }) {
-  const active = isCurrentDay(item)
+function WeekDayColumn({ item, activeDate, compact = false }: { item: LimitDay; activeDate?: string; compact?: boolean }) {
+  const active = isCurrentDay(item, activeDate)
   return (
     <VStack
       alignment="center"
@@ -650,10 +683,10 @@ function WeekDayColumn({ item, compact = false }: { item: LimitDay; compact?: bo
   )
 }
 
-function WeekStrip({ week, compact = false }: { week: LimitDay[]; compact?: boolean }) {
+function WeekStrip({ week, activeDate, compact = false }: { week: LimitDay[]; activeDate?: string; compact?: boolean }) {
   return (
     <HStack alignment="center" spacing={compact ? 3 : 4}>
-      {week.slice(0, 7).map(item => <WeekDayColumn item={item} compact={compact} />)}
+      {week.slice(0, 7).map(item => <WeekDayColumn item={item} activeDate={activeDate} compact={compact} />)}
     </HStack>
   )
 }
@@ -767,15 +800,15 @@ function MediumWidget({ data }: { data: LimitData }) {
     <VStack alignment="leading" spacing={10} modifiers={modifiers().padding(14).widgetBackground('#FFF7ED')}>
       <Header data={data} />
       <TodayTomorrowPanel data={data} compact />
-      <WeekStrip week={data.week} compact />
+      <WeekStrip week={data.week} activeDate={data.today.date} compact />
     </VStack>
   )
 }
 
-function WeekList({ week, compact = false }: { week: LimitDay[]; compact?: boolean }) {
+function WeekList({ week, activeDate, compact = false }: { week: LimitDay[]; activeDate?: string; compact?: boolean }) {
   return (
     <VStack alignment="leading" spacing={compact ? 5 : 7} modifiers={modifiers().frame({ maxWidth: 'infinity', alignment: 'leading' })}>
-      {week.slice(0, 7).map(item => <DayRow item={item} emphasis={isCurrentDay(item)} compact={compact} />)}
+      {week.slice(0, 7).map(item => <DayRow item={item} emphasis={isCurrentDay(item, activeDate)} compact={compact} />)}
     </VStack>
   )
 }
@@ -785,7 +818,7 @@ function LargeWidget({ data }: { data: LimitData }) {
     <VStack alignment="leading" spacing={10} modifiers={modifiers().padding(14).widgetBackground('#FFF7ED')}>
       <Header data={data} />
       <TodayTomorrowPanel data={data} compact />
-      <WeekList week={data.week} compact />
+      <WeekList week={data.week} activeDate={data.today.date} compact />
     </VStack>
   )
 }
