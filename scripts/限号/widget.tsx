@@ -47,6 +47,7 @@ type LimitData = {
 type CacheFile = {
   lastCity?: string
   data?: LimitData
+  expiresAt?: number
 }
 
 const STORAGE_CACHE_KEY = '限号'
@@ -55,6 +56,8 @@ const BAIDU_SEARCH = 'https://www.baidu.com/s'
 const PARSER_VERSION = 4
 const FREE_RESTRICTION = '不限'
 const NOTICE_RESTRICTION = '以当地公告为准'
+// 百度查询结果已经包含一周数据，有效数据写入后按一周 TTL 复用，避免每日刷新反复触发搜索限制。
+const WEEK_CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000
 
 function previewText(text?: string, maxLength = 260) {
   const value = (text || '').replace(/\s+/g, ' ').trim()
@@ -93,6 +96,7 @@ function restrictionSnapshot(data?: LimitData) {
     city: data.city,
     district: data.district,
     dateKey: data.dateKey,
+    updatedAt: data.updatedAt,
     parserVersion: data.parserVersion,
     sourceTitle: data.sourceTitle,
     today: data.today?.restriction,
@@ -175,7 +179,11 @@ function readStorageCache(): CacheFile | null {
   try {
     const cache = Storage.get<CacheFile>(STORAGE_CACHE_KEY)
     if (cache?.data && dataHasCertainRestriction(cache.data)) {
-      debugLog('Storage 缓存命中', { key: STORAGE_CACHE_KEY, cache: restrictionSnapshot(cache.data) })
+      debugLog('Storage 缓存命中', {
+        key: STORAGE_CACHE_KEY,
+        expiresAt: cacheExpiresAt(cache),
+        cache: restrictionSnapshot(cache.data),
+      })
       return cache
     }
     if (cache?.data) {
@@ -191,7 +199,12 @@ function readStorageCache(): CacheFile | null {
 function writeStorageCache(cache: CacheFile) {
   try {
     const ok = Storage.set(STORAGE_CACHE_KEY, cache)
-    debugLog('写入 Storage 缓存', { key: STORAGE_CACHE_KEY, ok, cache: restrictionSnapshot(cache.data) })
+    debugLog('写入 Storage 缓存', {
+      key: STORAGE_CACHE_KEY,
+      ok,
+      expiresAt: cache.expiresAt,
+      cache: restrictionSnapshot(cache.data),
+    })
   } catch (error) {
     debugError('写入 Storage 缓存失败', error, { key: STORAGE_CACHE_KEY, cache: restrictionSnapshot(cache.data) })
   }
@@ -516,12 +529,27 @@ function assertUsableLimitData(data: LimitData) {
     throw new Error(`未解析到有效限行结果：${reason}`)
   }
 }
+
+function cacheExpiresAt(cache?: CacheFile | null) {
+  if (!cache?.data) return 0
+  return cache.expiresAt || cache.data.updatedAt + WEEK_CACHE_TTL_MS
+}
+
+function cacheIsFresh(cache?: CacheFile | null, now = Date.now()) {
+  return cacheExpiresAt(cache) > now
+}
+
 function cachedDayByDate(cache: CacheFile | null, shortDate: string) {
   return cache?.data?.week?.find(item => item.date === shortDate)
 }
 
 function dayByShortDate(days: LimitDay[] | undefined, shortDate: string) {
   return days?.find(item => item.date === shortDate)
+}
+
+function cacheCoversCurrentDate(data: LimitData) {
+  const todayShort = dateKey().slice(5)
+  return Boolean(dayByShortDate(data.week, todayShort) || (data.dateKey === dateKey() && data.today?.date === todayShort))
 }
 
 function rebaseCachedFallbackForToday(data: LimitData): LimitData {
@@ -549,6 +577,45 @@ function rebaseCachedFallbackForToday(data: LimitData): LimitData {
     tomorrow: tomorrowFromWeek
       ? { ...tomorrowFromWeek, label: '明天', source: tomorrowFromWeek.source || '缓存' }
       : { ...makeDay(tomorrowDate, '明天', NOTICE_RESTRICTION), source: '缓存' },
+  }
+}
+
+function cachedDataForCurrentDisplay(cache: CacheFile | null, city: string, district?: string) {
+  if (!cache?.data) return null
+  if (cache.data.city !== city) {
+    debugLog('缓存城市不匹配，准备更新', { cachedCity: cache.data.city, city })
+    return null
+  }
+  if (cache.data.searchEngine !== 'baidu' || cache.data.parserVersion !== PARSER_VERSION) {
+    debugLog('缓存来源或解析版本不匹配，准备更新', {
+      searchEngine: cache.data.searchEngine,
+      parserVersion: cache.data.parserVersion,
+      currentParserVersion: PARSER_VERSION,
+    })
+    return null
+  }
+  if (!cacheIsFresh(cache)) {
+    debugLog('一周缓存已过期，准备更新', {
+      expiresAt: cacheExpiresAt(cache),
+      now: Date.now(),
+      cache: restrictionSnapshot(cache.data),
+    })
+    return null
+  }
+  if (!cacheCoversCurrentDate(cache.data)) {
+    debugLog('缓存周数据未覆盖今天，准备更新', restrictionSnapshot(cache.data))
+    return null
+  }
+
+  const displayData = rebaseCachedFallbackForToday(cache.data)
+  debugLog('使用一周有效缓存', {
+    expiresAt: cacheExpiresAt(cache),
+    cache: restrictionSnapshot(displayData),
+  })
+  return {
+    ...displayData,
+    district: district || displayData.district,
+    error: undefined,
   }
 }
 
@@ -581,19 +648,16 @@ async function loadData(): Promise<LimitData> {
   debugLog('开始加载限号数据', { family: Widget.family, dateKey: dateKey(), parserVersion: PARSER_VERSION })
   const cache = await readCache()
   const place = await currentCityFromLocation(cache)
-  const todayKey = dateKey()
   debugLog('当前定位城市', { city: place.city, district: place.district, hasCache: Boolean(cache?.data) })
 
-  if (cache?.data && cache.data.city === place.city && cache.data.dateKey === todayKey && cache.data.searchEngine === 'baidu' && cache.data.parserVersion === PARSER_VERSION) {
-    debugLog('使用当天有效缓存', restrictionSnapshot(cache.data))
-    return { ...cache.data, district: place.district || cache.data.district }
-  }
+  const cachedData = cachedDataForCurrentDisplay(cache, place.city, place.district)
+  if (cachedData) return cachedData
 
   try {
     const freshData = await fetchLimitData(place.city, place.district)
     const data = mergeCachedRestrictions(freshData, cache)
     debugLog('准备写入新限号数据', restrictionSnapshot(data))
-    await writeCache({ lastCity: place.city, data })
+    await writeCache({ lastCity: place.city, data, expiresAt: Date.now() + WEEK_CACHE_TTL_MS })
     return data
   } catch (error) {
     debugError('限号数据更新失败', error, { city: place.city, district: place.district, cache: restrictionSnapshot(cache?.data) })
@@ -615,7 +679,7 @@ async function loadData(): Promise<LimitData> {
       city: place.city,
       district: place.district,
       updatedAt: Date.now(),
-      dateKey: todayKey,
+      dateKey: dateKey(),
       query: '',
       summary: '未能获取限行信息，请确认定位和网络权限。',
       today: week[0],
@@ -855,7 +919,7 @@ function loadAccessoryCircularData(): LimitData {
     const todayFromWeek = cache.data.week?.find(item => item.date === todayShort)
     return {
       ...cache.data,
-      dateKey: todayKey,
+      dateKey: dateKey(),
       today: todayFromWeek
         ? { ...todayFromWeek, label: '今天' }
         : cache.data.dateKey === todayKey
