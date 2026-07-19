@@ -56,8 +56,9 @@ const BAIDU_SEARCH = 'https://www.baidu.com/s'
 const PARSER_VERSION = 4
 const FREE_RESTRICTION = '不限'
 const NOTICE_RESTRICTION = '以当地公告为准'
-// 百度查询结果已经包含一周数据，有效数据写入后按一周 TTL 复用，避免每日刷新反复触发搜索限制。
-const WEEK_CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000
+// 百度查询结果通常包含本周和下周数据，有效数据写入后按两周 TTL 复用，避免反复触发搜索限制。
+const CACHE_WEEK_COUNT = 2
+const CACHE_TTL_MS = CACHE_WEEK_COUNT * 7 * 24 * 60 * 60 * 1000
 
 function previewText(text?: string, maxLength = 260) {
   const value = (text || '').replace(/\s+/g, ' ').trim()
@@ -293,11 +294,14 @@ function makeDay(date: Date, label?: string, restriction = '待查询'): LimitDa
   }
 }
 
-function currentWeek(city: string): LimitDay[] {
-  const today = new Date()
-  const day = today.getDay() || 7
-  const monday = addDays(today, 1 - day)
-  return Array.from({ length: 7 }).map((_, i) => {
+function currentWeekStart(reference = new Date()) {
+  const day = reference.getDay() || 7
+  return addDays(reference, 1 - day)
+}
+
+function currentWeeks(city: string, weekCount = CACHE_WEEK_COUNT): LimitDay[] {
+  const monday = currentWeekStart()
+  return Array.from({ length: weekCount * 7 }).map((_, i) => {
     const d = addDays(monday, i)
     return makeDay(d, WEEKDAYS[d.getDay()], city ? '待查询' : '未知')
   })
@@ -401,9 +405,25 @@ function extractBaiduCardRestriction(text: string, label: '今日' | '明日') {
   return normalizeRestriction(match?.[1])
 }
 
-function extractBaiduWeekMap(text: string) {
-  const source = text.match(/本周尾号限行[\s\S]*?(?=下周尾号限行|限行时间|限行区域|$)/)?.[0] || text
-  const map: Record<string, string> = extractWorkdaySequenceMap(source)
+function extractBaiduRestrictionSection(text: string, label: '本周' | '下周') {
+  const startLabel = `${label}尾号限行`
+  const start = text.indexOf(startLabel)
+  if (start < 0) return ''
+
+  const rest = text.slice(start)
+  const endLabels = label === '本周'
+    ? ['下周尾号限行', '限行时间', '限行区域']
+    : ['限行时间', '限行区域']
+  const end = endLabels
+    .map(endLabel => rest.indexOf(endLabel, startLabel.length))
+    .filter(index => index >= 0)
+    .sort((a, b) => a - b)[0]
+
+  return end === undefined ? rest : rest.slice(0, end)
+}
+
+function extractWeekdayRestrictionMap(source: string, referenceDate = new Date()) {
+  const map: Record<string, string> = extractWorkdaySequenceMap(source, referenceDate)
   for (const weekday of WEEKDAYS.slice(1).concat(WEEKDAYS[0])) {
     const match = source.match(new RegExp(`${weekday}\\s*((?:[0-9０-９]\\s*(?:和|、|,|，|及|与)\\s*[0-9０-９])|不限(?:行|号)?)`))
     const value = normalizeRestriction(match?.[1])
@@ -414,6 +434,29 @@ function extractBaiduWeekMap(text: string) {
     map.周日 = map.周日 || FREE_RESTRICTION
   }
   return map
+}
+
+type BaiduWeekMaps = {
+  current: Record<string, string>
+  next: Record<string, string>
+  general: Record<string, string>
+}
+
+function extractBaiduWeekMaps(text: string, referenceDate = new Date()): BaiduWeekMaps {
+  const currentSection = extractBaiduRestrictionSection(text, '本周')
+  const nextSection = extractBaiduRestrictionSection(text, '下周')
+  return {
+    current: extractWeekdayRestrictionMap(currentSection || text, referenceDate),
+    next: nextSection ? extractWeekdayRestrictionMap(nextSection, addDays(referenceDate, 7)) : {},
+    general: extractWeekdayRestrictionMap(text, referenceDate),
+  }
+}
+
+function restrictionFromWeekMaps(maps: BaiduWeekMaps, date: Date, text: string, referenceDate = new Date()) {
+  const weekday = WEEKDAYS[date.getDay()]
+  const nextWeekStart = addDays(currentWeekStart(referenceDate), 7)
+  const sourceMap = date.getTime() >= nextWeekStart.getTime() ? maps.next : maps.current
+  return sourceMap[weekday] || inferRestrictionForDate(text, date) || maps.general[weekday] || NOTICE_RESTRICTION
 }
 
 function parseBaidu(html: string, city: string, query: string): LimitData {
@@ -441,24 +484,27 @@ function parseBaidu(html: string, city: string, query: string): LimitData {
     : pageText
   ).replace(/\s+/g, ' ')
 
-  const weekMap = extractBaiduWeekMap(combined)
   const todayDate = new Date()
   const tomorrowDate = addDays(todayDate, 1)
+  const weekMaps = extractBaiduWeekMaps(combined, todayDate)
 
-  const week = currentWeek(city).map(item => ({
-    ...item,
-    restriction: weekMap[item.weekday] || inferRestrictionForDate(combined, dateFromShortDate(item.date, todayDate)) || NOTICE_RESTRICTION,
-    source: '百度',
-  }))
+  const week = currentWeeks(city).map(item => {
+    const itemDate = dateFromShortDate(item.date, todayDate)
+    return {
+      ...item,
+      restriction: restrictionFromWeekMaps(weekMaps, itemDate, combined, todayDate),
+      source: '百度',
+    }
+  })
 
   const today = {
     ...makeDay(todayDate, '今天'),
-    restriction: extractBaiduCardRestriction(combined, '今日') || weekMap[WEEKDAYS[todayDate.getDay()]] || inferRestrictionForDate(combined, todayDate) || NOTICE_RESTRICTION,
+    restriction: extractBaiduCardRestriction(combined, '今日') || restrictionFromWeekMaps(weekMaps, todayDate, combined, todayDate),
     source: '百度',
   }
   const tomorrow = {
     ...makeDay(tomorrowDate, '明天'),
-    restriction: extractBaiduCardRestriction(combined, '明日') || weekMap[WEEKDAYS[tomorrowDate.getDay()]] || inferRestrictionForDate(combined, tomorrowDate) || NOTICE_RESTRICTION,
+    restriction: extractBaiduCardRestriction(combined, '明日') || restrictionFromWeekMaps(weekMaps, tomorrowDate, combined, todayDate),
     source: '百度',
   }
   const best = results.find(r => /限行|限号|尾号|机动车/.test(`${r.title}${r.snippet}`)) || results[0]
@@ -481,7 +527,7 @@ function parseBaidu(html: string, city: string, query: string): LimitData {
 }
 
 async function fetchLimitData(city: string, district?: string): Promise<LimitData> {
-  const q = `${city} 今日 限号 限行 尾号 本周 周一 周二 周三 周四 周五`
+  const q = `${city} 今日 限号 限行 尾号 本周 下周 周一 周二 周三 周四 周五`
   const url = `${BAIDU_SEARCH}?wd=${encodeURIComponent(q)}&rn=10&ie=utf-8`
   debugLog('开始请求百度限行', { city, district, query: q, url })
   const res = await fetch(url, {
@@ -532,7 +578,7 @@ function assertUsableLimitData(data: LimitData) {
 
 function cacheExpiresAt(cache?: CacheFile | null) {
   if (!cache?.data) return 0
-  return cache.expiresAt || cache.data.updatedAt + WEEK_CACHE_TTL_MS
+  return cache.expiresAt || cache.data.updatedAt + CACHE_TTL_MS
 }
 
 function cacheIsFresh(cache?: CacheFile | null, now = Date.now()) {
@@ -547,36 +593,57 @@ function dayByShortDate(days: LimitDay[] | undefined, shortDate: string) {
   return days?.find(item => item.date === shortDate)
 }
 
-function cacheCoversCurrentDate(data: LimitData) {
-  const todayShort = dateKey().slice(5)
-  return Boolean(dayByShortDate(data.week, todayShort) || (data.dateKey === dateKey() && data.today?.date === todayShort))
+function cachedDayForDate(data: LimitData, date: Date) {
+  return dayByShortDate(data.week, dateKey(date).slice(5))
+}
+
+function cacheCoversCurrentDisplayDates(data: LimitData) {
+  const todayDate = new Date()
+  const tomorrowDate = addDays(todayDate, 1)
+  const todayShort = dateKey(todayDate).slice(5)
+  const hasToday = Boolean(cachedDayForDate(data, todayDate) || (data.dateKey === dateKey(todayDate) && data.today?.date === todayShort))
+  const hasTomorrow = Boolean(cachedDayForDate(data, tomorrowDate))
+  return hasToday && hasTomorrow
+}
+
+function cachedWeekForCurrentDisplay(data: LimitData): LimitDay[] {
+  const monday = currentWeekStart()
+  return Array.from({ length: 7 }).map((_, i) => {
+    const d = addDays(monday, i)
+    const cached = cachedDayForDate(data, d)
+    return cached
+      ? { ...cached, label: WEEKDAYS[d.getDay()], source: cached.source || '缓存' }
+      : { ...makeDay(d, WEEKDAYS[d.getDay()], NOTICE_RESTRICTION), source: '缓存' }
+  })
 }
 
 function rebaseCachedFallbackForToday(data: LimitData): LimitData {
   const todayDate = new Date()
   const todayKey = dateKey(todayDate)
-  if (data.dateKey === todayKey) return data
-
-  const todayShort = todayKey.slice(5)
-  const todayFromWeek = dayByShortDate(data.week, todayShort)
-  if (!todayFromWeek) return data
-
+  const todayFromWeek = cachedDayForDate(data, todayDate)
   const tomorrowDate = addDays(todayDate, 1)
-  const tomorrowShort = dateKey(tomorrowDate).slice(5)
-  const tomorrowFromWeek = dayByShortDate(data.week, tomorrowShort)
+  const tomorrowFromWeek = cachedDayForDate(data, tomorrowDate)
+  const displayWeek = cachedWeekForCurrentDisplay(data)
 
-  debugLog('跨日缓存按周列表重建今日展示', {
+  if (!todayFromWeek && data.dateKey !== todayKey) return data
+
+  debugLog('跨日缓存按两周列表重建今日展示', {
     cacheDateKey: data.dateKey,
     today: todayFromWeek,
     tomorrow: tomorrowFromWeek,
+    displayWeek: displayWeek.map(item => `${item.date}:${item.restriction}`),
   })
 
   return {
     ...data,
-    today: { ...todayFromWeek, label: '今天', source: todayFromWeek.source || '缓存' },
+    dateKey: todayKey,
+    today: todayFromWeek
+      ? { ...todayFromWeek, label: '今天', source: todayFromWeek.source || '缓存' }
+      : data.today,
     tomorrow: tomorrowFromWeek
       ? { ...tomorrowFromWeek, label: '明天', source: tomorrowFromWeek.source || '缓存' }
       : { ...makeDay(tomorrowDate, '明天', NOTICE_RESTRICTION), source: '缓存' },
+    week: displayWeek,
   }
 }
 
@@ -595,20 +662,20 @@ function cachedDataForCurrentDisplay(cache: CacheFile | null, city: string, dist
     return null
   }
   if (!cacheIsFresh(cache)) {
-    debugLog('一周缓存已过期，准备更新', {
+    debugLog('两周缓存已过期，准备更新', {
       expiresAt: cacheExpiresAt(cache),
       now: Date.now(),
       cache: restrictionSnapshot(cache.data),
     })
     return null
   }
-  if (!cacheCoversCurrentDate(cache.data)) {
-    debugLog('缓存周数据未覆盖今天，准备更新', restrictionSnapshot(cache.data))
+  if (!cacheCoversCurrentDisplayDates(cache.data)) {
+    debugLog('缓存周数据未覆盖今天和明天，准备更新', restrictionSnapshot(cache.data))
     return null
   }
 
   const displayData = rebaseCachedFallbackForToday(cache.data)
-  debugLog('使用一周有效缓存', {
+  debugLog('使用两周有效缓存', {
     expiresAt: cacheExpiresAt(cache),
     cache: restrictionSnapshot(displayData),
   })
@@ -657,7 +724,7 @@ async function loadData(): Promise<LimitData> {
     const freshData = await fetchLimitData(place.city, place.district)
     const data = mergeCachedRestrictions(freshData, cache)
     debugLog('准备写入新限号数据', restrictionSnapshot(data))
-    await writeCache({ lastCity: place.city, data, expiresAt: Date.now() + WEEK_CACHE_TTL_MS })
+    await writeCache({ lastCity: place.city, data, expiresAt: Date.now() + CACHE_TTL_MS })
     return data
   } catch (error) {
     debugError('限号数据更新失败', error, { city: place.city, district: place.district, cache: restrictionSnapshot(cache?.data) })
