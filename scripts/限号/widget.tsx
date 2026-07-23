@@ -1,6 +1,7 @@
 import {
     AccessoryWidgetBackground,
     HStack,
+    Image,
     Spacer,
     SVG,
     Text,
@@ -60,7 +61,7 @@ const NOTICE_RESTRICTION = '以当地公告为准'
 const CACHE_WEEK_COUNT = 2
 const CACHE_TTL_MS = CACHE_WEEK_COUNT * 7 * 24 * 60 * 60 * 1000
 const ACCESSORY_RING_SIZE = 76
-const ACCESSORY_RING_SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80"><circle cx="40" cy="38" r="28" fill="white" fill-opacity="0.28"/><path d="M21.65 66.21 A32 32 0 1 1 58.35 66.21" fill="none" stroke="white" stroke-width="8" stroke-linecap="round"/><g fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M28 62 L32 55 H48 L52 62"/><path d="M25 62 H55 V70 H25 Z"/><path d="M31 70 H31.5"/><path d="M48.5 70 H49"/></g></svg>'
+const ACCESSORY_RING_SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80"><path d="M21.65 66.21 A32 32 0 1 1 58.35 66.21" fill="none" stroke="white" stroke-width="8" stroke-linecap="round"/></svg>'
 
 function previewText(text?: string, maxLength = 260) {
   const value = (text || '').replace(/\s+/g, ' ').trim()
@@ -883,6 +884,18 @@ function AccessoryCircularWidget({ data }: { data: LimitData }) {
         >
           {text}
         </Text>
+        <VStack alignment="center" spacing={0} modifiers={modifiers().frame({ width: ACCESSORY_RING_SIZE, height: ACCESSORY_RING_SIZE })}>
+          <Spacer minLength={0} />
+          <Image
+            systemName="car.fill"
+            modifiers={modifiers()
+              .font(13)
+              .foregroundStyle('white')
+              .widgetAccentable()
+              .lineLimit(1)}
+          />
+          <Spacer minLength={4} />
+        </VStack>
       </ZStack>
     </ZStack>
   )
