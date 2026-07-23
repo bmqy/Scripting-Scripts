@@ -913,14 +913,33 @@ function MediumWidget({ data }: { data: LimitData }) {
 }
 
 
-function WeekRestrictionSection({ title, week, activeDate }: { title: string; week: LimitDay[]; activeDate?: string }) {
+function WeekRestrictionSection({
+  title,
+  week,
+  activeDate,
+  accentColor,
+}: {
+  title: string
+  week: LimitDay[]
+  activeDate?: string
+  accentColor: string
+}) {
+  const range = week.length > 0
+    ? `${week[0].date.replace('-', '/')} - ${week[week.length - 1].date.replace('-', '/')}`
+    : ''
+
   return (
     <VStack
       alignment="leading"
-      spacing={4}
+      spacing={5}
       modifiers={modifiers().frame({ width: 291, alignment: 'leading' })}
     >
-      <Text modifiers={modifiers().font('caption').foregroundStyle('#64748B').lineLimit(1)}>{title}</Text>
+      <HStack alignment="center" spacing={5}>
+        <Text modifiers={modifiers().font(9).foregroundStyle(accentColor).lineLimit(1)}>●</Text>
+        <Text modifiers={modifiers().font('caption').foregroundStyle('#64748B').lineLimit(1)}>{title}</Text>
+        <Spacer minLength={2} />
+        <Text modifiers={modifiers().font('caption2').foregroundStyle('#94A3B8').lineLimit(1)}>{range}</Text>
+      </HStack>
       <WeekStrip week={week} activeDate={activeDate} compact />
     </VStack>
   )
@@ -929,7 +948,7 @@ function LargeWidget({ data }: { data: LimitData }) {
   return (
     <VStack
       alignment="leading"
-      spacing={9}
+      spacing={14}
       modifiers={modifiers()
         .padding(14)
         .frame({ maxWidth: 'infinity', maxHeight: 'infinity', alignment: 'leading' })
@@ -937,8 +956,8 @@ function LargeWidget({ data }: { data: LimitData }) {
     >
       <Header data={data} />
       <TodayTomorrowPanel data={data} compact />
-      <WeekRestrictionSection title="本周限行" week={data.week.slice(0, 7)} activeDate={data.today.date} />
-      <WeekRestrictionSection title="下周限行" week={data.week.slice(7, 14)} />
+      <WeekRestrictionSection title="本周限行" week={data.week.slice(0, 7)} activeDate={data.today.date} accentColor="#D9480F" />
+      <WeekRestrictionSection title="下周限行" week={data.week.slice(7, 14)} accentColor="#16A34A" />
       <Spacer minLength={0} />
     </VStack>
   )
