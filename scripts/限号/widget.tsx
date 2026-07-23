@@ -906,8 +906,8 @@ function MediumWidget({ data }: { data: LimitData }) {
   return (
     <VStack alignment="leading" spacing={10} modifiers={modifiers().padding(14).widgetBackground('#FFF7ED')}>
       <Header data={data} />
-      <TodayTomorrowPanel data={data} compact />
-      <WeekStrip week={data.week} activeDate={data.today.date} compact />
+      <TodayTomorrowPanel data={data} compact={true} />
+      <WeekStrip week={data.week} activeDate={data.today.date} compact={true} />
     </VStack>
   )
 }
@@ -940,7 +940,7 @@ function WeekRestrictionSection({
         <Spacer minLength={2} />
         <Text modifiers={modifiers().font('caption2').foregroundStyle('#94A3B8').lineLimit(1)}>{range}</Text>
       </HStack>
-      <WeekStrip week={week} activeDate={activeDate} compact />
+      <WeekStrip week={week} activeDate={activeDate} compact={true} />
     </VStack>
   )
 }
@@ -956,7 +956,7 @@ function LargeWidget({ data }: { data: LimitData }) {
     >
       <Header data={data} />
       <Spacer minLength={12} />
-      <TodayTomorrowPanel data={data} compact />
+      <TodayTomorrowPanel data={data} compact={true} />
       <Spacer minLength={12} />
       <WeekRestrictionSection title="本周限行" week={data.week.slice(0, 7)} activeDate={data.today.date} accentColor="#D9480F" />
       <Spacer minLength={12} />
