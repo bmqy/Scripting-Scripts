@@ -59,8 +59,8 @@ const NOTICE_RESTRICTION = '以当地公告为准'
 // 百度查询结果通常包含本周和下周数据，有效数据写入后按两周 TTL 复用，避免反复触发搜索限制。
 const CACHE_WEEK_COUNT = 2
 const CACHE_TTL_MS = CACHE_WEEK_COUNT * 7 * 24 * 60 * 60 * 1000
-const ACCESSORY_RING_SIZE = 66
-const ACCESSORY_RING_STROKE = 5
+const ACCESSORY_RING_SIZE = 53
+const ACCESSORY_RING_STROKE = 4
 function previewText(text?: string, maxLength = 260) {
   const value = (text || '').replace(/\s+/g, ' ').trim()
   return value.length > maxLength ? `${value.slice(0, maxLength)}...` : value
@@ -873,10 +873,10 @@ function AccessoryCircularWidget({ data }: { data: LimitData }) {
         frame={{ width: ACCESSORY_RING_SIZE, height: ACCESSORY_RING_SIZE }}
         modifiers={modifiers().offset({ x: 0, y: -5 })}
       />
-      <Text modifiers={modifiers().font('title3').fontWeight('semibold').foregroundStyle('white').offset({ x: 0, y: -5 })}>
+      <Text modifiers={modifiers().font(16).fontWeight('semibold').foregroundStyle('white').offset({ x: 0, y: -5 })}>
         {text}
       </Text>
-      <Image systemName="car.fill" font={17} foregroundStyle="white" modifiers={modifiers().offset({ x: 0, y: 29 })} />
+      <Image systemName="car.fill" font={14} foregroundStyle="white" modifiers={modifiers().offset({ x: 0, y: 25 })} />
     </ZStack>
   )
 }
