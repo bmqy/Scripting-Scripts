@@ -1,5 +1,4 @@
 import {
-    AccessoryWidgetBackground,
     HStack,
     Image,
     Spacer,
@@ -61,7 +60,7 @@ const NOTICE_RESTRICTION = '以当地公告为准'
 const CACHE_WEEK_COUNT = 2
 const CACHE_TTL_MS = CACHE_WEEK_COUNT * 7 * 24 * 60 * 60 * 1000
 const ACCESSORY_RING_SIZE = 76
-const ACCESSORY_RING_SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80"><path d="M21.65 66.21 A32 32 0 1 1 58.35 66.21" fill="none" stroke="white" stroke-width="8" stroke-linecap="round"/></svg>'
+const ACCESSORY_RING_SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80"><path d="M22.8 65.25 A31 31 0 1 1 57.2 65.25" fill="none" stroke="white" stroke-opacity="0.74" stroke-width="7" stroke-linecap="round"/></svg>'
 
 function previewText(text?: string, maxLength = 260) {
   const value = (text || '').replace(/\s+/g, ' ').trim()
@@ -864,7 +863,6 @@ function AccessoryCircularWidget({ data }: { data: LimitData }) {
   const isFree = text === '不限'
   return (
     <ZStack modifiers={modifiers().frame(Widget.displaySize)}>
-      <AccessoryWidgetBackground />
       <ZStack modifiers={modifiers().frame({ width: ACCESSORY_RING_SIZE, height: ACCESSORY_RING_SIZE })}>
         <SVG
           code={ACCESSORY_RING_SVG}
