@@ -59,8 +59,8 @@ const NOTICE_RESTRICTION = '以当地公告为准'
 // 百度查询结果通常包含本周和下周数据，有效数据写入后按两周 TTL 复用，避免反复触发搜索限制。
 const CACHE_WEEK_COUNT = 2
 const CACHE_TTL_MS = CACHE_WEEK_COUNT * 7 * 24 * 60 * 60 * 1000
-const ACCESSORY_RING_SIZE = 76
-const ACCESSORY_RING_SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80"><path d="M22.8 65.25 A31 31 0 1 1 57.2 65.25" fill="none" stroke="white" stroke-opacity="0.74" stroke-width="7" stroke-linecap="round"/></svg>'
+const ACCESSORY_RING_SIZE = 84
+const ACCESSORY_RING_SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80"><path d="M19.8 66.05 A34 34 0 1 1 60.2 66.05" fill="none" stroke="white" stroke-opacity="0.74" stroke-width="7" stroke-linecap="round"/></svg>'
 
 function previewText(text?: string, maxLength = 260) {
   const value = (text || '').replace(/\s+/g, ' ').trim()
@@ -889,7 +889,7 @@ function AccessoryCircularWidget({ data }: { data: LimitData }) {
             .foregroundStyle('white')
             .widgetAccentable()
             .lineLimit(1)
-            .position({ x: 40, y: 66 })}
+            .position({ x: 42, y: 72 })}
         />
       </ZStack>
     </ZStack>
