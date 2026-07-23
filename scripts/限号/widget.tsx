@@ -1,6 +1,5 @@
 import {
     HStack,
-    Image,
     Spacer,
     SVG,
     Text,
@@ -60,7 +59,18 @@ const NOTICE_RESTRICTION = '以当地公告为准'
 const CACHE_WEEK_COUNT = 2
 const CACHE_TTL_MS = CACHE_WEEK_COUNT * 7 * 24 * 60 * 60 * 1000
 const ACCESSORY_RING_SIZE = 78
-const ACCESSORY_RING_SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80"><path d="M22.45 65.65 A31.5 31.5 0 1 1 57.55 65.65" fill="none" stroke="white" stroke-opacity="0.78" stroke-width="8" stroke-linecap="round"/></svg>'
+function escapeSvgText(text: string) {
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+}
+
+function accessoryRingSvg(text: string) {
+  const value = escapeSvgText(text)
+  const fontSize = value.length > 2 ? 22 : 27
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80"><path d="M22.45 65.65 A31.5 31.5 0 1 1 57.55 65.65" fill="none" stroke="white" stroke-opacity="0.78" stroke-width="8" stroke-linecap="round"/><text x="40" y="39" text-anchor="middle" dominant-baseline="middle" font-family="-apple-system, BlinkMacSystemFont, SF Pro Rounded, sans-serif" font-size="${fontSize}" font-weight="800" fill="white" fill-opacity="0.86">${value}</text><g fill="white" fill-opacity="0.86"><path d="M28 63.5h24a2.5 2.5 0 0 1 2.5 2.5v5.5h-29V66a2.5 2.5 0 0 1 2.5-2.5z"/><path d="M32.8 55.5h14.4l4 8H28.8z"/><circle cx="32" cy="72" r="2.2"/><circle cx="48" cy="72" r="2.2"/><rect x="34.5" y="58" width="11" height="3.2" rx="1" fill-opacity="0.35"/></g></svg>`
+}
 
 function previewText(text?: string, maxLength = 260) {
   const value = (text || '').replace(/\s+/g, ' ').trim()
@@ -860,38 +870,14 @@ function Header({ data, compact = false }: { data: LimitData; compact?: boolean 
 
 function AccessoryCircularWidget({ data }: { data: LimitData }) {
   const text = circularRestrictionText(data.today.restriction)
-  const isFree = text === '不限'
   return (
     <ZStack modifiers={modifiers().frame(Widget.displaySize)}>
-      <ZStack modifiers={modifiers().frame({ width: ACCESSORY_RING_SIZE, height: ACCESSORY_RING_SIZE })}>
-        <SVG
-          code={ACCESSORY_RING_SVG}
-          resizable
-          frame={{ width: ACCESSORY_RING_SIZE, height: ACCESSORY_RING_SIZE }}
-          antialiased
-        />
-        <Text
-          modifiers={modifiers()
-            .frame({ width: 52, height: 34, alignment: 'center' })
-            .font(isFree ? 18 : 24)
-            .fontWeight('black')
-            .fontDesign('rounded')
-            .foregroundStyle('white')
-            .lineLimit(1)
-            .minScaleFactor(0.55)}
-        >
-          {text}
-        </Text>
-        <Image
-          systemName="car.fill"
-          modifiers={modifiers()
-            .font(13)
-            .foregroundStyle('white')
-            .widgetAccentable()
-            .lineLimit(1)
-            .position({ x: 39, y: 67 })}
-        />
-      </ZStack>
+      <SVG
+        code={accessoryRingSvg(text)}
+        resizable
+        frame={{ width: ACCESSORY_RING_SIZE, height: ACCESSORY_RING_SIZE }}
+        antialiased
+      />
     </ZStack>
   )
 }
