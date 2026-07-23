@@ -3,6 +3,7 @@ import {
     HStack,
     Image,
     Spacer,
+    SVG,
     Text,
     VStack,
     Widget,
@@ -59,6 +60,8 @@ const NOTICE_RESTRICTION = '以当地公告为准'
 // 百度查询结果通常包含本周和下周数据，有效数据写入后按两周 TTL 复用，避免反复触发搜索限制。
 const CACHE_WEEK_COUNT = 2
 const CACHE_TTL_MS = CACHE_WEEK_COUNT * 7 * 24 * 60 * 60 * 1000
+const ACCESSORY_RING_SIZE = 76
+const ACCESSORY_RING_SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80"><path d="M21.65 66.21 A32 32 0 1 1 58.35 66.21" fill="none" stroke="white" stroke-width="8" stroke-linecap="round"/></svg>'
 
 function previewText(text?: string, maxLength = 260) {
   const value = (text || '').replace(/\s+/g, ' ').trim()
@@ -862,26 +865,36 @@ function AccessoryCircularWidget({ data }: { data: LimitData }) {
   return (
     <ZStack modifiers={modifiers().frame(Widget.displaySize)}>
       <AccessoryWidgetBackground />
-      <VStack alignment="center" spacing={1} modifiers={modifiers().frame(Widget.displaySize)}>
+      <SVG
+        code={ACCESSORY_RING_SVG}
+        resizable
+        frame={{ width: ACCESSORY_RING_SIZE, height: ACCESSORY_RING_SIZE }}
+        renderingMode="template"
+        foregroundColor="white"
+      />
+      <Text
+        modifiers={modifiers()
+          .frame(Widget.displaySize)
+          .font(isFree ? 18 : 24)
+          .fontWeight('black')
+          .fontDesign('rounded')
+          .foregroundStyle('white')
+          .lineLimit(1)
+          .minScaleFactor(0.55)}
+      >
+        {text}
+      </Text>
+      <VStack alignment="center" spacing={0} modifiers={modifiers().frame(Widget.displaySize)}>
+        <Spacer minLength={0} />
         <Image
           systemName="car.fill"
           modifiers={modifiers()
             .font(12)
-            .foregroundStyle('secondaryLabel')
+            .foregroundStyle('white')
             .widgetAccentable()
             .lineLimit(1)}
         />
-        <Text
-          modifiers={modifiers()
-            .font(isFree ? 18 : 21)
-            .fontWeight('black')
-            .fontDesign('rounded')
-            .foregroundStyle(isFree ? 'systemGreen' : 'label')
-            .lineLimit(1)
-            .minScaleFactor(0.55)}
-        >
-          {text}
-        </Text>
+        <Spacer minLength={7} />
       </VStack>
     </ZStack>
   )
