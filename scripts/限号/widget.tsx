@@ -60,7 +60,7 @@ const NOTICE_RESTRICTION = '以当地公告为准'
 const CACHE_WEEK_COUNT = 2
 const CACHE_TTL_MS = CACHE_WEEK_COUNT * 7 * 24 * 60 * 60 * 1000
 const ACCESSORY_RING_SIZE = 53
-const ACCESSORY_RING_STROKE = 4.5
+const ACCESSORY_RING_STROKE = 5.5
 function previewText(text?: string, maxLength = 260) {
   const value = (text || '').replace(/\s+/g, ' ').trim()
   return value.length > maxLength ? `${value.slice(0, maxLength)}...` : value
