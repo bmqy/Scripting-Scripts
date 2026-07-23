@@ -805,12 +805,25 @@ function restrictionTrendLabel(score: number) {
   return '双号'
 }
 
-function restrictionTrendSparkline(week: LimitDay[]) {
-  const blocks = ['▁', '▂', '▄', '▆', '█']
-  return week
-    .slice(0, 7)
-    .map(item => blocks[restrictionTrendScore(item.restriction)])
-    .join(' ')
+function restrictionTrendLineChart(week: LimitDay[]) {
+  const scores = week.slice(0, 7).map(item => restrictionTrendScore(item.restriction))
+  const height = 5
+  const width = Math.max(1, scores.length * 2 - 1)
+  const rows = Array.from({ length: height }, () => Array.from({ length: width }, () => ' '))
+
+  scores.forEach((score, index) => {
+    const row = height - 1 - score
+    rows[row][index * 2] = '●'
+  })
+
+  for (let i = 0; i < scores.length - 1; i++) {
+    const fromRow = height - 1 - scores[i]
+    const toRow = height - 1 - scores[i + 1]
+    const connectorRow = Math.round((fromRow + toRow) / 2)
+    rows[connectorRow][i * 2 + 1] = toRow < fromRow ? '╱' : toRow > fromRow ? '╲' : '─'
+  }
+
+  return rows.map(row => row.join('')).join('\n')
 }
 
 function isCurrentDay(item: LimitDay, activeDate?: string) {
@@ -942,7 +955,7 @@ function MediumWidget({ data }: { data: LimitData }) {
 
 function TrafficTrendChart({ week, activeDate }: { week: LimitDay[]; activeDate?: string }) {
   const days = week.slice(0, 7)
-  const sparkline = restrictionTrendSparkline(days)
+  const lineChart = restrictionTrendLineChart(days)
 
   return (
     <VStack
@@ -959,19 +972,19 @@ function TrafficTrendChart({ week, activeDate }: { week: LimitDay[]; activeDate?
         </Text>
         <Spacer minLength={2} />
         <Text modifiers={modifiers().font('caption2').foregroundStyle('#94A3B8').lineLimit(1)}>
-          限行趋势
+          限行折线
         </Text>
       </HStack>
       <Text
         modifiers={modifiers()
-          .font(29)
-          .fontWeight('heavy')
-          .fontDesign('rounded')
+          .font(11)
+          .fontWeight('bold')
+          .fontDesign('monospaced')
           .foregroundStyle('#D9480F')
-          .lineLimit(1)
-          .minScaleFactor(0.62)}
+          .lineLimit(5)
+          .minScaleFactor(0.8)}
       >
-        {sparkline}
+        {lineChart}
       </Text>
       <HStack alignment="center" spacing={4}>
         {days.map(item => {
