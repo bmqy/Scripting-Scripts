@@ -1,7 +1,9 @@
 import {
     AccessoryWidgetBackground,
+    Chart,
     HStack,
     Image,
+    LineChart,
     Spacer,
     Text,
     VStack,
@@ -805,22 +807,6 @@ function restrictionTrendLabel(score: number) {
   return '双号'
 }
 
-function restrictionTrendLineChart(week: LimitDay[]) {
-  const scores = week.slice(0, 7).map(item => restrictionTrendScore(item.restriction))
-  return scores
-    .map((score, index) => {
-      const nextScore = scores[index + 1]
-      const connector = nextScore === undefined
-        ? ''
-        : nextScore > score
-          ? '╱'
-          : nextScore < score
-            ? '╲'
-            : '─'
-      return `●${connector}`
-    })
-    .join('')
-}
 function isCurrentDay(item: LimitDay, activeDate?: string) {
   return item.date === (activeDate || dateKey().slice(5))
 }
@@ -950,16 +936,12 @@ function MediumWidget({ data }: { data: LimitData }) {
 
 function TrafficTrendChart({ week, activeDate }: { week: LimitDay[]; activeDate?: string }) {
   const days = week.slice(0, 7)
-  const lineChart = restrictionTrendLineChart(days)
 
   return (
     <VStack
       alignment="leading"
-      spacing={6}
-      modifiers={modifiers()
-        .frame({ maxWidth: 'infinity', alignment: 'leading' })
-        .padding({ horizontal: 10, vertical: 8 })
-        .background('#FFFFFFCC')}
+      spacing={5}
+      modifiers={modifiers().frame({ width: 297, alignment: 'leading' })}
     >
       <HStack alignment="center" spacing={6}>
         <Text modifiers={modifiers().font('caption').foregroundStyle('#475569').lineLimit(1)}>
@@ -970,16 +952,24 @@ function TrafficTrendChart({ week, activeDate }: { week: LimitDay[]; activeDate?
           限行折线
         </Text>
       </HStack>
-      <Text
-        modifiers={modifiers()
-          .font(29)
-          .fontDesign('rounded')
-          .foregroundStyle('#D9480F')
-          .lineLimit(1)
-          .minScaleFactor(0.62)}
+      <Chart
+        frame={{ width: 297, height: 58 }}
+        chartXAxis="hidden"
+        chartYAxis="hidden"
+        chartLegend="hidden"
+        chartYScale={{ domain: { from: 0, to: 4 }, type: 'linear' }}
       >
-        {lineChart}
-      </Text>
+        <LineChart
+          marks={days.map(item => ({
+            label: item.date,
+            value: restrictionTrendScore(item.restriction),
+            foregroundStyle: '#EA580C',
+            symbol: 'circle',
+            lineStyle: { lineWidth: 2.5, lineCap: 'round', lineJoin: 'round' },
+            interpolationMethod: 'linear',
+          }))}
+        />
+      </Chart>
       <HStack alignment="center" spacing={4}>
         {days.map(item => {
           const active = isCurrentDay(item, activeDate)
@@ -1003,14 +993,21 @@ function TrafficTrendChart({ week, activeDate }: { week: LimitDay[]; activeDate?
     </VStack>
   )
 }
-
 function LargeWidget({ data }: { data: LimitData }) {
   return (
-    <VStack alignment="leading" spacing={9} modifiers={modifiers().padding(14).widgetBackground('#FFF7ED')}>
+    <VStack
+      alignment="leading"
+      spacing={9}
+      modifiers={modifiers()
+        .padding(14)
+        .frame({ maxWidth: 'infinity', maxHeight: 'infinity', alignment: 'leading' })
+        .widgetBackground('#FFF7ED')}
+    >
       <Header data={data} />
       <TodayTomorrowPanel data={data} compact />
       <WeekStrip week={data.week} activeDate={data.today.date} compact />
       <TrafficTrendChart week={data.week} activeDate={data.today.date} />
+      <Spacer minLength={0} />
     </VStack>
   )
 }
