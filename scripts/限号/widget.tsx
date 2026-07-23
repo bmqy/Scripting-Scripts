@@ -1,7 +1,8 @@
 import {
+    Circle,
     HStack,
+    Image,
     Spacer,
-    SVG,
     Text,
     VStack,
     Widget,
@@ -58,19 +59,8 @@ const NOTICE_RESTRICTION = '以当地公告为准'
 // 百度查询结果通常包含本周和下周数据，有效数据写入后按两周 TTL 复用，避免反复触发搜索限制。
 const CACHE_WEEK_COUNT = 2
 const CACHE_TTL_MS = CACHE_WEEK_COUNT * 7 * 24 * 60 * 60 * 1000
-const ACCESSORY_RING_SIZE = 78
-function escapeSvgText(text: string) {
-  return text
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-}
-
-function accessoryRingSvg(text: string) {
-  const value = escapeSvgText(text)
-  const fontSize = value === FREE_RESTRICTION ? 22 : 25
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80"><path d="M20.2 54.7 A28.5 28.5 0 1 1 59.8 54.7" fill="none" stroke="white" stroke-opacity="0.78" stroke-width="8" stroke-linecap="round"/><text x="40" y="34" text-anchor="middle" dominant-baseline="middle" font-family="-apple-system, BlinkMacSystemFont, SF Pro Rounded, sans-serif" font-size="${fontSize}" font-weight="800" fill="white" fill-opacity="0.86">${value}</text><g fill="white" fill-opacity="0.86"><path d="M30 67.2h20l-2.7-5.2H32.7z"/><path d="M28.5 67.4h23a2.5 2.5 0 0 1 2.5 2.5v3.7h-28v-3.7a2.5 2.5 0 0 1 2.5-2.5z"/><rect x="34.2" y="63.2" width="11.6" height="2.2" rx="0.8" fill-opacity="0.35"/><circle cx="32" cy="74.2" r="2.1"/><circle cx="48" cy="74.2" r="2.1"/></g></svg>`
-}
+const ACCESSORY_RING_SIZE = 66
+const ACCESSORY_RING_STROKE = 5
 function previewText(text?: string, maxLength = 260) {
   const value = (text || '').replace(/\s+/g, ' ').trim()
   return value.length > maxLength ? `${value.slice(0, maxLength)}...` : value
@@ -870,12 +860,24 @@ function Header({ data, compact = false }: { data: LimitData; compact?: boolean 
 function AccessoryCircularWidget({ data }: { data: LimitData }) {
   const text = circularRestrictionText(data.today.restriction)
   return (
-    <SVG
-      code={accessoryRingSvg(text)}
-      resizable
-      frame={{ width: ACCESSORY_RING_SIZE, height: ACCESSORY_RING_SIZE }}
-      antialiased
-    />
+    <ZStack modifiers={modifiers().frame(Widget.displaySize)}>
+      <Circle
+        trim={{ from: 0, to: 0.125 }}
+        stroke={{ shapeStyle: 'white', strokeStyle: { lineWidth: ACCESSORY_RING_STROKE, lineCap: 'round' } }}
+        frame={{ width: ACCESSORY_RING_SIZE, height: ACCESSORY_RING_SIZE }}
+        modifiers={modifiers().offset({ x: 0, y: -5 })}
+      />
+      <Circle
+        trim={{ from: 0.375, to: 1 }}
+        stroke={{ shapeStyle: 'white', strokeStyle: { lineWidth: ACCESSORY_RING_STROKE, lineCap: 'round' } }}
+        frame={{ width: ACCESSORY_RING_SIZE, height: ACCESSORY_RING_SIZE }}
+        modifiers={modifiers().offset({ x: 0, y: -5 })}
+      />
+      <Text modifiers={modifiers().font('title3').fontWeight('semibold').foregroundStyle('white').offset({ x: 0, y: -5 })}>
+        {text}
+      </Text>
+      <Image systemName="car.fill" font={17} foregroundStyle="white" modifiers={modifiers().offset({ x: 0, y: 29 })} />
+    </ZStack>
   )
 }
 function SmallWidget({ data }: { data: LimitData }) {
