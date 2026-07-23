@@ -807,25 +807,20 @@ function restrictionTrendLabel(score: number) {
 
 function restrictionTrendLineChart(week: LimitDay[]) {
   const scores = week.slice(0, 7).map(item => restrictionTrendScore(item.restriction))
-  const height = 5
-  const width = Math.max(1, scores.length * 2 - 1)
-  const rows = Array.from({ length: height }, () => Array.from({ length: width }, () => ' '))
-
-  scores.forEach((score, index) => {
-    const row = height - 1 - score
-    rows[row][index * 2] = '●'
-  })
-
-  for (let i = 0; i < scores.length - 1; i++) {
-    const fromRow = height - 1 - scores[i]
-    const toRow = height - 1 - scores[i + 1]
-    const connectorRow = Math.round((fromRow + toRow) / 2)
-    rows[connectorRow][i * 2 + 1] = toRow < fromRow ? '╱' : toRow > fromRow ? '╲' : '─'
-  }
-
-  return rows.map(row => row.join('')).join('\n')
+  return scores
+    .map((score, index) => {
+      const nextScore = scores[index + 1]
+      const connector = nextScore === undefined
+        ? ''
+        : nextScore > score
+          ? '╱'
+          : nextScore < score
+            ? '╲'
+            : '─'
+      return `●${connector}`
+    })
+    .join('')
 }
-
 function isCurrentDay(item: LimitDay, activeDate?: string) {
   return item.date === (activeDate || dateKey().slice(5))
 }
@@ -960,14 +955,14 @@ function TrafficTrendChart({ week, activeDate }: { week: LimitDay[]; activeDate?
   return (
     <VStack
       alignment="leading"
-      spacing={8}
+      spacing={6}
       modifiers={modifiers()
         .frame({ maxWidth: 'infinity', alignment: 'leading' })
-        .padding({ horizontal: 10, vertical: 10 })
+        .padding({ horizontal: 10, vertical: 8 })
         .background('#FFFFFFCC')}
     >
       <HStack alignment="center" spacing={6}>
-        <Text modifiers={modifiers().font('caption').fontWeight('semibold').foregroundStyle('#475569').lineLimit(1)}>
+        <Text modifiers={modifiers().font('caption').foregroundStyle('#475569').lineLimit(1)}>
           最近7天
         </Text>
         <Spacer minLength={2} />
@@ -977,12 +972,11 @@ function TrafficTrendChart({ week, activeDate }: { week: LimitDay[]; activeDate?
       </HStack>
       <Text
         modifiers={modifiers()
-          .font(11)
-          .fontWeight('bold')
-          .fontDesign('monospaced')
+          .font(29)
+          .fontDesign('rounded')
           .foregroundStyle('#D9480F')
-          .lineLimit(5)
-          .minScaleFactor(0.8)}
+          .lineLimit(1)
+          .minScaleFactor(0.62)}
       >
         {lineChart}
       </Text>
@@ -996,7 +990,7 @@ function TrafficTrendChart({ week, activeDate }: { week: LimitDay[]; activeDate?
               spacing={1}
               modifiers={modifiers().frame({ width: 39, alignment: 'center' })}
             >
-              <Text modifiers={modifiers().font('caption2').fontWeight(active ? 'bold' : 'regular').foregroundStyle(active ? '#2563EB' : '#94A3B8').lineLimit(1)}>
+              <Text modifiers={modifiers().font('caption2').foregroundStyle(active ? '#2563EB' : '#94A3B8').lineLimit(1)}>
                 {item.weekday.replace('周', '')}
               </Text>
               <Text modifiers={modifiers().font('caption2').foregroundStyle(score <= 1 ? '#16A34A' : '#D9480F').lineLimit(1).minScaleFactor(0.7)}>
