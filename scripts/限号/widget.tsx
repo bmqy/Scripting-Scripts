@@ -797,17 +797,17 @@ function WeekDayColumn({ item, activeDate, compact = false }: { item: LimitDay; 
       alignment="center"
       spacing={compact ? 4 : 5}
       modifiers={modifiers()
-        .frame({ width: compact ? 39 : 40, alignment: 'center' })
+        .frame({ width: compact ? 40 : 40, alignment: 'center' })
         .padding({ top: compact ? 8 : 9, bottom: compact ? 8 : 9 })
         .background(active ? '#DBEAFE' : '#FFFFFFCC')}
     >
-      <Text modifiers={modifiers().font(compact ? 'caption' : 'callout').fontWeight('semibold').foregroundStyle('#475569').lineLimit(1)}>
+      <Text modifiers={modifiers().font(compact ? 12 : 'callout').fontWeight('semibold').foregroundStyle('#475569').lineLimit(1)}>
         {item.weekday.replace('周', '')}
       </Text>
-      <Text modifiers={modifiers().font('caption2').foregroundStyle('#94A3B8').lineLimit(1)}>
+      <Text modifiers={modifiers().font(compact ? 11 : 'caption2').foregroundStyle('#94A3B8').lineLimit(1)}>
         {item.date.replace('-', '/')}
       </Text>
-      <Text modifiers={modifiers().font(compact ? 'callout' : 'title3').fontWeight('bold').foregroundStyle(restrictionColor(item.restriction, active)).lineLimit(1).minScaleFactor(0.5)}>
+      <Text modifiers={modifiers().font(compact ? 16 : 'title3').fontWeight('bold').foregroundStyle(restrictionColor(item.restriction, active)).lineLimit(1).minScaleFactor(0.5)}>
         {item.restriction}
       </Text>
     </VStack>
@@ -825,13 +825,13 @@ function WeekStrip({ week, activeDate, compact = false }: { week: LimitDay[]; ac
 function TodayTomorrowPanel({ data, compact = false }: { data: LimitData; compact?: boolean }) {
   return (
     <HStack alignment="center" spacing={compact ? 8 : 12}>
-      <VStack alignment="center" spacing={compact ? 2 : 3} modifiers={modifiers().frame({ width: compact ? 128 : 142, alignment: 'center' })}>
+      <VStack alignment="center" spacing={compact ? 2 : 3} modifiers={modifiers().frame({ width: compact ? 146 : 142, alignment: 'center' })}>
         <Text modifiers={modifiers().font(compact ? 'caption2' : 'caption').foregroundStyle('#64748B').lineLimit(1)}>
           今日({data.today.weekday})
         </Text>
         <RestrictionPill text={data.today.restriction} large={!compact} />
       </VStack>
-      <VStack alignment="center" spacing={compact ? 2 : 3} modifiers={modifiers().frame({ width: compact ? 128 : 142, alignment: 'center' })}>
+      <VStack alignment="center" spacing={compact ? 2 : 3} modifiers={modifiers().frame({ width: compact ? 146 : 142, alignment: 'center' })}>
         <Text modifiers={modifiers().font(compact ? 'caption2' : 'caption').foregroundStyle('#64748B').lineLimit(1)}>
           明日({data.tomorrow.weekday})
         </Text>
@@ -932,7 +932,7 @@ function WeekRestrictionSection({
     <VStack
       alignment="leading"
       spacing={5}
-      modifiers={modifiers().frame({ width: 291, alignment: 'leading' })}
+      modifiers={modifiers().frame({ maxWidth: 'infinity', alignment: 'leading' })}
     >
       <HStack alignment="center" spacing={5}>
         <Text modifiers={modifiers().font(9).foregroundStyle(accentColor).lineLimit(1)}>●</Text>
