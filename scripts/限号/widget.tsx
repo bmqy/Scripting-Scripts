@@ -60,7 +60,7 @@ const NOTICE_RESTRICTION = '以当地公告为准'
 const CACHE_WEEK_COUNT = 2
 const CACHE_TTL_MS = CACHE_WEEK_COUNT * 7 * 24 * 60 * 60 * 1000
 const ACCESSORY_RING_SIZE = 53
-const ACCESSORY_RING_STROKE = 4
+const ACCESSORY_RING_STROKE = 4.5
 function previewText(text?: string, maxLength = 260) {
   const value = (text || '').replace(/\s+/g, ' ').trim()
   return value.length > maxLength ? `${value.slice(0, maxLength)}...` : value
@@ -865,15 +865,15 @@ function AccessoryCircularWidget({ data }: { data: LimitData }) {
         trim={{ from: 0, to: 0.125 }}
         stroke={{ shapeStyle: 'white', strokeStyle: { lineWidth: ACCESSORY_RING_STROKE, lineCap: 'round' } }}
         frame={{ width: ACCESSORY_RING_SIZE, height: ACCESSORY_RING_SIZE }}
-        modifiers={modifiers().offset({ x: 0, y: -5 })}
+        modifiers={modifiers().offset({ x: 0, y: 0 })}
       />
       <Circle
         trim={{ from: 0.375, to: 1 }}
         stroke={{ shapeStyle: 'white', strokeStyle: { lineWidth: ACCESSORY_RING_STROKE, lineCap: 'round' } }}
         frame={{ width: ACCESSORY_RING_SIZE, height: ACCESSORY_RING_SIZE }}
-        modifiers={modifiers().offset({ x: 0, y: -5 })}
+        modifiers={modifiers().offset({ x: 0, y: 0 })}
       />
-      <Text modifiers={modifiers().font(16).fontWeight('semibold').foregroundStyle('white').offset({ x: 0, y: -5 })}>
+      <Text modifiers={modifiers().font(16).fontWeight('semibold').foregroundStyle('white').offset({ x: 0, y: 0 })}>
         {text}
       </Text>
       <Image systemName="car.fill" font={14} foregroundStyle="white" modifiers={modifiers().offset({ x: 0, y: 25 })} />
