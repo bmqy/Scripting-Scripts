@@ -786,6 +786,33 @@ function restrictionColor(text: string, _active = false) {
   return /不限|无/.test(text) ? '#16A34A' : '#334155'
 }
 
+function restrictionTrendScore(text: string) {
+  const normalized = formatRestriction(text || '')
+  if (/不限|无/.test(normalized)) return 0
+  if (isUncertainRestriction(normalized)) return 1
+
+  const digits = new Set(normalized.match(/[0-9]/g) || [])
+  if (digits.size >= 2) return 4
+  if (digits.size === 1) return 3
+  return 2
+}
+
+function restrictionTrendLabel(score: number) {
+  if (score <= 0) return '畅行'
+  if (score === 1) return '待定'
+  if (score === 2) return '提醒'
+  if (score === 3) return '限号'
+  return '双号'
+}
+
+function restrictionTrendSparkline(week: LimitDay[]) {
+  const blocks = ['▁', '▂', '▄', '▆', '█']
+  return week
+    .slice(0, 7)
+    .map(item => blocks[restrictionTrendScore(item.restriction)])
+    .join(' ')
+}
+
 function isCurrentDay(item: LimitDay, activeDate?: string) {
   return item.date === (activeDate || dateKey().slice(5))
 }
@@ -855,30 +882,6 @@ function Header({ data, compact = false }: { data: LimitData; compact?: boolean 
   )
 }
 
-function DayRow({ item, emphasis = false, compact = false }: { item: LimitDay; emphasis?: boolean; compact?: boolean }) {
-  const active = emphasis
-  return (
-    <HStack
-      alignment="center"
-      spacing={6}
-      modifiers={modifiers()
-        .frame({ maxWidth: 'infinity', alignment: 'center' })
-        .padding({ horizontal: 8, vertical: compact ? 3 : 4 })
-        .background(active ? '#DBEAFE' : '#00000000')}
-    >
-      <VStack alignment="leading" spacing={0} modifiers={modifiers().frame({ width: compact ? 48 : 54, alignment: 'leading' })}>
-        <Text modifiers={modifiers().font(active && !compact ? 'callout' : 'caption').fontWeight('bold').foregroundStyle('#334155').lineLimit(1)}>
-          {item.label}
-        </Text>
-        <Text modifiers={modifiers().font('caption2').foregroundStyle('#94A3B8').lineLimit(1)}>{item.date.replace('-', '/')}</Text>
-      </VStack>
-      <Spacer minLength={2} />
-      <Text modifiers={modifiers().font(active && !compact ? 'title3' : 'callout').fontWeight('semibold').foregroundStyle(restrictionColor(item.restriction, active)).lineLimit(1).minScaleFactor(0.65)}>
-        {item.restriction}
-      </Text>
-    </HStack>
-  )
-}
 
 function AccessoryCircularWidget({ data }: { data: LimitData }) {
   const text = circularRestrictionText(data.today.restriction)
@@ -936,24 +939,74 @@ function MediumWidget({ data }: { data: LimitData }) {
   )
 }
 
-function WeekList({ week, activeDate, compact = false }: { week: LimitDay[]; activeDate?: string; compact?: boolean }) {
+
+function TrafficTrendChart({ week, activeDate }: { week: LimitDay[]; activeDate?: string }) {
+  const days = week.slice(0, 7)
+  const sparkline = restrictionTrendSparkline(days)
+
   return (
-    <VStack alignment="leading" spacing={compact ? 5 : 7} modifiers={modifiers().frame({ maxWidth: 'infinity', alignment: 'leading' })}>
-      {week.slice(0, 7).map(item => <DayRow item={item} emphasis={isCurrentDay(item, activeDate)} compact={compact} />)}
+    <VStack
+      alignment="leading"
+      spacing={8}
+      modifiers={modifiers()
+        .frame({ maxWidth: 'infinity', alignment: 'leading' })
+        .padding({ horizontal: 10, vertical: 10 })
+        .background('#FFFFFFCC')}
+    >
+      <HStack alignment="center" spacing={6}>
+        <Text modifiers={modifiers().font('caption').fontWeight('semibold').foregroundStyle('#475569').lineLimit(1)}>
+          最近7天
+        </Text>
+        <Spacer minLength={2} />
+        <Text modifiers={modifiers().font('caption2').foregroundStyle('#94A3B8').lineLimit(1)}>
+          限行趋势
+        </Text>
+      </HStack>
+      <Text
+        modifiers={modifiers()
+          .font(29)
+          .fontWeight('heavy')
+          .fontDesign('rounded')
+          .foregroundStyle('#D9480F')
+          .lineLimit(1)
+          .minScaleFactor(0.62)}
+      >
+        {sparkline}
+      </Text>
+      <HStack alignment="center" spacing={4}>
+        {days.map(item => {
+          const active = isCurrentDay(item, activeDate)
+          const score = restrictionTrendScore(item.restriction)
+          return (
+            <VStack
+              alignment="center"
+              spacing={1}
+              modifiers={modifiers().frame({ width: 39, alignment: 'center' })}
+            >
+              <Text modifiers={modifiers().font('caption2').fontWeight(active ? 'bold' : 'regular').foregroundStyle(active ? '#2563EB' : '#94A3B8').lineLimit(1)}>
+                {item.weekday.replace('周', '')}
+              </Text>
+              <Text modifiers={modifiers().font('caption2').foregroundStyle(score <= 1 ? '#16A34A' : '#D9480F').lineLimit(1).minScaleFactor(0.7)}>
+                {restrictionTrendLabel(score)}
+              </Text>
+            </VStack>
+          )
+        })}
+      </HStack>
     </VStack>
   )
 }
 
 function LargeWidget({ data }: { data: LimitData }) {
   return (
-    <VStack alignment="leading" spacing={10} modifiers={modifiers().padding(14).widgetBackground('#FFF7ED')}>
+    <VStack alignment="leading" spacing={9} modifiers={modifiers().padding(14).widgetBackground('#FFF7ED')}>
       <Header data={data} />
       <TodayTomorrowPanel data={data} compact />
-      <WeekList week={data.week} activeDate={data.today.date} compact />
+      <WeekStrip week={data.week} activeDate={data.today.date} compact />
+      <TrafficTrendChart week={data.week} activeDate={data.today.date} />
     </VStack>
   )
 }
-
 function WidgetView({ data }: { data: LimitData }) {
   if (Widget.family === 'accessoryCircular') return <AccessoryCircularWidget data={data} />
   if (Widget.family === 'systemSmall') return <SmallWidget data={data} />
