@@ -827,13 +827,13 @@ function TodayTomorrowPanel({ data, compact = false }: { data: LimitData; compac
     <HStack alignment="center" spacing={compact ? 8 : 12}>
       <VStack alignment="center" spacing={compact ? 2 : 3} modifiers={modifiers().frame({ width: compact ? 128 : 142, alignment: 'center' })}>
         <Text modifiers={modifiers().font(compact ? 'caption2' : 'caption').foregroundStyle('#64748B').lineLimit(1)}>
-          今日限行尾号({data.today.weekday})
+          今日({data.today.weekday})
         </Text>
         <RestrictionPill text={data.today.restriction} large={!compact} />
       </VStack>
       <VStack alignment="center" spacing={compact ? 2 : 3} modifiers={modifiers().frame({ width: compact ? 128 : 142, alignment: 'center' })}>
         <Text modifiers={modifiers().font(compact ? 'caption2' : 'caption').foregroundStyle('#64748B').lineLimit(1)}>
-          明日限行尾号({data.tomorrow.weekday})
+          明日({data.tomorrow.weekday})
         </Text>
         <RestrictionPill text={data.tomorrow.restriction} large={!compact} />
       </VStack>
