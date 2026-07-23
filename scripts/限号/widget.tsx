@@ -882,18 +882,15 @@ function AccessoryCircularWidget({ data }: { data: LimitData }) {
         >
           {text}
         </Text>
-        <VStack alignment="center" spacing={0} modifiers={modifiers().frame({ width: ACCESSORY_RING_SIZE, height: ACCESSORY_RING_SIZE })}>
-          <Spacer minLength={0} />
-          <Image
-            systemName="car.fill"
-            modifiers={modifiers()
-              .font(13)
-              .foregroundStyle('white')
-              .widgetAccentable()
-              .lineLimit(1)}
-          />
-          <Spacer minLength={4} />
-        </VStack>
+        <Image
+          systemName="car.fill"
+          modifiers={modifiers()
+            .font(13)
+            .foregroundStyle('white')
+            .widgetAccentable()
+            .lineLimit(1)
+            .position({ x: 40, y: 66 })}
+        />
       </ZStack>
     </ZStack>
   )
