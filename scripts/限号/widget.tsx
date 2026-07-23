@@ -68,10 +68,9 @@ function escapeSvgText(text: string) {
 
 function accessoryRingSvg(text: string) {
   const value = escapeSvgText(text)
-  const fontSize = value.length > 2 ? 22 : 27
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80"><path d="M22.45 65.65 A31.5 31.5 0 1 1 57.55 65.65" fill="none" stroke="white" stroke-opacity="0.78" stroke-width="8" stroke-linecap="round"/><text x="40" y="39" text-anchor="middle" dominant-baseline="middle" font-family="-apple-system, BlinkMacSystemFont, SF Pro Rounded, sans-serif" font-size="${fontSize}" font-weight="800" fill="white" fill-opacity="0.86">${value}</text><g fill="white" fill-opacity="0.86"><path d="M28 63.5h24a2.5 2.5 0 0 1 2.5 2.5v5.5h-29V66a2.5 2.5 0 0 1 2.5-2.5z"/><path d="M32.8 55.5h14.4l4 8H28.8z"/><circle cx="32" cy="72" r="2.2"/><circle cx="48" cy="72" r="2.2"/><rect x="34.5" y="58" width="11" height="3.2" rx="1" fill-opacity="0.35"/></g></svg>`
+  const fontSize = value === FREE_RESTRICTION ? 22 : 25
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80"><path d="M20.2 54.7 A28.5 28.5 0 1 1 59.8 54.7" fill="none" stroke="white" stroke-opacity="0.78" stroke-width="8" stroke-linecap="round"/><text x="40" y="34" text-anchor="middle" dominant-baseline="middle" font-family="-apple-system, BlinkMacSystemFont, SF Pro Rounded, sans-serif" font-size="${fontSize}" font-weight="800" fill="white" fill-opacity="0.86">${value}</text><g fill="white" fill-opacity="0.86"><path d="M30 67.2h20l-2.7-5.2H32.7z"/><path d="M28.5 67.4h23a2.5 2.5 0 0 1 2.5 2.5v3.7h-28v-3.7a2.5 2.5 0 0 1 2.5-2.5z"/><rect x="34.2" y="63.2" width="11.6" height="2.2" rx="0.8" fill-opacity="0.35"/><circle cx="32" cy="74.2" r="2.1"/><circle cx="48" cy="74.2" r="2.1"/></g></svg>`
 }
-
 function previewText(text?: string, maxLength = 260) {
   const value = (text || '').replace(/\s+/g, ' ').trim()
   return value.length > maxLength ? `${value.slice(0, maxLength)}...` : value
@@ -871,17 +870,14 @@ function Header({ data, compact = false }: { data: LimitData; compact?: boolean 
 function AccessoryCircularWidget({ data }: { data: LimitData }) {
   const text = circularRestrictionText(data.today.restriction)
   return (
-    <ZStack modifiers={modifiers().frame(Widget.displaySize)}>
-      <SVG
-        code={accessoryRingSvg(text)}
-        resizable
-        frame={{ width: ACCESSORY_RING_SIZE, height: ACCESSORY_RING_SIZE }}
-        antialiased
-      />
-    </ZStack>
+    <SVG
+      code={accessoryRingSvg(text)}
+      resizable
+      frame={{ width: ACCESSORY_RING_SIZE, height: ACCESSORY_RING_SIZE }}
+      antialiased
+    />
   )
 }
-
 function SmallWidget({ data }: { data: LimitData }) {
   return (
     <VStack alignment="leading" spacing={8} modifiers={modifiers().padding(14).widgetBackground('#FFF7ED')}>
