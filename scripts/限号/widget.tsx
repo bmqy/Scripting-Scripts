@@ -1,9 +1,7 @@
 import {
     AccessoryWidgetBackground,
-    Chart,
     HStack,
     Image,
-    LineChart,
     Spacer,
     Text,
     VStack,
@@ -610,7 +608,7 @@ function cacheCoversCurrentDisplayDates(data: LimitData) {
 
 function cachedWeekForCurrentDisplay(data: LimitData): LimitDay[] {
   const monday = currentWeekStart()
-  return Array.from({ length: 7 }).map((_, i) => {
+  return Array.from({ length: CACHE_WEEK_COUNT * 7 }).map((_, i) => {
     const d = addDays(monday, i)
     const cached = cachedDayForDate(data, d)
     return cached
@@ -788,25 +786,6 @@ function restrictionColor(text: string, _active = false) {
   return /不限|无/.test(text) ? '#16A34A' : '#334155'
 }
 
-function restrictionTrendScore(text: string) {
-  const normalized = formatRestriction(text || '')
-  if (/不限|无/.test(normalized)) return 0
-  if (isUncertainRestriction(normalized)) return 1
-
-  const digits = new Set(normalized.match(/[0-9]/g) || [])
-  if (digits.size >= 2) return 4
-  if (digits.size === 1) return 3
-  return 2
-}
-
-function restrictionTrendLabel(score: number) {
-  if (score <= 0) return '畅行'
-  if (score === 1) return '待定'
-  if (score === 2) return '提醒'
-  if (score === 3) return '限号'
-  return '双号'
-}
-
 function isCurrentDay(item: LimitDay, activeDate?: string) {
   return item.date === (activeDate || dateKey().slice(5))
 }
@@ -934,62 +913,15 @@ function MediumWidget({ data }: { data: LimitData }) {
 }
 
 
-function TrafficTrendChart({ week, activeDate }: { week: LimitDay[]; activeDate?: string }) {
-  const days = week.slice(0, 7)
-
+function WeekRestrictionSection({ title, week, activeDate }: { title: string; week: LimitDay[]; activeDate?: string }) {
   return (
     <VStack
       alignment="leading"
-      spacing={5}
-      modifiers={modifiers().frame({ width: 297, alignment: 'leading' })}
+      spacing={4}
+      modifiers={modifiers().frame({ width: 291, alignment: 'leading' })}
     >
-      <HStack alignment="center" spacing={6}>
-        <Text modifiers={modifiers().font('caption').foregroundStyle('#475569').lineLimit(1)}>
-          最近7天
-        </Text>
-        <Spacer minLength={2} />
-        <Text modifiers={modifiers().font('caption2').foregroundStyle('#94A3B8').lineLimit(1)}>
-          限行折线
-        </Text>
-      </HStack>
-      <Chart
-        frame={{ width: 297, height: 58 }}
-        chartXAxis="hidden"
-        chartYAxis="hidden"
-        chartLegend="hidden"
-        chartYScale={{ domain: { from: 0, to: 4 }, type: 'linear' }}
-      >
-        <LineChart
-          marks={days.map(item => ({
-            label: item.date,
-            value: restrictionTrendScore(item.restriction),
-            foregroundStyle: '#EA580C',
-            symbol: 'circle',
-            lineStyle: { lineWidth: 2.5, lineCap: 'round', lineJoin: 'round' },
-            interpolationMethod: 'linear',
-          }))}
-        />
-      </Chart>
-      <HStack alignment="center" spacing={4}>
-        {days.map(item => {
-          const active = isCurrentDay(item, activeDate)
-          const score = restrictionTrendScore(item.restriction)
-          return (
-            <VStack
-              alignment="center"
-              spacing={1}
-              modifiers={modifiers().frame({ width: 39, alignment: 'center' })}
-            >
-              <Text modifiers={modifiers().font('caption2').foregroundStyle(active ? '#2563EB' : '#94A3B8').lineLimit(1)}>
-                {item.weekday.replace('周', '')}
-              </Text>
-              <Text modifiers={modifiers().font('caption2').foregroundStyle(score <= 1 ? '#16A34A' : '#D9480F').lineLimit(1).minScaleFactor(0.7)}>
-                {restrictionTrendLabel(score)}
-              </Text>
-            </VStack>
-          )
-        })}
-      </HStack>
+      <Text modifiers={modifiers().font('caption').foregroundStyle('#64748B').lineLimit(1)}>{title}</Text>
+      <WeekStrip week={week} activeDate={activeDate} compact />
     </VStack>
   )
 }
@@ -1005,8 +937,8 @@ function LargeWidget({ data }: { data: LimitData }) {
     >
       <Header data={data} />
       <TodayTomorrowPanel data={data} compact />
-      <WeekStrip week={data.week} activeDate={data.today.date} compact />
-      <TrafficTrendChart week={data.week} activeDate={data.today.date} />
+      <WeekRestrictionSection title="本周限行" week={data.week.slice(0, 7)} activeDate={data.today.date} />
+      <WeekRestrictionSection title="下周限行" week={data.week.slice(7, 14)} />
       <Spacer minLength={0} />
     </VStack>
   )
