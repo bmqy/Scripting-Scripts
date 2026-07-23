@@ -948,17 +948,19 @@ function LargeWidget({ data }: { data: LimitData }) {
   return (
     <VStack
       alignment="leading"
-      spacing={14}
+      spacing={0}
       modifiers={modifiers()
         .padding(14)
         .frame({ maxWidth: 'infinity', maxHeight: 'infinity', alignment: 'leading' })
         .widgetBackground('#FFF7ED')}
     >
       <Header data={data} />
+      <Spacer minLength={12} />
       <TodayTomorrowPanel data={data} compact />
+      <Spacer minLength={12} />
       <WeekRestrictionSection title="本周限行" week={data.week.slice(0, 7)} activeDate={data.today.date} accentColor="#D9480F" />
+      <Spacer minLength={12} />
       <WeekRestrictionSection title="下周限行" week={data.week.slice(7, 14)} accentColor="#16A34A" />
-      <Spacer minLength={0} />
     </VStack>
   )
 }
