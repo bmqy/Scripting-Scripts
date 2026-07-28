@@ -53,9 +53,11 @@ type CacheFile = {
 const STORAGE_CACHE_KEY = '限号'
 const WEEKDAYS = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
 const BAIDU_SEARCH = 'https://www.baidu.com/s'
-const PARSER_VERSION = 4
+const PARSER_VERSION = 5
 const FREE_RESTRICTION = '不限'
 const NOTICE_RESTRICTION = '以当地公告为准'
+const RESTRICTION_PAIR_PATTERN_SOURCE = '[0-9０-９]\\s*(?:和|、|,|，|及|与)\\s*[0-9０-９]'
+const RESTRICTION_VALUE_PATTERN_SOURCE = `(?:${RESTRICTION_PAIR_PATTERN_SOURCE}|不限(?:行|号)?)`
 // 百度查询结果通常包含本周和下周数据，有效数据写入后按两周 TTL 复用，避免反复触发搜索限制。
 const CACHE_WEEK_COUNT = 2
 const CACHE_TTL_MS = CACHE_WEEK_COUNT * 7 * 24 * 60 * 60 * 1000
@@ -261,7 +263,7 @@ function normalizeRestriction(text?: string) {
   if (!s) return ''
   if (/不限行|不实施|暂停|解除|无尾号|不限号|免限行|不限/.test(s)) return FREE_RESTRICTION
 
-  const numberPair = s.match(/([0-9０-９]\s*(?:和|、|,|，|及|与)\s*[0-9０-９])/)?.[1]
+  const numberPair = s.match(new RegExp(`(${RESTRICTION_PAIR_PATTERN_SOURCE})`))?.[1]
   if (numberPair) return formatRestriction(numberPair)
 
   const explicit = s.match(/(?:尾号|限行|限号|车牌尾号|机动车尾号)(?:为|是|：|:)?([0-9０-９])/)
@@ -331,7 +333,7 @@ function extractRestrictionForDay(text: string, weekday: string, labels: string[
 }
 
 function restrictionPairs(text: string) {
-  return (text.match(/[0-9０-９]\s*(?:和|、|,|，|及|与)\s*[0-9０-９]/g) || []).map(formatRestriction)
+  return (text.match(new RegExp(RESTRICTION_PAIR_PATTERN_SOURCE, 'g')) || []).map(formatRestriction)
 }
 
 function parseChineseDate(year: string, month: string, day: string) {
@@ -384,16 +386,32 @@ function hasWorkdayOnlyClue(text: string) {
   return /工作日|星期一至星期五|周一至周五|周一到周五|法定节假日|双休日/.test(compact)
 }
 
-function inferRestrictionForDate(text: string, date: Date) {
-  const compact = text.replace(/\s+/g, '')
-  const weekday = WEEKDAYS[date.getDay()]
-  const dateLabels = [
+function dateRestrictionLabels(date: Date) {
+  return [
     dateKey(date).slice(5),
     dateKey(date).slice(5).replace('-', '/'),
     `${date.getMonth() + 1}月${date.getDate()}日`,
     `${pad(date.getMonth() + 1)}月${pad(date.getDate())}日`,
   ]
-  const direct = extractRestrictionForDay(compact, weekday, [weekday, ...dateLabels])
+}
+
+function inferRestrictionForExactDate(text: string, date: Date) {
+  const compact = text.replace(/\s+/g, '')
+  for (const label of dateRestrictionLabels(date)) {
+    const around = extractAround(compact, label)
+    const parsed = normalizeRestriction(around)
+    if (parsed) return parsed
+  }
+
+  if (isWeekend(date) && hasWorkdayOnlyClue(compact)) return FREE_RESTRICTION
+
+  return ''
+}
+
+function inferRestrictionForDate(text: string, date: Date) {
+  const compact = text.replace(/\s+/g, '')
+  const weekday = WEEKDAYS[date.getDay()]
+  const direct = extractRestrictionForDay(compact, weekday, [weekday, ...dateRestrictionLabels(date)])
   if (direct) return direct
 
   if (isWeekend(date) && hasWorkdayOnlyClue(compact)) return FREE_RESTRICTION
@@ -402,35 +420,63 @@ function inferRestrictionForDate(text: string, date: Date) {
 }
 
 function extractBaiduCardRestriction(text: string, label: '今日' | '明日') {
-  const match = text.match(new RegExp(`${label}限行尾号[\\s\\S]{0,70}?((?:[0-9０-９]\\s*(?:和|、|,|，|及|与)\\s*[0-9０-９])|不限(?:行)?)`))
+  const match = text.match(new RegExp(`${label}限行尾号[\\s\\S]{0,70}?(${RESTRICTION_VALUE_PATTERN_SOURCE})`))
   return normalizeRestriction(match?.[1])
 }
 
-function extractBaiduRestrictionSection(text: string, label: '本周' | '下周') {
-  const startLabel = `${label}尾号限行`
-  const start = text.indexOf(startLabel)
-  if (start < 0) return ''
+function baiduWeekSectionLabels(label: '本周' | '下周') {
+  return [
+    `${label}尾号限行`,
+    `${label}限行尾号`,
+    `${label}限号`,
+    `${label}限行`,
+    `${label}尾号`,
+  ]
+}
 
-  const rest = text.slice(start)
+function firstLabelMatch(text: string, labels: string[], fromIndex = 0) {
+  return labels
+    .map(label => ({ label, index: text.indexOf(label, fromIndex) }))
+    .filter(item => item.index >= 0)
+    .sort((a, b) => a.index - b.index)[0]
+}
+
+function extractBaiduRestrictionSection(text: string, label: '本周' | '下周') {
+  const compact = text.replace(/\s+/g, '')
+  const startMatch = firstLabelMatch(compact, baiduWeekSectionLabels(label))
+  if (!startMatch) return ''
+
+  const rest = compact.slice(startMatch.index)
   const endLabels = label === '本周'
-    ? ['下周尾号限行', '限行时间', '限行区域']
-    : ['限行时间', '限行区域']
+    ? baiduWeekSectionLabels('下周').concat(['限行时间', '限行区域'])
+    : ['限行时间', '限行区域', '温馨提示', '规定', '政策']
   const end = endLabels
-    .map(endLabel => rest.indexOf(endLabel, startLabel.length))
+    .map(endLabel => rest.indexOf(endLabel, startMatch.label.length))
     .filter(index => index >= 0)
     .sort((a, b) => a - b)[0]
 
   return end === undefined ? rest : rest.slice(0, end)
 }
 
+function weekdayAliases(weekday: string) {
+  return [weekday, weekday.replace('周', '星期')]
+}
+
 function extractWeekdayRestrictionMap(source: string, referenceDate = new Date()) {
-  const map: Record<string, string> = extractWorkdaySequenceMap(source, referenceDate)
+  const compact = source.replace(/\s+/g, '')
+  const map: Record<string, string> = extractWorkdaySequenceMap(compact, referenceDate)
   for (const weekday of WEEKDAYS.slice(1).concat(WEEKDAYS[0])) {
-    const match = source.match(new RegExp(`${weekday}\\s*((?:[0-9０-９]\\s*(?:和|、|,|，|及|与)\\s*[0-9０-９])|不限(?:行|号)?)`))
-    const value = normalizeRestriction(match?.[1])
-    if (value) map[weekday] = value
+    if (map[weekday]) continue
+    for (const alias of weekdayAliases(weekday)) {
+      const match = compact.match(new RegExp(`${alias}[^周星期]{0,28}(${RESTRICTION_VALUE_PATTERN_SOURCE})`))
+      const value = normalizeRestriction(match?.[1])
+      if (value) {
+        map[weekday] = value
+        break
+      }
+    }
   }
-  if (hasWorkdayOnlyClue(source)) {
+  if (hasWorkdayOnlyClue(compact)) {
     map.周六 = map.周六 || FREE_RESTRICTION
     map.周日 = map.周日 || FREE_RESTRICTION
   }
@@ -456,8 +502,14 @@ function extractBaiduWeekMaps(text: string, referenceDate = new Date()): BaiduWe
 function restrictionFromWeekMaps(maps: BaiduWeekMaps, date: Date, text: string, referenceDate = new Date()) {
   const weekday = WEEKDAYS[date.getDay()]
   const nextWeekStart = addDays(currentWeekStart(referenceDate), 7)
-  const sourceMap = date.getTime() >= nextWeekStart.getTime() ? maps.next : maps.current
-  return sourceMap[weekday] || inferRestrictionForDate(text, date) || maps.general[weekday] || NOTICE_RESTRICTION
+  const isNextWeek = date.getTime() >= nextWeekStart.getTime()
+  const sourceMap = isNextWeek ? maps.next : maps.current
+  return sourceMap[weekday]
+    || inferRestrictionForExactDate(text, date)
+    || maps.general[weekday]
+    || (isNextWeek ? maps.current[weekday] : '')
+    || inferRestrictionForDate(text, date)
+    || NOTICE_RESTRICTION
 }
 
 function parseBaidu(html: string, city: string, query: string): LimitData {
@@ -791,14 +843,32 @@ function isCurrentDay(item: LimitDay, activeDate?: string) {
   return item.date === (activeDate || dateKey().slice(5))
 }
 
-function WeekDayColumn({ item, activeDate, compact = false }: { item: LimitDay; activeDate?: string; compact?: boolean }) {
+const MEDIUM_WEEK_COLUMN_WIDTH = 40
+const MEDIUM_WEEK_COLUMN_CONTENT_HEIGHT = 48
+const MEDIUM_WEEK_STRIP_HEIGHT = 64
+
+function WeekDayColumn({
+  item,
+  activeDate,
+  compact = false,
+  fixedMediumSize = false,
+}: {
+  item: LimitDay
+  activeDate?: string
+  compact?: boolean
+  fixedMediumSize?: boolean
+}) {
   const active = isCurrentDay(item, activeDate)
+  const columnFrame = fixedMediumSize
+    ? { width: MEDIUM_WEEK_COLUMN_WIDTH, height: MEDIUM_WEEK_COLUMN_CONTENT_HEIGHT, alignment: 'center' }
+    : { width: MEDIUM_WEEK_COLUMN_WIDTH, alignment: 'center' }
+
   return (
     <VStack
       alignment="center"
       spacing={compact ? 4 : 5}
       modifiers={modifiers()
-        .frame({ width: compact ? 40 : 40, alignment: 'center' })
+        .frame(columnFrame)
         .padding({ top: compact ? 8 : 9, bottom: compact ? 8 : 9 })
         .background(active ? '#DBEAFE' : '#FFFFFFCC')}
     >
@@ -815,10 +885,31 @@ function WeekDayColumn({ item, activeDate, compact = false }: { item: LimitDay; 
   )
 }
 
-function WeekStrip({ week, activeDate, compact = false }: { week: LimitDay[]; activeDate?: string; compact?: boolean }) {
+function WeekStrip({
+  week,
+  activeDate,
+  compact = false,
+  fixedMediumSize = false,
+}: {
+  week: LimitDay[]
+  activeDate?: string
+  compact?: boolean
+  fixedMediumSize?: boolean
+}) {
   return (
-    <HStack alignment="center" spacing={compact ? 3 : 4}>
-      {week.slice(0, 7).map(item => <WeekDayColumn item={item} activeDate={activeDate} compact={compact} />)}
+    <HStack
+      alignment="center"
+      spacing={compact ? 3 : 4}
+      modifiers={fixedMediumSize ? modifiers().frame({ height: MEDIUM_WEEK_STRIP_HEIGHT, alignment: 'center' }) : modifiers()}
+    >
+      {week.slice(0, 7).map(item => (
+        <WeekDayColumn
+          item={item}
+          activeDate={activeDate}
+          compact={compact}
+          fixedMediumSize={fixedMediumSize}
+        />
+      ))}
     </HStack>
   )
 }
@@ -900,7 +991,7 @@ function MediumWidget({ data }: { data: LimitData }) {
     <VStack alignment="leading" spacing={10} modifiers={modifiers().padding(14).widgetBackground('#FFF7ED')}>
       <Header data={data} />
       <TodayTomorrowPanel data={data} compact={true} />
-      <WeekStrip week={data.week} activeDate={data.today.date} compact={true} />
+      <WeekStrip week={data.week} activeDate={data.today.date} compact={true} fixedMediumSize={true} />
     </VStack>
   )
 }
@@ -933,7 +1024,7 @@ function WeekRestrictionSection({
         <Spacer minLength={2} />
         <Text modifiers={modifiers().font('caption2').foregroundStyle('#94A3B8').lineLimit(1)}>{range}</Text>
       </HStack>
-      <WeekStrip week={week} activeDate={activeDate} compact={true} />
+      <WeekStrip week={week} activeDate={activeDate} compact={true} fixedMediumSize={true} />
     </VStack>
   )
 }
