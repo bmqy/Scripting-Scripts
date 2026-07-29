@@ -49,15 +49,35 @@ export function loadSettings(): ReaderSettings | null {
   }
 }
 
+function matchesSettings(value: string | null, settings: ReaderSettings) {
+  try {
+    const saved = value ? JSON.parse(value) as Partial<ReaderSettings> : null
+    return saved?.endpoint === settings.endpoint
+      && saved.username === settings.username
+      && saved.password === settings.password
+  } catch {
+    return false
+  }
+}
+
 export function saveSettings(settings: ReaderSettings): SettingsStorage | null {
   try {
-    if (supportsKeychain() && Keychain.set(SETTINGS_KEY, JSON.stringify(settings))) return 'keychain'
+    if (supportsKeychain()) {
+      Keychain.set(SETTINGS_KEY, JSON.stringify(settings))
+      if (matchesSettings(Keychain.get(SETTINGS_KEY), settings)) return 'keychain'
+    }
   } catch {
     // Keychain 不可用时继续尝试脚本私有存储。
   }
 
   try {
-    return Storage.set(SETTINGS_KEY, settings) ? 'storage' : null
+    Storage.set(SETTINGS_KEY, settings)
+    const saved = Storage.get<ReaderSettings>(SETTINGS_KEY)
+    return saved?.endpoint === settings.endpoint
+      && saved.username === settings.username
+      && saved.password === settings.password
+      ? 'storage'
+      : null
   } catch {
     return null
   }
