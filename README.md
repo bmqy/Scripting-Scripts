@@ -24,6 +24,24 @@
 - 中号 & 大号
 ![中号 & 大号](https://image.bmqy.net/upload/2026-07/微信图片_20260717100835_109_131.jpg)
 
+### RSS 阅读小组件
+
+显示 Google Reader compatible API 中的未读文章数和最新未读文章，支持 FreshRSS 等自建 RSS 服务。
+
+#### 功能特点
+- 使用 Google Reader 兼容的 `ClientLogin`、`unread-count` 和 `stream/contents` 接口
+- 账号凭据仅保存到 Scripting App 的 Keychain，文章数据使用短期本地缓存
+- 小号显示未读总数和一篇最新文章；中号显示三篇；大号显示五篇及摘要
+- 每 30 分钟请求刷新一次；网络失败时显示最近一次成功缓存
+
+#### FreshRSS 配置
+
+1. 在 FreshRSS 的“认证”设置中开启 API 访问，并在“个人资料”设置 API 密码。
+2. 在 Scripting App 中运行“RSS 阅读”脚本，输入 FreshRSS 页面提供的 API 地址，例如 `https://rss.example.com/api/greader.php`、用户名和 API 密码。
+3. 将 Scripting App 的“RSS 阅读”小组件添加到主屏幕，选择小号、中号或大号。
+
+其他服务只要提供可拼接 `/accounts/ClientLogin` 和 `/reader/api/0/...` 路径的 Google Reader compatible API 根地址，也可以使用该组件。
+
 
 
 ## 开发环境设置

@@ -1,0 +1,27 @@
+{
+  "permissions": null,
+  "runInApp": true,
+  "entry": "index.tsx",
+  "iconImage": null,
+  "intentInputTypes": [],
+  "author": {
+    "name": "bmqy",
+    "email": "notice@bmqy.net",
+    "homepage": "https:\/\/bmqy.net"
+  },
+  "remoteResource": null,
+  "icon": "dot.radiowaves.left.and.right",
+  "localizedNames": {
+    "zh": "RSS 阅读",
+    "en": "RSS Reader"
+  },
+  "description": "显示 Google Reader 兼容 RSS 平台的未读文章",
+  "localizedDescriptions": {
+    "zh": "显示 Google Reader 兼容 RSS 平台的未读数与最新文章，支持 FreshRSS。",
+    "en": "Shows unread articles from Google Reader compatible RSS services, including FreshRSS."
+  },
+  "version": "1.0.0",
+  "color": "rgba(15, 118, 110, 1)",
+  "contributors": [],
+  "name": "RSS 阅读"
+}
