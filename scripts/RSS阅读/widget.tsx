@@ -241,11 +241,11 @@ function unreadText(count: number) {
   return count > 99 ? '99+' : `${count}`
 }
 
-function Header({ data }: { data: ReaderData }) {
+function Header({ data, compact = false }: { data: ReaderData; compact?: boolean }) {
   return (
-    <HStack alignment="center" spacing={6}>
-      <Image systemName="dot.radiowaves.left.and.right" font={14} foregroundStyle="#0F766E" />
-      <Text modifiers={modifiers().font('footnote').fontWeight('bold').foregroundStyle('#173B37').lineLimit(1)}>
+    <HStack alignment="center" spacing={compact ? 4 : 6}>
+      <Image systemName="dot.radiowaves.left.and.right" font={compact ? 12 : 14} foregroundStyle="#0F766E" />
+      <Text modifiers={modifiers().font(compact ? 'caption2' : 'footnote').fontWeight('bold').foregroundStyle('#173B37').lineLimit(1)}>
         RSS 阅读
       </Text>
       <Text modifiers={modifiers().font('caption2').foregroundStyle('#69908A').lineLimit(1)}>
@@ -272,16 +272,29 @@ function EmptyState({ data, compact = false }: { data: ReaderData; compact?: boo
   )
 }
 
-function ArticleRow({ article, showExcerpt = false }: { article: ReaderArticle; showExcerpt?: boolean }) {
+type ArticleDensity = 'small' | 'medium' | 'large'
+
+function ArticleRow({
+  article,
+  showExcerpt = false,
+  density = 'large',
+}: {
+  article: ReaderArticle
+  showExcerpt?: boolean
+  density?: ArticleDensity
+}) {
+  const compact = density !== 'large'
+  const tiny = density === 'small'
+
   return (
-    <VStack alignment="leading" spacing={2} modifiers={modifiers().frame({ maxWidth: 'infinity', alignment: 'leading' })}>
-      <HStack alignment="center" spacing={5}>
-        <Text modifiers={modifiers().font(10).foregroundStyle('#D97706').lineLimit(1)}>●</Text>
-        <Text modifiers={modifiers().font('caption').fontWeight('semibold').foregroundStyle('#173B37').lineLimit(1)}>
+    <VStack alignment="leading" spacing={compact ? 1 : 2} modifiers={modifiers().frame({ maxWidth: 'infinity', alignment: 'leading' })}>
+      <HStack alignment="center" spacing={compact ? 4 : 5}>
+        <Text modifiers={modifiers().font(tiny ? 8 : 10).foregroundStyle('#D97706').lineLimit(1)}>●</Text>
+        <Text modifiers={modifiers().font(tiny ? 'caption2' : 'caption').fontWeight('semibold').foregroundStyle('#173B37').lineLimit(tiny ? 2 : 1)}>
           {article.title}
         </Text>
       </HStack>
-      <HStack alignment="center" spacing={5} modifiers={modifiers().padding({ leading: 11 })}>
+      <HStack alignment="center" spacing={compact ? 4 : 5} modifiers={modifiers().padding({ leading: compact ? 10 : 11 })}>
         <Text modifiers={modifiers().font('caption2').foregroundStyle('#69908A').lineLimit(1)}>{article.source}</Text>
         <Spacer minLength={2} />
         <Text modifiers={modifiers().font('caption2').foregroundStyle('#8AA6A1').lineLimit(1)}>{timeText(article.publishedAt)}</Text>
@@ -298,32 +311,51 @@ function ArticleRow({ article, showExcerpt = false }: { article: ReaderArticle; 
 function SmallWidget({ data }: { data: ReaderData }) {
   const article = data.articles[0]
   return (
-    <VStack alignment="leading" spacing={6} modifiers={modifiers().padding(14).widgetBackground('#E8F3EF')}>
-      <Header data={data} />
-      <Spacer minLength={2} />
-      <HStack alignment="firstTextBaseline" spacing={7}>
-        <Text modifiers={modifiers().font(48).fontWeight('black').foregroundStyle('#0F766E').lineLimit(1).minScaleFactor(0.6)}>
+    <VStack
+      alignment="leading"
+      spacing={5}
+      modifiers={modifiers()
+        .padding(12)
+        .frame({ maxWidth: 'infinity', maxHeight: 'infinity', alignment: 'leading' })
+        .widgetBackground('#E8F3EF')}
+    >
+      <Header data={data} compact />
+      <HStack alignment="firstTextBaseline" spacing={5}>
+        <Text modifiers={modifiers().font(38).fontWeight('black').foregroundStyle('#0F766E').lineLimit(1).minScaleFactor(0.65)}>
           {unreadText(data.unreadCount)}
         </Text>
-        <Text modifiers={modifiers().font('caption').fontWeight('semibold').foregroundStyle('#42736C').lineLimit(1)}>未读</Text>
+        <Text modifiers={modifiers().font('caption2').fontWeight('semibold').foregroundStyle('#42736C').lineLimit(1)}>未读</Text>
       </HStack>
-      <Spacer minLength={2} />
-      {article ? <ArticleRow article={article} /> : <EmptyState data={data} compact />}
+      {article ? <ArticleRow article={article} density="small" /> : <EmptyState data={data} compact />}
     </VStack>
   )
 }
 
 function MediumWidget({ data }: { data: ReaderData }) {
+  const articles = data.articles.slice(0, 3)
   return (
-    <VStack alignment="leading" spacing={7} modifiers={modifiers().padding(14).widgetBackground('#E8F3EF')}>
+    <VStack
+      alignment="leading"
+      spacing={6}
+      modifiers={modifiers()
+        .padding(12)
+        .frame({ maxWidth: 'infinity', maxHeight: 'infinity', alignment: 'leading' })
+        .widgetBackground('#E8F3EF')}
+    >
       <Header data={data} />
-      <HStack alignment="center" spacing={6}>
-        <Text modifiers={modifiers().font(28).fontWeight('black').foregroundStyle('#0F766E').lineLimit(1)}>{unreadText(data.unreadCount)}</Text>
-        <Text modifiers={modifiers().font('caption').fontWeight('semibold').foregroundStyle('#42736C').lineLimit(1)}>篇未读</Text>
-        <Spacer minLength={2} />
-        {data.error ? <Text modifiers={modifiers().font('caption2').foregroundStyle('#B45309').lineLimit(1)}>缓存</Text> : null}
-      </HStack>
-      {data.articles.length > 0 ? data.articles.slice(0, 3).map(article => <ArticleRow article={article} />) : <EmptyState data={data} />}
+      {articles.length > 0 ? (
+        <HStack alignment="center" spacing={10} modifiers={modifiers().frame({ maxWidth: 'infinity', alignment: 'leading' })}>
+          <VStack alignment="leading" spacing={1} modifiers={modifiers().frame({ width: 78, alignment: 'leading' })}>
+            <Text modifiers={modifiers().font(30).fontWeight('black').foregroundStyle('#0F766E').lineLimit(1)}>{unreadText(data.unreadCount)}</Text>
+            <Text modifiers={modifiers().font('caption2').fontWeight('semibold').foregroundStyle(data.error ? '#B45309' : '#42736C').lineLimit(1)}>
+              {data.error ? '缓存' : '篇未读'}
+            </Text>
+          </VStack>
+          <VStack alignment="leading" spacing={4} modifiers={modifiers().frame({ maxWidth: 'infinity', alignment: 'leading' })}>
+            {articles.map(article => <ArticleRow article={article} density="medium" />)}
+          </VStack>
+        </HStack>
+      ) : <EmptyState data={data} />}
     </VStack>
   )
 }
