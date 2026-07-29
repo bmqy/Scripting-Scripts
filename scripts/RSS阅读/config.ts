@@ -1,4 +1,4 @@
-import { Keychain } from 'scripting'
+import { Keychain, Storage } from 'scripting'
 
 export type ReaderSettings = {
   endpoint: string
@@ -7,6 +7,10 @@ export type ReaderSettings = {
 }
 
 const SETTINGS_KEY = 'rss-reader-settings'
+
+function supportsKeychain() {
+  return typeof Keychain !== 'undefined' && typeof Keychain.get === 'function' && typeof Keychain.set === 'function'
+}
 
 export function normalizeEndpoint(value: string) {
   const endpoint = value.trim().replace(/\/+$/, '')
@@ -18,11 +22,15 @@ export function normalizeEndpoint(value: string) {
 }
 
 export function loadSettings(): ReaderSettings | null {
-  const value = Keychain.get(SETTINGS_KEY)
-  if (!value) return null
-
   try {
-    const settings = JSON.parse(value) as Partial<ReaderSettings>
+    const value = supportsKeychain()
+      ? Keychain.get(SETTINGS_KEY)
+      : Storage.get<ReaderSettings>(SETTINGS_KEY)
+    if (!value) return null
+
+    const settings = typeof value === 'string'
+      ? JSON.parse(value) as Partial<ReaderSettings>
+      : value
     if (!settings.endpoint || !settings.username || !settings.password) return null
     return {
       endpoint: normalizeEndpoint(settings.endpoint),
@@ -35,5 +43,11 @@ export function loadSettings(): ReaderSettings | null {
 }
 
 export function saveSettings(settings: ReaderSettings) {
-  return Keychain.set(SETTINGS_KEY, JSON.stringify(settings))
+  try {
+    return supportsKeychain()
+      ? Keychain.set(SETTINGS_KEY, JSON.stringify(settings))
+      : Storage.set(SETTINGS_KEY, settings)
+  } catch {
+    return false
+  }
 }
