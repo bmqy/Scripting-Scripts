@@ -1,11 +1,11 @@
 import {
-  HStack,
-  Image,
-  Spacer,
-  Text,
-  VStack,
-  Widget,
-  modifiers,
+    HStack,
+    Image,
+    Spacer,
+    Text,
+    VStack,
+    Widget,
+    modifiers,
 } from 'scripting'
 import { loadSettings, type ReaderSettings } from './config'
 
@@ -272,13 +272,13 @@ function ArticleRow({ article, showExcerpt = false }: { article: ReaderArticle; 
           {article.title}
         </Text>
       </HStack>
-      <HStack alignment="center" spacing={5} modifiers={modifiers().padding({ left: 11 })}>
+      <HStack alignment="center" spacing={5} modifiers={modifiers().padding({ leading: 11 })}>
         <Text modifiers={modifiers().font('caption2').foregroundStyle('#69908A').lineLimit(1)}>{article.source}</Text>
         <Spacer minLength={2} />
         <Text modifiers={modifiers().font('caption2').foregroundStyle('#8AA6A1').lineLimit(1)}>{timeText(article.publishedAt)}</Text>
       </HStack>
       {showExcerpt && article.excerpt ? (
-        <Text modifiers={modifiers().font('caption2').foregroundStyle('#54756F').lineLimit(1).padding({ left: 11 })}>
+        <Text modifiers={modifiers().font('caption2').foregroundStyle('#54756F').lineLimit(1).padding({ leading: 11 })}>
           {article.excerpt}
         </Text>
       ) : null}
