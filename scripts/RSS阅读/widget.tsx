@@ -28,7 +28,6 @@ type ReaderArticle = {
   source: string
   excerpt: string
   publishedAt: number
-  thumbnailUrl?: string
 }
 
 type ReaderData = {
@@ -125,13 +124,6 @@ function stripHtml(value?: string) {
     .trim()
 }
 
-function firstImageUrl(value?: string) {
-  const source = value || ''
-  const imageUrl = source.match(/<img[^>]+src=["']([^"']+)["']/i)?.[1]?.trim()
-  if (!imageUrl) return undefined
-  if (imageUrl.startsWith('//')) return `https:${imageUrl}`
-  return /^https?:\/\//i.test(imageUrl) ? imageUrl : undefined
-}
 
 function parseAuth(text: string) {
   return text.match(/^Auth=(.+)$/m)?.[1]?.trim() || ''
@@ -185,7 +177,6 @@ function toArticle(entry: StreamEntry): ReaderArticle {
     source: stripHtml(entry.origin?.title) || '未知来源',
     excerpt: stripHtml(entry.summary?.content || entry.content?.content),
     publishedAt: publishedAt(entry),
-    thumbnailUrl: firstImageUrl(entry.summary?.content) || firstImageUrl(entry.content?.content),
   }
 }
 
@@ -287,18 +278,9 @@ function EmptyState({ data, compact = false }: { data: ReaderData; compact?: boo
 
 type ArticleDensity = 'small' | 'medium' | 'large'
 
-function Thumbnail({ article, compact = false }: { article: ReaderArticle; compact?: boolean }) {
+function Thumbnail({ compact = false }: { compact?: boolean }) {
   const size = compact ? 36 : 46
   const height = compact ? 28 : 38
-
-  if (article.thumbnailUrl) {
-    return (
-      <Image
-        imageUrl={article.thumbnailUrl}
-        modifiers={modifiers().frame({ width: size, height, alignment: 'center' })}
-      />
-    )
-  }
 
   return (
     <Image
@@ -309,7 +291,6 @@ function Thumbnail({ article, compact = false }: { article: ReaderArticle; compa
     />
   )
 }
-
 function ArticleRow({
   article,
   density = 'large',
@@ -336,7 +317,7 @@ function ArticleRow({
           {article.title}
         </Text>
       </VStack>
-      {showThumbnail ? <Thumbnail article={article} compact={compact} /> : null}
+      {showThumbnail ? <Thumbnail compact={compact} /> : null}
     </HStack>
   )
 }
