@@ -2,7 +2,6 @@ import {
     HStack,
     Image,
     Spacer,
-    Storage,
     Text,
     VStack,
     Widget,
@@ -64,6 +63,15 @@ type StreamResponse = {
 
 const CACHE_KEY = 'rss-reader-cache'
 const CACHE_TTL_MS = 15 * 60 * 1000
+type StorageStore = {
+  get<T = unknown>(key: string): T | string | null | undefined
+  set(key: string, value: unknown): unknown
+}
+
+function scriptingStorage() {
+  return (globalThis as unknown as { Storage?: StorageStore }).Storage
+}
+
 const RELOAD_INTERVAL_MS = 30 * 60 * 1000
 const UNREAD_STREAM_ID = 'user/-/state/com.google/reading-list'
 const READ_STREAM_ID = 'user/-/state/com.google/read'
@@ -82,7 +90,7 @@ function serverName(endpoint: string) {
 
 function readCache() {
   try {
-    return Storage.get<CacheFile>(CACHE_KEY)
+    return scriptingStorage()?.get<CacheFile>(CACHE_KEY) || null
   } catch {
     return null
   }
@@ -90,7 +98,7 @@ function readCache() {
 
 function writeCache(cache: CacheFile) {
   try {
-    Storage.set(CACHE_KEY, cache)
+    scriptingStorage()?.set(CACHE_KEY, cache)
   } catch {
     // 缓存写入失败不应影响组件展示。
   }
