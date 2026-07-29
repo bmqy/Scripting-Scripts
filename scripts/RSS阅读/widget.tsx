@@ -291,10 +291,11 @@ function Thumbnail({ compact = false }: { compact?: boolean }) {
     />
   )
 }
+
 function ArticleRow({
   article,
   density = 'large',
-  showThumbnail = true,
+  showThumbnail = false,
 }: {
   article: ReaderArticle
   density?: ArticleDensity
@@ -302,15 +303,15 @@ function ArticleRow({
 }) {
   const compact = density === 'small'
   const tiny = density === 'small'
-  const sourceFont = density === 'large' ? 'caption' : 'subheadline'
-  const titleFont = density === 'large' ? 'callout' : tiny ? 'caption' : 'title3'
-  const contentSpacing = density === 'large' ? 3 : tiny ? 4 : 6
+  const sourceFont = tiny ? 'caption2' : 'caption'
+  const titleFont = tiny ? 'caption' : 'callout'
+  const contentSpacing = tiny ? 4 : 3
   const rowSpacing = density === 'large' ? 10 : 8
 
   return (
     <HStack alignment="center" spacing={rowSpacing} modifiers={modifiers().frame({ maxWidth: 'infinity', alignment: 'leading' })}>
       <VStack alignment="leading" spacing={contentSpacing} modifiers={modifiers().frame({ maxWidth: 'infinity', alignment: 'leading' })}>
-        <Text modifiers={modifiers().font(tiny ? 'caption2' : sourceFont).foregroundStyle('#A8A8AE').lineLimit(1)}>
+        <Text modifiers={modifiers().font(sourceFont).foregroundStyle('#A8A8AE').lineLimit(1)}>
           {article.source}
         </Text>
         <Text modifiers={modifiers().font(titleFont).foregroundStyle('#F7F7FA').lineLimit(tiny ? 2 : 1).minScaleFactor(0.82)}>
@@ -341,11 +342,11 @@ function SmallWidget({ data }: { data: ReaderData }) {
 }
 
 function MediumWidget({ data }: { data: ReaderData }) {
-  const articles = data.articles.slice(0, 3)
+  const articles = data.articles.slice(0, 2)
   return (
     <VStack
       alignment="leading"
-      spacing={14}
+      spacing={10}
       modifiers={modifiers()
         .padding({ top: 14, leading: 16, bottom: 14, trailing: 16 })
         .frame({ maxWidth: 'infinity', maxHeight: 'infinity', alignment: 'leading' })
@@ -353,7 +354,7 @@ function MediumWidget({ data }: { data: ReaderData }) {
     >
       <Header data={data} />
       {articles.length > 0 ? (
-        <VStack alignment="leading" spacing={14} modifiers={modifiers().frame({ maxWidth: 'infinity', alignment: 'leading' })}>
+        <VStack alignment="leading" spacing={10} modifiers={modifiers().frame({ maxWidth: 'infinity', alignment: 'leading' })}>
           {articles.map(article => <ArticleRow article={article} density="medium" />)}
         </VStack>
       ) : <EmptyState data={data} />}
@@ -362,13 +363,13 @@ function MediumWidget({ data }: { data: ReaderData }) {
 }
 
 function LargeWidget({ data }: { data: ReaderData }) {
-  const articles = data.articles.slice(0, 8)
+  const articles = data.articles.slice(0, 7)
   return (
     <VStack
       alignment="leading"
-      spacing={10}
+      spacing={8}
       modifiers={modifiers()
-        .padding({ top: 18, leading: 18, bottom: 18, trailing: 18 })
+        .padding({ top: 16, leading: 18, bottom: 16, trailing: 18 })
         .frame({ maxWidth: 'infinity', maxHeight: 'infinity', alignment: 'leading' })
         .widgetBackground('#1C1C1E')}
     >

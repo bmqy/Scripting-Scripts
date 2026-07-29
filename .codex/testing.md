@@ -10,3 +10,7 @@
 
 - 命令：`npm run build`
 - 结果：通过，已重新生成 `dist/RSS阅读.scripting`。
+## 2026-07-29 Header 被主体顶出修复
+
+- 命令：`npm run build`
+- 结果：通过，已重新生成 `dist/RSS阅读.scripting`。
