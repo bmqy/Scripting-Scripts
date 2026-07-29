@@ -6,29 +6,13 @@ export type ReaderSettings = {
 
 const SETTINGS_KEY = 'rss-reader-settings'
 
-export type SettingsStorage = 'keychain' | 'storage'
-
 type SettingsStore = {
   get<T = unknown>(key: string): T | string | null | undefined
-  set(key: string, value: unknown): unknown
-}
-
-type KeychainStore = {
-  get(key: string): string | null | undefined
-  set(key: string, value: string): unknown
+  set(key: string, value: unknown): boolean
 }
 
 function scriptingStorage() {
   return (globalThis as unknown as { Storage?: SettingsStore }).Storage
-}
-
-function scriptingKeychain() {
-  return (globalThis as unknown as { Keychain?: KeychainStore }).Keychain
-}
-
-function supportsKeychain() {
-  const keychain = scriptingKeychain()
-  return typeof keychain?.get === 'function' && typeof keychain.set === 'function'
 }
 
 export function normalizeEndpoint(value: string) {
@@ -60,15 +44,8 @@ function parseSettings(value: unknown): ReaderSettings | null {
 }
 
 export function loadSettings(): ReaderSettings | null {
-  let value: unknown = null
   try {
-    if (supportsKeychain()) value = scriptingKeychain()?.get(SETTINGS_KEY)
-  } catch {
-    // Keychain 不可用时继续尝试脚本私有存储。
-  }
-
-  try {
-    value ||= scriptingStorage()?.get<ReaderSettings>(SETTINGS_KEY)
+    const value = scriptingStorage()?.get<ReaderSettings>(SETTINGS_KEY)
     return parseSettings(value)
   } catch {
     return null
@@ -82,21 +59,11 @@ function matchesSettings(value: unknown, settings: ReaderSettings) {
     && saved.password === settings.password
 }
 
-export function saveSettings(settings: ReaderSettings): SettingsStorage | null {
-  try {
-    const keychain = scriptingKeychain()
-    if (supportsKeychain() && keychain) {
-      keychain.set(SETTINGS_KEY, JSON.stringify(settings))
-      if (matchesSettings(keychain.get(SETTINGS_KEY), settings)) return 'keychain'
-    }
-  } catch {
-    // Keychain 不可用时继续尝试脚本私有存储。
-  }
-
+export function saveSettings(settings: ReaderSettings) {
   try {
     const storage = scriptingStorage()
     if (!storage) return null
-    storage.set(SETTINGS_KEY, settings)
+    if (!storage.set(SETTINGS_KEY, settings)) return null
     const saved = storage.get<ReaderSettings>(SETTINGS_KEY)
     return matchesSettings(saved, settings) ? 'storage' : null
   } catch {

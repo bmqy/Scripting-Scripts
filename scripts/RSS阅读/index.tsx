@@ -101,16 +101,14 @@ function SettingsPage() {
     try {
       await testReaderApi(settings)
 
-      const storage = saveSettings(settings)
-      if (!storage) {
+      const saved = saveSettings(settings)
+      if (!saved) {
         setMessage('接口测试成功，但无法保存设置，请检查 Scripting 的本地存储后重试。')
         return
       }
 
       Widget.reloadAll()
-      setMessage(storage === 'keychain'
-        ? '接口测试成功，已保存到钥匙串。小组件会在下一次刷新时读取 RSS 数据。'
-        : '接口测试成功，已保存到本地存储。钥匙串不可用，密码不会受到系统钥匙串保护。')
+      setMessage('接口测试成功，已保存到 Scripting 本地存储。小组件会在下一次刷新时读取 RSS 数据。')
     } catch (error) {
       setMessage(error instanceof Error ? error.message : '接口测试失败，请检查 API 地址、用户名和 API 密码。')
     } finally {
