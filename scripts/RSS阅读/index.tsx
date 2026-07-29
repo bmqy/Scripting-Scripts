@@ -1,93 +1,99 @@
-import { Dialog, Script, Widget } from 'scripting'
+import {
+    Button,
+    Form,
+    Navigation,
+    NavigationStack,
+    Script,
+    Section,
+    SecureField,
+    Text,
+    TextField,
+    Widget,
+    useState,
+} from 'scripting'
 import { loadSettings, normalizeEndpoint, saveSettings } from './config'
 
-async function configure() {
+function SettingsPage() {
   const current = loadSettings()
-  const endpointInput = await Dialog.prompt({
-    title: 'RSS API 地址',
-    message: '请输入 Google Reader 兼容 API 根地址。FreshRSS 示例：https://rss.example.com/api/greader.php',
-    defaultValue: current?.endpoint || '',
-    placeholder: 'https://rss.example.com/api/greader.php',
-    confirmLabel: '下一步',
-    cancelLabel: '取消',
-    selectAll: true,
-  })
-  if (endpointInput === null) return false
+  const [endpointInput, setEndpointInput] = useState(current?.endpoint || '')
+  const [username, setUsername] = useState(current?.username || '')
+  const [password, setPassword] = useState(current?.password || '')
+  const [message, setMessage] = useState('')
 
-  let endpoint: string
+  const save = () => {
+    let endpoint: string
+    try {
+      endpoint = normalizeEndpoint(endpointInput)
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : '请输入有效的 API 地址。')
+      return
+    }
+
+    if (!username.trim() || !password) {
+      setMessage('请填写用户名和 API 密码。')
+      return
+    }
+
+    if (!saveSettings({ endpoint, username: username.trim(), password })) {
+      setMessage('无法写入钥匙串，请确认 Scripting 的权限后重试。')
+      return
+    }
+
+    Widget.reloadAll()
+    setMessage('已保存，小组件会在下一次刷新时读取 RSS 数据。')
+  }
+
+  return <NavigationStack>
+    <Form navigationTitle="RSS 阅读">
+      <Section header={<Text>Google Reader 兼容 API</Text>}>
+        <TextField
+          title="API 地址"
+          value={endpointInput}
+          onChanged={setEndpointInput}
+          prompt="https://rss.example.com/api/greader.php"
+          autofocus={!current}
+        />
+        <TextField
+          title="用户名"
+          value={username}
+          onChanged={setUsername}
+          prompt="FreshRSS 用户名"
+        />
+        <SecureField
+          title="API 密码"
+          value={password}
+          onChanged={setPassword}
+          prompt="在 FreshRSS 个人资料中设置的 API 密码"
+        />
+      </Section>
+      <Section header={<Text>说明</Text>}>
+        <Text>地址应是 Google Reader 兼容 API 的根地址。</Text>
+        <Text>FreshRSS 请填写个人资料中单独设置的 API 密码，不是网页登录密码。</Text>
+      </Section>
+      <Section>
+        <Button
+          title="保存设置"
+          systemImage="checkmark"
+          buttonStyle="borderedProminent"
+          action={save}
+        />
+        <Button
+          title="预览小组件"
+          systemImage="rectangle.grid.1x2"
+          action={() => { void Widget.preview({ family: 'systemMedium' }) }}
+        />
+        {message ? <Text>{message}</Text> : null}
+      </Section>
+    </Form>
+  </NavigationStack>
+}
+
+async function run() {
   try {
-    endpoint = normalizeEndpoint(endpointInput)
-  } catch (error) {
-    await Dialog.alert({
-      title: '地址无效',
-      message: error instanceof Error ? error.message : '请输入有效的 API 地址。',
-      buttonLabel: '知道了',
-    })
-    return false
+    await Navigation.present({ element: <SettingsPage /> })
+  } finally {
+    Script.exit()
   }
-
-  const username = await Dialog.prompt({
-    title: '用户名',
-    defaultValue: current?.username || '',
-    placeholder: 'FreshRSS 用户名',
-    confirmLabel: '下一步',
-    cancelLabel: '取消',
-    selectAll: true,
-  })
-  if (username === null || !username.trim()) return false
-
-  const password = await Dialog.prompt({
-    title: 'API 密码',
-    message: 'FreshRSS 请填写个人资料中单独设置的 API 密码，不是网页登录密码。',
-    placeholder: 'API 密码',
-    obscureText: true,
-    confirmLabel: '保存',
-    cancelLabel: '取消',
-  })
-  if (password === null || !password) return false
-
-  if (!saveSettings({ endpoint, username: username.trim(), password })) {
-    await Dialog.alert({ title: '保存失败', message: '无法写入钥匙串，请确认 Scripting 的权限后重试。', buttonLabel: '知道了' })
-    return false
-  }
-
-  Widget.reloadAll()
-  await Dialog.alert({ title: '已保存', message: '配置已安全保存。小组件会在下一次刷新时读取 RSS 数据。', buttonLabel: '预览' })
-  return true
 }
 
-async function choosePreview() {
-  const settings = loadSettings()
-  const choice = settings
-    ? await Dialog.actionSheet({
-      title: 'RSS 阅读小组件',
-      message: settings.endpoint,
-      actions: [
-        { label: '重新配置账号' },
-        { label: '预览小号' },
-        { label: '预览中号' },
-        { label: '预览大号' },
-      ],
-    })
-    : 0
-
-  if (choice === null) return
-  if (choice === 0) {
-    const saved = await configure()
-    if (saved) await Widget.preview({ family: 'systemMedium' })
-    return
-  }
-
-  const families = ['systemSmall', 'systemMedium', 'systemLarge'] as const
-  await Widget.preview({ family: families[choice - 1] })
-}
-
-choosePreview()
-  .catch(async error => {
-    await Dialog.alert({
-      title: '运行失败',
-      message: error instanceof Error ? error.message : '无法打开组件设置。',
-      buttonLabel: '知道了',
-    })
-  })
-  .finally(() => Script.exit())
+run()
