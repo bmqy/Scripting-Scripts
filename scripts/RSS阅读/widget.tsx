@@ -64,6 +64,8 @@ type StreamResponse = {
 
 const CACHE_KEY = 'rss-reader-cache'
 const CACHE_TTL_MS = 15 * 60 * 1000
+const READER_ICON_SYSTEM_NAME = 'dot.radiowaves.left.and.right'
+const READER_ICON_BACKGROUND = '#38BDF8'
 type StorageStore = {
   get<T = unknown>(key: string): T | string | null | undefined
   set(key: string, value: unknown): unknown
@@ -249,8 +251,8 @@ function relativeTimeText(timestamp: number) {
 function Header({ data, compact = false }: { data: ReaderData; compact?: boolean }) {
   return (
     <HStack alignment="center" spacing={compact ? 8 : 10}>
-      <ZStack modifiers={modifiers().frame({ width: compact ? 20 : 24, height: compact ? 20 : 24, alignment: 'center' }).background('#FF5A1F')}>
-        <Image systemName="dot.radiowaves.left.and.right" font={compact ? 11 : 13} foregroundStyle="white" />
+      <ZStack modifiers={modifiers().frame({ width: compact ? 20 : 24, height: compact ? 20 : 24, alignment: 'center' }).background(READER_ICON_BACKGROUND)}>
+        <Image systemName={READER_ICON_SYSTEM_NAME} font={compact ? 11 : 13} foregroundStyle="white" />
       </ZStack>
       <Text modifiers={modifiers().font(compact ? 'caption' : 'headline').fontWeight('bold').foregroundStyle('#D7D7DC').lineLimit(1)}>
         RSS 阅读

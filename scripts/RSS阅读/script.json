@@ -21,7 +21,7 @@
     "en": "Shows unread articles from Google Reader compatible RSS services, including FreshRSS."
   },
   "version": "1.0.0",
-  "color": "rgba(15, 118, 110, 1)",
+  "color": "rgba(56, 189, 248, 1)",
   "contributors": [],
   "name": "RSS 阅读"
 }
