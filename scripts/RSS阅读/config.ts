@@ -23,22 +23,15 @@ export function normalizeEndpoint(value: string) {
   return endpoint
 }
 
-export function loadSettings(): ReaderSettings | null {
-  let value: unknown = null
+function parseSettings(value: unknown): ReaderSettings | null {
   try {
-    if (supportsKeychain()) value = Keychain.get(SETTINGS_KEY)
-  } catch {
-    // Keychain 不可用时继续尝试脚本私有存储。
-  }
-
-  try {
-    value ||= Storage.get<ReaderSettings>(SETTINGS_KEY)
     if (!value) return null
 
     const settings = typeof value === 'string'
       ? JSON.parse(value) as Partial<ReaderSettings>
       : value as Partial<ReaderSettings>
     if (!settings.endpoint || !settings.username || !settings.password) return null
+
     return {
       endpoint: normalizeEndpoint(settings.endpoint),
       username: settings.username,
@@ -49,15 +42,27 @@ export function loadSettings(): ReaderSettings | null {
   }
 }
 
-function matchesSettings(value: string | null, settings: ReaderSettings) {
+export function loadSettings(): ReaderSettings | null {
+  let value: unknown = null
   try {
-    const saved = value ? JSON.parse(value) as Partial<ReaderSettings> : null
-    return saved?.endpoint === settings.endpoint
-      && saved.username === settings.username
-      && saved.password === settings.password
+    if (supportsKeychain()) value = Keychain.get(SETTINGS_KEY)
   } catch {
-    return false
+    // Keychain 不可用时继续尝试脚本私有存储。
   }
+
+  try {
+    value ||= Storage.get<ReaderSettings>(SETTINGS_KEY)
+    return parseSettings(value)
+  } catch {
+    return null
+  }
+}
+
+function matchesSettings(value: unknown, settings: ReaderSettings) {
+  const saved = parseSettings(value)
+  return saved?.endpoint === settings.endpoint
+    && saved.username === settings.username
+    && saved.password === settings.password
 }
 
 export function saveSettings(settings: ReaderSettings): SettingsStorage | null {
@@ -73,11 +78,7 @@ export function saveSettings(settings: ReaderSettings): SettingsStorage | null {
   try {
     Storage.set(SETTINGS_KEY, settings)
     const saved = Storage.get<ReaderSettings>(SETTINGS_KEY)
-    return saved?.endpoint === settings.endpoint
-      && saved.username === settings.username
-      && saved.password === settings.password
-      ? 'storage'
-      : null
+    return matchesSettings(saved, settings) ? 'storage' : null
   } catch {
     return null
   }

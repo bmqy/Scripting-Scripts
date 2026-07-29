@@ -2,6 +2,7 @@ import {
     HStack,
     Image,
     Spacer,
+    Storage,
     Text,
     VStack,
     Widget,
