@@ -15,3 +15,8 @@
 - 修复点：默认隐藏文章图片列；systemMedium 从 3 条降为 2 条，systemLarge 从 8 条降为 7 条，并压缩行距与字号，避免主体列表高度超过 Widget 可视区域。
 - 可执行验证：`npm run build` 通过。
 - 仍需验证：在 Scripting App 预览里确认顶部 RSS 阅读标题栏完整显示。
+## 2026-07-30 RSS 阅读两条文章优化
+
+- 可执行验证：`npm run build` 通过。
+- 代码核对：`Header` 中固定标题名称已移除；更新时间保留在右侧并增加缩放余量；文章显示数量统一使用 `DISPLAY_ARTICLE_COUNT = 2`。
+- 仍需验证：本地 Node 构建不能渲染 Scripting 原生 Widget，最终视觉效果需在 Scripting App/iOS 的 systemSmall、systemMedium、systemLarge 预览中确认。

@@ -64,6 +64,7 @@ type StreamResponse = {
 
 const CACHE_KEY = 'rss-reader-cache'
 const CACHE_TTL_MS = 15 * 60 * 1000
+const DISPLAY_ARTICLE_COUNT = 2
 const READER_ICON_SYSTEM_NAME = 'dot.radiowaves.left.and.right'
 const READER_ICON_BACKGROUND = '#38BDF8'
 type StorageStore = {
@@ -250,15 +251,12 @@ function relativeTimeText(timestamp: number) {
 
 function Header({ data, compact = false }: { data: ReaderData; compact?: boolean }) {
   return (
-    <HStack alignment="center" spacing={compact ? 8 : 10}>
+    <HStack alignment="center" spacing={compact ? 6 : 8} modifiers={modifiers().frame({ maxWidth: 'infinity', alignment: 'leading' })}>
       <ZStack modifiers={modifiers().frame({ width: compact ? 20 : 24, height: compact ? 20 : 24, alignment: 'center' }).background(READER_ICON_BACKGROUND)}>
         <Image systemName={READER_ICON_SYSTEM_NAME} font={compact ? 11 : 13} foregroundStyle="white" />
       </ZStack>
-      <Text modifiers={modifiers().font(compact ? 'caption' : 'headline').fontWeight('bold').foregroundStyle('#D7D7DC').lineLimit(1)}>
-        RSS 阅读
-      </Text>
       <Spacer minLength={2} />
-      <Text modifiers={modifiers().font(compact ? 'caption2' : 'subheadline').foregroundStyle('#68686F').lineLimit(1)}>
+      <Text modifiers={modifiers().font(compact ? 'caption2' : 'subheadline').foregroundStyle('#A6A6AC').lineLimit(1).minScaleFactor(0.7)}>
         {relativeTimeText(data.updatedAt)}
       </Text>
     </HStack>
@@ -316,7 +314,7 @@ function ArticleRow({
         <Text modifiers={modifiers().font(sourceFont).foregroundStyle('#A8A8AE').lineLimit(1)}>
           {article.source}
         </Text>
-        <Text modifiers={modifiers().font(titleFont).foregroundStyle('#F7F7FA').lineLimit(tiny ? 2 : 1).minScaleFactor(0.82)}>
+        <Text modifiers={modifiers().font(titleFont).foregroundStyle('#F7F7FA').lineLimit(1).minScaleFactor(0.82)}>
           {article.title}
         </Text>
       </VStack>
@@ -326,7 +324,7 @@ function ArticleRow({
 }
 
 function SmallWidget({ data }: { data: ReaderData }) {
-  const article = data.articles[0]
+  const articles = data.articles.slice(0, DISPLAY_ARTICLE_COUNT)
   return (
     <VStack
       alignment="leading"
@@ -337,14 +335,17 @@ function SmallWidget({ data }: { data: ReaderData }) {
         .widgetBackground('#1C1C1E')}
     >
       <Header data={data} compact />
-      <Spacer minLength={6} />
-      {article ? <ArticleRow article={article} density="small" showThumbnail={false} /> : <EmptyState data={data} compact />}
+      {articles.length > 0 ? (
+        <VStack alignment="leading" spacing={7} modifiers={modifiers().frame({ maxWidth: 'infinity', alignment: 'leading' })}>
+          {articles.map(article => <ArticleRow article={article} density="small" showThumbnail={false} />)}
+        </VStack>
+      ) : <EmptyState data={data} compact />}
     </VStack>
   )
 }
 
 function MediumWidget({ data }: { data: ReaderData }) {
-  const articles = data.articles.slice(0, 2)
+  const articles = data.articles.slice(0, DISPLAY_ARTICLE_COUNT)
   return (
     <VStack
       alignment="leading"
@@ -365,7 +366,7 @@ function MediumWidget({ data }: { data: ReaderData }) {
 }
 
 function LargeWidget({ data }: { data: ReaderData }) {
-  const articles = data.articles.slice(0, 7)
+  const articles = data.articles.slice(0, DISPLAY_ARTICLE_COUNT)
   return (
     <VStack
       alignment="leading"

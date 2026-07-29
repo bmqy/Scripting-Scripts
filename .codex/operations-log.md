@@ -15,3 +15,11 @@
 - 根据用户提供的预览截图，确认主体列表高度超过 Widget，导致顶部 Header 被裁剪。
 - 将 ArticleRow 默认图片列关闭，medium 限制 2 条，large 限制 7 条，并压缩字体/行距。
 - 执行 `npm run build` 通过。
+## 2026-07-30 Codex RSS 阅读两条文章优化
+
+- 执行 `git pull --ff-only origin dev`，结果：Already up to date。
+- 读取 `scripting-app-development` 技能说明、官方 `https://scriptingapp.github.io/zh/llms.txt` 索引和 `scripts/RSS阅读/widget.tsx`。
+- 修改 `Header`：移除固定标题名称 `RSS 阅读`，保留图标和更新时间，并为更新时间增加可用横向空间与 `minScaleFactor(0.7)`。
+- 新增 `DISPLAY_ARTICLE_COUNT = 2`，统一 `systemSmall`、`systemMedium`、`systemLarge/systemExtraLarge` 显示前两条文章。
+- 压缩小尺寸文章标题为单行，保证 `systemSmall` 有空间显示两条。
+- 执行 `npm run build` 通过；构建重新生成 `dist/RSS阅读.scripting`。
