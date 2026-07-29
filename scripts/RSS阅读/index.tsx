@@ -34,13 +34,16 @@ function SettingsPage() {
       return
     }
 
-    if (!saveSettings({ endpoint, username: username.trim(), password })) {
-      setMessage('无法写入钥匙串，请确认 Scripting 的权限后重试。')
+    const storage = saveSettings({ endpoint, username: username.trim(), password })
+    if (!storage) {
+      setMessage('无法保存设置，请检查 Scripting 的本地存储后重试。')
       return
     }
 
     Widget.reloadAll()
-    setMessage('已保存，小组件会在下一次刷新时读取 RSS 数据。')
+    setMessage(storage === 'keychain'
+      ? '已保存到钥匙串，小组件会在下一次刷新时读取 RSS 数据。'
+      : '已保存到本地存储。钥匙串不可用，密码不会受到系统钥匙串保护。')
   }
 
   return <NavigationStack>

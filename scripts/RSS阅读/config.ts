@@ -8,6 +8,8 @@ export type ReaderSettings = {
 
 const SETTINGS_KEY = 'rss-reader-settings'
 
+export type SettingsStorage = 'keychain' | 'storage'
+
 function supportsKeychain() {
   return typeof Keychain !== 'undefined' && typeof Keychain.get === 'function' && typeof Keychain.set === 'function'
 }
@@ -22,15 +24,20 @@ export function normalizeEndpoint(value: string) {
 }
 
 export function loadSettings(): ReaderSettings | null {
+  let value: unknown = null
   try {
-    const value = supportsKeychain()
-      ? Keychain.get(SETTINGS_KEY)
-      : Storage.get<ReaderSettings>(SETTINGS_KEY)
+    if (supportsKeychain()) value = Keychain.get(SETTINGS_KEY)
+  } catch {
+    // Keychain 不可用时继续尝试脚本私有存储。
+  }
+
+  try {
+    value ||= Storage.get<ReaderSettings>(SETTINGS_KEY)
     if (!value) return null
 
     const settings = typeof value === 'string'
       ? JSON.parse(value) as Partial<ReaderSettings>
-      : value
+      : value as Partial<ReaderSettings>
     if (!settings.endpoint || !settings.username || !settings.password) return null
     return {
       endpoint: normalizeEndpoint(settings.endpoint),
@@ -42,12 +49,16 @@ export function loadSettings(): ReaderSettings | null {
   }
 }
 
-export function saveSettings(settings: ReaderSettings) {
+export function saveSettings(settings: ReaderSettings): SettingsStorage | null {
   try {
-    return supportsKeychain()
-      ? Keychain.set(SETTINGS_KEY, JSON.stringify(settings))
-      : Storage.set(SETTINGS_KEY, settings)
+    if (supportsKeychain() && Keychain.set(SETTINGS_KEY, JSON.stringify(settings))) return 'keychain'
   } catch {
-    return false
+    // Keychain 不可用时继续尝试脚本私有存储。
+  }
+
+  try {
+    return Storage.set(SETTINGS_KEY, settings) ? 'storage' : null
+  } catch {
+    return null
   }
 }

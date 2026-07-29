@@ -30,7 +30,7 @@
 
 #### 功能特点
 - 使用 Google Reader 兼容的 `ClientLogin`、`unread-count` 和 `stream/contents` 接口
-- 账号凭据仅保存到 Scripting App 的 Keychain，文章数据使用短期本地缓存
+- 账号凭据优先保存到 Scripting App 的 Keychain；若钥匙串暂时不可用，会保存到当前脚本的私有本地存储，并在设置页面明确提示
 - 小号显示未读总数和一篇最新文章；中号显示三篇；大号显示五篇及摘要
 - 每 30 分钟请求刷新一次；网络失败时显示最近一次成功缓存
 
