@@ -5,6 +5,7 @@ import {
     Text,
     VStack,
     Widget,
+    ZStack,
     modifiers,
 } from 'scripting'
 import { loadSettings, type ReaderSettings } from './config'
@@ -27,6 +28,7 @@ type ReaderArticle = {
   source: string
   excerpt: string
   publishedAt: number
+  thumbnailUrl?: string
 }
 
 type ReaderData = {
@@ -123,6 +125,14 @@ function stripHtml(value?: string) {
     .trim()
 }
 
+function firstImageUrl(value?: string) {
+  const source = value || ''
+  const imageUrl = source.match(/<img[^>]+src=["']([^"']+)["']/i)?.[1]?.trim()
+  if (!imageUrl) return undefined
+  if (imageUrl.startsWith('//')) return `https:${imageUrl}`
+  return /^https?:\/\//i.test(imageUrl) ? imageUrl : undefined
+}
+
 function parseAuth(text: string) {
   return text.match(/^Auth=(.+)$/m)?.[1]?.trim() || ''
 }
@@ -175,6 +185,7 @@ function toArticle(entry: StreamEntry): ReaderArticle {
     source: stripHtml(entry.origin?.title) || '未知来源',
     excerpt: stripHtml(entry.summary?.content || entry.content?.content),
     publishedAt: publishedAt(entry),
+    thumbnailUrl: firstImageUrl(entry.summary?.content) || firstImageUrl(entry.content?.content),
   }
 }
 
@@ -232,28 +243,30 @@ async function loadData(): Promise<ReaderData> {
   }
 }
 
-function timeText(timestamp: number) {
-  const date = new Date(timestamp)
-  return `${`${date.getHours()}`.padStart(2, '0')}:${`${date.getMinutes()}`.padStart(2, '0')}`
-}
 
-function unreadText(count: number) {
-  return count > 99 ? '99+' : `${count}`
+function relativeTimeText(timestamp: number) {
+  const minutes = Math.max(0, Math.floor((Date.now() - timestamp) / 60000))
+  if (minutes < 1) return '刚刚'
+  if (minutes < 60) return `${minutes} 分钟前`
+
+  const hours = Math.floor(minutes / 60)
+  if (hours < 24) return `${hours} 小时前`
+
+  return `${Math.floor(hours / 24)} 天前`
 }
 
 function Header({ data, compact = false }: { data: ReaderData; compact?: boolean }) {
   return (
-    <HStack alignment="center" spacing={compact ? 4 : 6}>
-      <Image systemName="dot.radiowaves.left.and.right" font={compact ? 12 : 14} foregroundStyle="#0F766E" />
-      <Text modifiers={modifiers().font(compact ? 'caption2' : 'footnote').fontWeight('bold').foregroundStyle('#173B37').lineLimit(1)}>
+    <HStack alignment="center" spacing={compact ? 8 : 10}>
+      <ZStack modifiers={modifiers().frame({ width: compact ? 20 : 24, height: compact ? 20 : 24, alignment: 'center' }).background('#FF5A1F')}>
+        <Image systemName="dot.radiowaves.left.and.right" font={compact ? 11 : 13} foregroundStyle="white" />
+      </ZStack>
+      <Text modifiers={modifiers().font(compact ? 'caption' : 'headline').fontWeight('bold').foregroundStyle('#D7D7DC').lineLimit(1)}>
         RSS 阅读
       </Text>
-      <Text modifiers={modifiers().font('caption2').foregroundStyle('#69908A').lineLimit(1)}>
-        {data.serverName}
-      </Text>
       <Spacer minLength={2} />
-      <Text modifiers={modifiers().font('caption2').foregroundStyle('#69908A').lineLimit(1)}>
-        {timeText(data.updatedAt)}
+      <Text modifiers={modifiers().font(compact ? 'caption2' : 'subheadline').foregroundStyle('#68686F').lineLimit(1)}>
+        {relativeTimeText(data.updatedAt)}
       </Text>
     </HStack>
   )
@@ -261,11 +274,11 @@ function Header({ data, compact = false }: { data: ReaderData; compact?: boolean
 
 function EmptyState({ data, compact = false }: { data: ReaderData; compact?: boolean }) {
   return (
-    <VStack alignment="leading" spacing={4}>
-      <Text modifiers={modifiers().font(compact ? 'caption' : 'callout').fontWeight('semibold').foregroundStyle('#305A54').lineLimit(1)}>
+    <VStack alignment="leading" spacing={compact ? 4 : 8}>
+      <Text modifiers={modifiers().font(compact ? 'caption' : 'title3').fontWeight('semibold').foregroundStyle('#F4F4F6').lineLimit(1)}>
         {data.error ? '暂时无法更新' : '没有未读文章'}
       </Text>
-      <Text modifiers={modifiers().font('caption2').foregroundStyle('#69908A').lineLimit(compact ? 3 : 4)}>
+      <Text modifiers={modifiers().font(compact ? 'caption2' : 'callout').foregroundStyle('#A6A6AC').lineLimit(compact ? 3 : 4)}>
         {data.error || '订阅源已全部读完。'}
       </Text>
     </VStack>
@@ -274,37 +287,57 @@ function EmptyState({ data, compact = false }: { data: ReaderData; compact?: boo
 
 type ArticleDensity = 'small' | 'medium' | 'large'
 
-function ArticleRow({
-  article,
-  showExcerpt = false,
-  density = 'large',
-}: {
-  article: ReaderArticle
-  showExcerpt?: boolean
-  density?: ArticleDensity
-}) {
-  const compact = density !== 'large'
-  const tiny = density === 'small'
+function Thumbnail({ article, compact = false }: { article: ReaderArticle; compact?: boolean }) {
+  const size = compact ? 36 : 46
+  const height = compact ? 28 : 38
+
+  if (article.thumbnailUrl) {
+    return (
+      <Image
+        imageUrl={article.thumbnailUrl}
+        modifiers={modifiers().frame({ width: size, height, alignment: 'center' })}
+      />
+    )
+  }
 
   return (
-    <VStack alignment="leading" spacing={compact ? 1 : 2} modifiers={modifiers().frame({ maxWidth: 'infinity', alignment: 'leading' })}>
-      <HStack alignment="center" spacing={compact ? 4 : 5}>
-        <Text modifiers={modifiers().font(tiny ? 8 : 10).foregroundStyle('#D97706').lineLimit(1)}>●</Text>
-        <Text modifiers={modifiers().font(tiny ? 'caption2' : 'caption').fontWeight('semibold').foregroundStyle('#173B37').lineLimit(tiny ? 2 : 1)}>
+    <Image
+      systemName="photo"
+      font={compact ? 28 : 36}
+      foregroundStyle="#075AA6"
+      modifiers={modifiers().frame({ width: size, height, alignment: 'center' })}
+    />
+  )
+}
+
+function ArticleRow({
+  article,
+  density = 'large',
+  showThumbnail = true,
+}: {
+  article: ReaderArticle
+  density?: ArticleDensity
+  showThumbnail?: boolean
+}) {
+  const compact = density === 'small'
+  const tiny = density === 'small'
+  const sourceFont = density === 'large' ? 'caption' : 'subheadline'
+  const titleFont = density === 'large' ? 'callout' : tiny ? 'caption' : 'title3'
+  const contentSpacing = density === 'large' ? 3 : tiny ? 4 : 6
+  const rowSpacing = density === 'large' ? 10 : 8
+
+  return (
+    <HStack alignment="center" spacing={rowSpacing} modifiers={modifiers().frame({ maxWidth: 'infinity', alignment: 'leading' })}>
+      <VStack alignment="leading" spacing={contentSpacing} modifiers={modifiers().frame({ maxWidth: 'infinity', alignment: 'leading' })}>
+        <Text modifiers={modifiers().font(tiny ? 'caption2' : sourceFont).foregroundStyle('#A8A8AE').lineLimit(1)}>
+          {article.source}
+        </Text>
+        <Text modifiers={modifiers().font(titleFont).foregroundStyle('#F7F7FA').lineLimit(tiny ? 2 : 1).minScaleFactor(0.82)}>
           {article.title}
         </Text>
-      </HStack>
-      <HStack alignment="center" spacing={compact ? 4 : 5} modifiers={modifiers().padding({ leading: compact ? 10 : 11 })}>
-        <Text modifiers={modifiers().font('caption2').foregroundStyle('#69908A').lineLimit(1)}>{article.source}</Text>
-        <Spacer minLength={2} />
-        <Text modifiers={modifiers().font('caption2').foregroundStyle('#8AA6A1').lineLimit(1)}>{timeText(article.publishedAt)}</Text>
-      </HStack>
-      {showExcerpt && article.excerpt ? (
-        <Text modifiers={modifiers().font('caption2').foregroundStyle('#54756F').lineLimit(1).padding({ leading: 11 })}>
-          {article.excerpt}
-        </Text>
-      ) : null}
-    </VStack>
+      </VStack>
+      {showThumbnail ? <Thumbnail article={article} compact={compact} /> : null}
+    </HStack>
   )
 }
 
@@ -315,18 +348,13 @@ function SmallWidget({ data }: { data: ReaderData }) {
       alignment="leading"
       spacing={5}
       modifiers={modifiers()
-        .padding(12)
+        .padding(14)
         .frame({ maxWidth: 'infinity', maxHeight: 'infinity', alignment: 'leading' })
-        .widgetBackground('#E8F3EF')}
+        .widgetBackground('#1C1C1E')}
     >
       <Header data={data} compact />
-      <HStack alignment="firstTextBaseline" spacing={5}>
-        <Text modifiers={modifiers().font(38).fontWeight('black').foregroundStyle('#0F766E').lineLimit(1).minScaleFactor(0.65)}>
-          {unreadText(data.unreadCount)}
-        </Text>
-        <Text modifiers={modifiers().font('caption2').fontWeight('semibold').foregroundStyle('#42736C').lineLimit(1)}>未读</Text>
-      </HStack>
-      {article ? <ArticleRow article={article} density="small" /> : <EmptyState data={data} compact />}
+      <Spacer minLength={6} />
+      {article ? <ArticleRow article={article} density="small" showThumbnail={false} /> : <EmptyState data={data} compact />}
     </VStack>
   )
 }
@@ -336,53 +364,44 @@ function MediumWidget({ data }: { data: ReaderData }) {
   return (
     <VStack
       alignment="leading"
-      spacing={6}
+      spacing={14}
       modifiers={modifiers()
-        .padding(12)
+        .padding({ top: 14, leading: 16, bottom: 14, trailing: 16 })
         .frame({ maxWidth: 'infinity', maxHeight: 'infinity', alignment: 'leading' })
-        .widgetBackground('#E8F3EF')}
+        .widgetBackground('#1C1C1E')}
     >
       <Header data={data} />
       {articles.length > 0 ? (
-        <HStack alignment="center" spacing={10} modifiers={modifiers().frame({ maxWidth: 'infinity', alignment: 'leading' })}>
-          <VStack alignment="leading" spacing={1} modifiers={modifiers().frame({ width: 78, alignment: 'leading' })}>
-            <Text modifiers={modifiers().font(30).fontWeight('black').foregroundStyle('#0F766E').lineLimit(1)}>{unreadText(data.unreadCount)}</Text>
-            <Text modifiers={modifiers().font('caption2').fontWeight('semibold').foregroundStyle(data.error ? '#B45309' : '#42736C').lineLimit(1)}>
-              {data.error ? '缓存' : '篇未读'}
-            </Text>
-          </VStack>
-          <VStack alignment="leading" spacing={4} modifiers={modifiers().frame({ maxWidth: 'infinity', alignment: 'leading' })}>
-            {articles.map(article => <ArticleRow article={article} density="medium" />)}
-          </VStack>
-        </HStack>
+        <VStack alignment="leading" spacing={14} modifiers={modifiers().frame({ maxWidth: 'infinity', alignment: 'leading' })}>
+          {articles.map(article => <ArticleRow article={article} density="medium" />)}
+        </VStack>
       ) : <EmptyState data={data} />}
     </VStack>
   )
 }
 
 function LargeWidget({ data }: { data: ReaderData }) {
+  const articles = data.articles.slice(0, 8)
   return (
     <VStack
       alignment="leading"
-      spacing={8}
+      spacing={10}
       modifiers={modifiers()
-        .padding(14)
+        .padding({ top: 18, leading: 18, bottom: 18, trailing: 18 })
         .frame({ maxWidth: 'infinity', maxHeight: 'infinity', alignment: 'leading' })
-        .widgetBackground('#E8F3EF')}
+        .widgetBackground('#1C1C1E')}
     >
       <Header data={data} />
-      <HStack alignment="center" spacing={7}>
-        <Text modifiers={modifiers().font(34).fontWeight('black').foregroundStyle('#0F766E').lineLimit(1)}>{unreadText(data.unreadCount)}</Text>
-        <Text modifiers={modifiers().font('callout').fontWeight('semibold').foregroundStyle('#42736C').lineLimit(1)}>篇未读文章</Text>
-        <Spacer minLength={2} />
-        {data.error ? <Text modifiers={modifiers().font('caption2').foregroundStyle('#B45309').lineLimit(1)}>显示缓存</Text> : null}
-      </HStack>
-      {data.articles.length > 0 ? data.articles.slice(0, 5).map(article => <ArticleRow article={article} showExcerpt />) : <EmptyState data={data} />}
+      {data.error ? <Text modifiers={modifiers().font('caption2').foregroundStyle('#FFB86C').lineLimit(1)}>显示缓存</Text> : null}
+      {articles.length > 0 ? (
+        <VStack alignment="leading" spacing={8} modifiers={modifiers().frame({ maxWidth: 'infinity', alignment: 'leading' })}>
+          {articles.map(article => <ArticleRow article={article} density="large" />)}
+        </VStack>
+      ) : <EmptyState data={data} />}
       <Spacer minLength={2} />
     </VStack>
   )
 }
-
 function ReaderWidget({ data }: { data: ReaderData }) {
   if (Widget.family === 'systemSmall') return <SmallWidget data={data} />
   if (Widget.family === 'systemLarge' || Widget.family === 'systemExtraLarge') return <LargeWidget data={data} />

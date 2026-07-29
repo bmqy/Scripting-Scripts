@@ -1,0 +1,15 @@
+{
+  "date": "2026-07-29",
+  "executor": "Codex",
+  "task": "参考截图优化 RSS 阅读 Widget 排版布局",
+  "module": "scripts/RSS阅读/widget.tsx",
+  "currentImplementation": "RSS 阅读小组件按 Widget.family 分为 systemSmall、systemMedium、systemLarge/systemExtraLarge；原布局为浅色背景、未读数强调、文章标题加来源/时间列表。",
+  "similarPatterns": [
+    "scripts/限号/widget.tsx 使用 Widget.family 做尺寸分支",
+    "scripts/限号/widget.tsx 使用 modifiers().widgetBackground(...) 设置小组件背景",
+    "scripts/限号/widget.tsx 使用 HStack/VStack/ZStack 与 Image systemName 组合图标"
+  ],
+  "techStack": "Scripting App TSX，小组件入口 widget.tsx，构建命令 npm run build",
+  "validation": "npm run build；npx tsc --noEmit 受仓库缺失 scripting 类型定义影响无法作为有效验证",
+  "notes": "官方 Image 文档确认 imageUrl 可用于网络图片。"
+}
