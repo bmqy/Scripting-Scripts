@@ -20,3 +20,9 @@
 - 命令：`npm run build`
 - 结果：通过。构建脚本重新打包 `RSS阅读`，并跳过未变化的 `限号`。
 - 产物影响：`dist/RSS阅读.scripting` 因本地构建被更新。
+## 2026-07-30 RSS 阅读配置页按钮空图标位修复
+
+- 执行者：Codex
+- 命令：`npm run build`
+- 结果：通过。构建脚本重新打包 `RSS阅读`。
+- 包内容核对：`dist/RSS阅读.scripting` 内两个 `borderedProminent` 按钮不再带 `systemImage`；`预览小组件` 仍保留 `rectangle.grid.1x2`。

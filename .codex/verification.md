@@ -20,3 +20,8 @@
 - 可执行验证：`npm run build` 通过。
 - 代码核对：`Header` 中固定标题名称已移除；更新时间保留在右侧并增加缩放余量；文章显示数量统一使用 `DISPLAY_ARTICLE_COUNT = 2`。
 - 仍需验证：本地 Node 构建不能渲染 Scripting 原生 Widget，最终视觉效果需在 Scripting App/iOS 的 systemSmall、systemMedium、systemLarge 预览中确认。
+## 2026-07-30 RSS 阅读配置页按钮空图标位修复
+
+- 可执行验证：`npm run build` 通过。
+- 代码核对：`登录并保存账号` 与 `保存组件配置` 按钮已移除 `systemImage`，避免蓝色按钮左侧空白。
+- 仍需验证：本地构建不能渲染 Scripting 原生表单，需要在 iOS/Scripting App 配置页确认按钮文字居中显示。

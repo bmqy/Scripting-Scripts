@@ -23,3 +23,10 @@
 - 新增 `DISPLAY_ARTICLE_COUNT = 2`，统一 `systemSmall`、`systemMedium`、`systemLarge/systemExtraLarge` 显示前两条文章。
 - 压缩小尺寸文章标题为单行，保证 `systemSmall` 有空间显示两条。
 - 执行 `npm run build` 通过；构建重新生成 `dist/RSS阅读.scripting`。
+## 2026-07-30 Codex RSS 阅读配置页按钮空图标位修复
+
+- 根据用户截图确认蓝色主按钮左侧存在空白图标槽位。
+- 读取 `scripts/RSS阅读/index.tsx`，确认 `登录并保存账号` 与 `保存组件配置` 两个 `borderedProminent` 按钮均传入 `systemImage`。
+- 移除这两个主按钮的 `systemImage` 参数，避免 Scripting/iOS 未渲染图标时仍保留左侧空位。
+- 保留 `预览小组件` 的 `rectangle.grid.1x2` 图标，因为截图中该列表行图标正常显示。
+- 执行 `npm run build` 通过，重新生成本地 `dist/RSS阅读.scripting`。

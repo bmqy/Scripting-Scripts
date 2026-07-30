@@ -210,7 +210,6 @@ function SettingsPage() {
         />
         <Button
           title={isSavingAccount ? '正在登录...' : '登录并保存账号'}
-          systemImage="person.crop.circle.badge.checkmark"
           buttonStyle="borderedProminent"
           action={() => { void saveAccount() }}
         />
@@ -252,7 +251,6 @@ function SettingsPage() {
         </Picker>
         <Button
           title={isSavingWidget ? '正在保存...' : '保存组件配置'}
-          systemImage="checkmark"
           buttonStyle="borderedProminent"
           action={() => { void saveWidget() }}
         />
