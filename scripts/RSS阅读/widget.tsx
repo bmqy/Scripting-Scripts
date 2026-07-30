@@ -313,6 +313,8 @@ function Header({
   compact?: boolean
   showName?: boolean
 }) {
+  const refreshTimeFont = compact ? 9 : 11
+
   return (
     <HStack alignment="center" spacing={compact ? 6 : 8} modifiers={modifiers().frame({ maxWidth: 'infinity', alignment: 'leading' })}>
       <ZStack modifiers={modifiers().frame({ width: compact ? 20 : 24, height: compact ? 20 : 24, alignment: 'center' }).background(READER_ICON_BACKGROUND)}>
@@ -324,7 +326,7 @@ function Header({
         </Text>
       ) : null}
       <Spacer minLength={2} />
-      <Text modifiers={modifiers().font(compact ? 'caption2' : 'subheadline').foregroundStyle(palette.secondaryText).lineLimit(1).minScaleFactor(0.7)}>
+      <Text modifiers={modifiers().font(refreshTimeFont).foregroundStyle(palette.secondaryText).lineLimit(1).minScaleFactor(0.7)}>
         {timeDisplay === 'relative' ? relativeTimeText(data.updatedAt) : updatedAtText(data.updatedAt)}
       </Text>
     </HStack>
