@@ -238,15 +238,11 @@ async function loadData(): Promise<ReaderData> {
 }
 
 
-function relativeTimeText(timestamp: number) {
-  const minutes = Math.max(0, Math.floor((Date.now() - timestamp) / 60000))
-  if (minutes < 1) return '刚刚'
-  if (minutes < 60) return `${minutes} 分钟前`
-
-  const hours = Math.floor(minutes / 60)
-  if (hours < 24) return `${hours} 小时前`
-
-  return `${Math.floor(hours / 24)} 天前`
+function updatedAtText(timestamp: number) {
+  const date = new Date(timestamp)
+  const hour = String(date.getHours()).padStart(2, '0')
+  const minute = String(date.getMinutes()).padStart(2, '0')
+  return `${date.getMonth() + 1}/${date.getDate()} ${hour}:${minute}`
 }
 
 function Header({ data, compact = false }: { data: ReaderData; compact?: boolean }) {
@@ -257,7 +253,7 @@ function Header({ data, compact = false }: { data: ReaderData; compact?: boolean
       </ZStack>
       <Spacer minLength={2} />
       <Text modifiers={modifiers().font(compact ? 'caption2' : 'subheadline').foregroundStyle('#A6A6AC').lineLimit(1).minScaleFactor(0.7)}>
-        {relativeTimeText(data.updatedAt)}
+        {updatedAtText(data.updatedAt)}
       </Text>
     </HStack>
   )
@@ -305,6 +301,7 @@ function ArticleRow({
   const tiny = density === 'small'
   const sourceFont = tiny ? 'caption2' : 'caption'
   const titleFont = tiny ? 'caption' : 'callout'
+  const titleLineLimit = tiny ? 2 : 1
   const contentSpacing = tiny ? 4 : 3
   const rowSpacing = density === 'large' ? 10 : 8
 
@@ -314,7 +311,7 @@ function ArticleRow({
         <Text modifiers={modifiers().font(sourceFont).foregroundStyle('#A8A8AE').lineLimit(1)}>
           {article.source}
         </Text>
-        <Text modifiers={modifiers().font(titleFont).foregroundStyle('#F7F7FA').lineLimit(1).minScaleFactor(0.82)}>
+        <Text modifiers={modifiers().font(titleFont).foregroundStyle('#F7F7FA').lineLimit(titleLineLimit).minScaleFactor(0.82)}>
           {article.title}
         </Text>
       </VStack>
