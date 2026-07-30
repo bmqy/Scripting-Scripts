@@ -64,7 +64,7 @@ type StreamResponse = {
 
 const CACHE_KEY = 'rss-reader-cache'
 const DISPLAY_ARTICLE_COUNT = 2
-const LARGE_DISPLAY_ARTICLE_COUNT = 5
+const LARGE_DISPLAY_ARTICLE_COUNT = 7
 const WIDGET_NAME = 'RSS阅读'
 const READER_ICON_SYSTEM_NAME = 'dot.radiowaves.left.and.right'
 const READER_ICON_BACKGROUND = '#38BDF8'
