@@ -7,11 +7,11 @@ export type ReaderSettings = {
 }
 
 export type TimeDisplay = 'absolute' | 'relative'
-export type RefreshIntervalMinutes = 15 | 30 | 60 | 120
+export type RefreshIntervalMinutes = 1 | 3 | 5 | 15 | 30 | 60 | 120
 
 const DEFAULT_TIME_DISPLAY: TimeDisplay = 'absolute'
 const DEFAULT_REFRESH_INTERVAL_MINUTES: RefreshIntervalMinutes = 30
-const REFRESH_INTERVAL_OPTIONS: RefreshIntervalMinutes[] = [15, 30, 60, 120]
+const REFRESH_INTERVAL_OPTIONS: RefreshIntervalMinutes[] = [1, 3, 5, 15, 30, 60, 120]
 
 const SETTINGS_KEY = 'rss-reader-settings'
 

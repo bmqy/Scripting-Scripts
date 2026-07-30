@@ -255,12 +255,27 @@ function relativeTimeText(timestamp: number) {
   return `${Math.floor(hours / 24)} 天前`
 }
 
-function Header({ data, timeDisplay, compact = false }: { data: ReaderData; timeDisplay: TimeDisplay; compact?: boolean }) {
+function Header({
+  data,
+  timeDisplay,
+  compact = false,
+  showName = true,
+}: {
+  data: ReaderData
+  timeDisplay: TimeDisplay
+  compact?: boolean
+  showName?: boolean
+}) {
   return (
     <HStack alignment="center" spacing={compact ? 6 : 8} modifiers={modifiers().frame({ maxWidth: 'infinity', alignment: 'leading' })}>
       <ZStack modifiers={modifiers().frame({ width: compact ? 20 : 24, height: compact ? 20 : 24, alignment: 'center' }).background(READER_ICON_BACKGROUND)}>
         <Image systemName={READER_ICON_SYSTEM_NAME} font={compact ? 11 : 13} foregroundStyle="white" />
       </ZStack>
+      {showName ? (
+        <Text modifiers={modifiers().font(compact ? 'caption2' : 'subheadline').fontWeight('semibold').foregroundStyle('#F4F4F6').lineLimit(1).minScaleFactor(0.76)}>
+          {data.serverName}
+        </Text>
+      ) : null}
       <Spacer minLength={2} />
       <Text modifiers={modifiers().font(compact ? 'caption2' : 'subheadline').foregroundStyle('#A6A6AC').lineLimit(1).minScaleFactor(0.7)}>
         {timeDisplay === 'relative' ? relativeTimeText(data.updatedAt) : updatedAtText(data.updatedAt)}
@@ -341,7 +356,7 @@ function SmallWidget({ data, timeDisplay }: { data: ReaderData; timeDisplay: Tim
         .frame({ maxWidth: 'infinity', maxHeight: 'infinity', alignment: 'leading' })
         .widgetBackground('#1C1C1E')}
     >
-      <Header data={data} timeDisplay={timeDisplay} compact />
+      <Header data={data} timeDisplay={timeDisplay} compact showName={false} />
       {articles.length > 0 ? (
         <VStack alignment="leading" spacing={7} modifiers={modifiers().frame({ maxWidth: 'infinity', alignment: 'leading' })}>
           {articles.map(article => <ArticleRow article={article} density="small" showThumbnail={false} />)}

@@ -171,6 +171,9 @@ function SettingsPage() {
           onChanged={setRefreshIntervalMinutes}
           pickerStyle="menu"
         >
+          <Text tag={1}>1 分钟</Text>
+          <Text tag={3}>3 分钟</Text>
+          <Text tag={5}>5 分钟</Text>
           <Text tag={15}>15 分钟</Text>
           <Text tag={30}>30 分钟</Text>
           <Text tag={60}>1 小时</Text>
