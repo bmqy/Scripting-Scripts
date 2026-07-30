@@ -209,8 +209,9 @@ function SettingsPage() {
           prompt="在 FreshRSS 个人资料中设置的 API 密码"
         />
         <Button
-          title={isSavingAccount ? '正在登录...' : '登录并保存账号'}
+          title={isSavingAccount ? '正在登录...' : isAccountConfigured ? '已保存' : '登录'}
           buttonStyle="borderedProminent"
+          disabled={isSavingAccount || isAccountConfigured}
           action={() => { void saveAccount() }}
         />
         {accountMessage ? <Text>{accountMessage}</Text> : null}
