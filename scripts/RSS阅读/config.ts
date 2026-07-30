@@ -2,7 +2,16 @@ export type ReaderSettings = {
   endpoint: string
   username: string
   password: string
+  timeDisplay: TimeDisplay
+  refreshIntervalMinutes: RefreshIntervalMinutes
 }
+
+export type TimeDisplay = 'absolute' | 'relative'
+export type RefreshIntervalMinutes = 15 | 30 | 60 | 120
+
+const DEFAULT_TIME_DISPLAY: TimeDisplay = 'absolute'
+const DEFAULT_REFRESH_INTERVAL_MINUTES: RefreshIntervalMinutes = 30
+const REFRESH_INTERVAL_OPTIONS: RefreshIntervalMinutes[] = [15, 30, 60, 120]
 
 const SETTINGS_KEY = 'rss-reader-settings'
 
@@ -24,6 +33,16 @@ export function normalizeEndpoint(value: string) {
   return endpoint
 }
 
+function timeDisplay(value: unknown): TimeDisplay {
+  return value === 'relative' ? 'relative' : DEFAULT_TIME_DISPLAY
+}
+
+function refreshIntervalMinutes(value: unknown): RefreshIntervalMinutes {
+  return typeof value === 'number' && REFRESH_INTERVAL_OPTIONS.includes(value as RefreshIntervalMinutes)
+    ? value as RefreshIntervalMinutes
+    : DEFAULT_REFRESH_INTERVAL_MINUTES
+}
+
 function parseSettings(value: unknown): ReaderSettings | null {
   try {
     if (!value) return null
@@ -37,6 +56,8 @@ function parseSettings(value: unknown): ReaderSettings | null {
       endpoint: normalizeEndpoint(settings.endpoint),
       username: settings.username,
       password: settings.password,
+      timeDisplay: timeDisplay(settings.timeDisplay),
+      refreshIntervalMinutes: refreshIntervalMinutes(settings.refreshIntervalMinutes),
     }
   } catch {
     return null
@@ -57,6 +78,8 @@ function matchesSettings(value: unknown, settings: ReaderSettings) {
   return saved?.endpoint === settings.endpoint
     && saved.username === settings.username
     && saved.password === settings.password
+    && saved.timeDisplay === settings.timeDisplay
+    && saved.refreshIntervalMinutes === settings.refreshIntervalMinutes
 }
 
 export function saveSettings(settings: ReaderSettings) {

@@ -8,7 +8,7 @@ import {
     ZStack,
     modifiers,
 } from 'scripting'
-import { loadSettings, type ReaderSettings } from './config'
+import { loadSettings, type ReaderSettings, type TimeDisplay } from './config'
 
 declare function fetch(input: string, init?: {
   method?: string
@@ -63,7 +63,6 @@ type StreamResponse = {
 }
 
 const CACHE_KEY = 'rss-reader-cache'
-const CACHE_TTL_MS = 15 * 60 * 1000
 const DISPLAY_ARTICLE_COUNT = 2
 const READER_ICON_SYSTEM_NAME = 'dot.radiowaves.left.and.right'
 const READER_ICON_BACKGROUND = '#38BDF8'
@@ -76,7 +75,6 @@ function scriptingStorage() {
   return (globalThis as unknown as { Storage?: StorageStore }).Storage
 }
 
-const RELOAD_INTERVAL_MS = 30 * 60 * 1000
 const UNREAD_STREAM_ID = 'user/-/state/com.google/reading-list'
 const READ_STREAM_ID = 'user/-/state/com.google/read'
 
@@ -109,7 +107,8 @@ function writeCache(cache: CacheFile) {
 }
 
 function cacheIsFresh(cache: CacheFile | null, settings: ReaderSettings) {
-  return Boolean(cache && cache.accountId === accountId(settings) && Date.now() - cache.data.updatedAt < CACHE_TTL_MS)
+  const cacheTtlMs = settings.refreshIntervalMinutes * 60 * 1000
+  return Boolean(cache && cache.accountId === accountId(settings) && Date.now() - cache.data.updatedAt < cacheTtlMs)
 }
 
 function stripHtml(value?: string) {
@@ -242,10 +241,21 @@ function updatedAtText(timestamp: number) {
   const date = new Date(timestamp)
   const hour = String(date.getHours()).padStart(2, '0')
   const minute = String(date.getMinutes()).padStart(2, '0')
-  return `${date.getMonth() + 1}/${date.getDate()} ${hour}:${minute}`
+  return `${date.getMonth() + 1}-${date.getDate()} ${hour}:${minute}`
 }
 
-function Header({ data, compact = false }: { data: ReaderData; compact?: boolean }) {
+function relativeTimeText(timestamp: number) {
+  const minutes = Math.max(0, Math.floor((Date.now() - timestamp) / 60000))
+  if (minutes < 1) return '刚刚'
+  if (minutes < 60) return `${minutes} 分钟前`
+
+  const hours = Math.floor(minutes / 60)
+  if (hours < 24) return `${hours} 小时前`
+
+  return `${Math.floor(hours / 24)} 天前`
+}
+
+function Header({ data, timeDisplay, compact = false }: { data: ReaderData; timeDisplay: TimeDisplay; compact?: boolean }) {
   return (
     <HStack alignment="center" spacing={compact ? 6 : 8} modifiers={modifiers().frame({ maxWidth: 'infinity', alignment: 'leading' })}>
       <ZStack modifiers={modifiers().frame({ width: compact ? 20 : 24, height: compact ? 20 : 24, alignment: 'center' }).background(READER_ICON_BACKGROUND)}>
@@ -253,7 +263,7 @@ function Header({ data, compact = false }: { data: ReaderData; compact?: boolean
       </ZStack>
       <Spacer minLength={2} />
       <Text modifiers={modifiers().font(compact ? 'caption2' : 'subheadline').foregroundStyle('#A6A6AC').lineLimit(1).minScaleFactor(0.7)}>
-        {updatedAtText(data.updatedAt)}
+        {timeDisplay === 'relative' ? relativeTimeText(data.updatedAt) : updatedAtText(data.updatedAt)}
       </Text>
     </HStack>
   )
@@ -320,7 +330,7 @@ function ArticleRow({
   )
 }
 
-function SmallWidget({ data }: { data: ReaderData }) {
+function SmallWidget({ data, timeDisplay }: { data: ReaderData; timeDisplay: TimeDisplay }) {
   const articles = data.articles.slice(0, DISPLAY_ARTICLE_COUNT)
   return (
     <VStack
@@ -331,7 +341,7 @@ function SmallWidget({ data }: { data: ReaderData }) {
         .frame({ maxWidth: 'infinity', maxHeight: 'infinity', alignment: 'leading' })
         .widgetBackground('#1C1C1E')}
     >
-      <Header data={data} compact />
+      <Header data={data} timeDisplay={timeDisplay} compact />
       {articles.length > 0 ? (
         <VStack alignment="leading" spacing={7} modifiers={modifiers().frame({ maxWidth: 'infinity', alignment: 'leading' })}>
           {articles.map(article => <ArticleRow article={article} density="small" showThumbnail={false} />)}
@@ -341,7 +351,7 @@ function SmallWidget({ data }: { data: ReaderData }) {
   )
 }
 
-function MediumWidget({ data }: { data: ReaderData }) {
+function MediumWidget({ data, timeDisplay }: { data: ReaderData; timeDisplay: TimeDisplay }) {
   const articles = data.articles.slice(0, DISPLAY_ARTICLE_COUNT)
   return (
     <VStack
@@ -352,7 +362,7 @@ function MediumWidget({ data }: { data: ReaderData }) {
         .frame({ maxWidth: 'infinity', maxHeight: 'infinity', alignment: 'leading' })
         .widgetBackground('#1C1C1E')}
     >
-      <Header data={data} />
+      <Header data={data} timeDisplay={timeDisplay} />
       {articles.length > 0 ? (
         <VStack alignment="leading" spacing={10} modifiers={modifiers().frame({ maxWidth: 'infinity', alignment: 'leading' })}>
           {articles.map(article => <ArticleRow article={article} density="medium" />)}
@@ -362,7 +372,7 @@ function MediumWidget({ data }: { data: ReaderData }) {
   )
 }
 
-function LargeWidget({ data }: { data: ReaderData }) {
+function LargeWidget({ data, timeDisplay }: { data: ReaderData; timeDisplay: TimeDisplay }) {
   const articles = data.articles.slice(0, DISPLAY_ARTICLE_COUNT)
   return (
     <VStack
@@ -373,7 +383,7 @@ function LargeWidget({ data }: { data: ReaderData }) {
         .frame({ maxWidth: 'infinity', maxHeight: 'infinity', alignment: 'leading' })
         .widgetBackground('#1C1C1E')}
     >
-      <Header data={data} />
+      <Header data={data} timeDisplay={timeDisplay} />
       {data.error ? <Text modifiers={modifiers().font('caption2').foregroundStyle('#FFB86C').lineLimit(1)}>显示缓存</Text> : null}
       {articles.length > 0 ? (
         <VStack alignment="leading" spacing={8} modifiers={modifiers().frame({ maxWidth: 'infinity', alignment: 'leading' })}>
@@ -384,21 +394,25 @@ function LargeWidget({ data }: { data: ReaderData }) {
     </VStack>
   )
 }
-function ReaderWidget({ data }: { data: ReaderData }) {
-  if (Widget.family === 'systemSmall') return <SmallWidget data={data} />
-  if (Widget.family === 'systemLarge' || Widget.family === 'systemExtraLarge') return <LargeWidget data={data} />
-  return <MediumWidget data={data} />
+function ReaderWidget({ data, timeDisplay }: { data: ReaderData; timeDisplay: TimeDisplay }) {
+  if (Widget.family === 'systemSmall') return <SmallWidget data={data} timeDisplay={timeDisplay} />
+  if (Widget.family === 'systemLarge' || Widget.family === 'systemExtraLarge') return <LargeWidget data={data} timeDisplay={timeDisplay} />
+  return <MediumWidget data={data} timeDisplay={timeDisplay} />
 }
 
-function present(data: ReaderData) {
-  Widget.present(<ReaderWidget data={data} />, {
+function present(data: ReaderData, settings: ReaderSettings | null) {
+  const refreshIntervalMinutes = settings?.refreshIntervalMinutes || 30
+  const timeDisplay = settings?.timeDisplay || 'absolute'
+  Widget.present(<ReaderWidget data={data} timeDisplay={timeDisplay} />, {
     reloadPolicy: {
       policy: 'after',
-      date: new Date(Date.now() + RELOAD_INTERVAL_MS),
+      date: new Date(Date.now() + refreshIntervalMinutes * 60 * 1000),
     },
   })
 }
 
+const settings = loadSettings()
+
 loadData()
-  .then(present)
-  .catch(() => present(missingConfigurationData()))
+  .then(data => present(data, settings))
+  .catch(() => present(missingConfigurationData(), settings))

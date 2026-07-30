@@ -3,6 +3,7 @@ import {
     Form,
     Navigation,
     NavigationStack,
+    Picker,
     Script,
     Section,
     SecureField,
@@ -11,7 +12,14 @@ import {
     Widget,
     useState,
 } from 'scripting'
-import { loadSettings, normalizeEndpoint, saveSettings, type ReaderSettings } from './config'
+import {
+    loadSettings,
+    normalizeEndpoint,
+    saveSettings,
+    type ReaderSettings,
+    type RefreshIntervalMinutes,
+    type TimeDisplay,
+} from './config'
 
 declare function fetch(input: string, init?: {
   method?: string
@@ -76,6 +84,8 @@ function SettingsPage() {
   const [endpointInput, setEndpointInput] = useState(current?.endpoint || '')
   const [username, setUsername] = useState(current?.username || '')
   const [password, setPassword] = useState(current?.password || '')
+  const [timeDisplay, setTimeDisplay] = useState<TimeDisplay>(current?.timeDisplay || 'absolute')
+  const [refreshIntervalMinutes, setRefreshIntervalMinutes] = useState<RefreshIntervalMinutes>(current?.refreshIntervalMinutes || 30)
   const [message, setMessage] = useState('')
   const [isSaving, setIsSaving] = useState(false)
 
@@ -95,7 +105,13 @@ function SettingsPage() {
       return
     }
 
-    const settings = { endpoint, username: username.trim(), password }
+    const settings: ReaderSettings = {
+      endpoint,
+      username: username.trim(),
+      password,
+      timeDisplay,
+      refreshIntervalMinutes,
+    }
     setIsSaving(true)
     setMessage('正在测试 API 连接...')
     try {
@@ -139,9 +155,32 @@ function SettingsPage() {
           prompt="在 FreshRSS 个人资料中设置的 API 密码"
         />
       </Section>
+      <Section header={<Text>小组件显示</Text>}>
+        <Picker
+          title="更新时间"
+          value={timeDisplay}
+          onChanged={setTimeDisplay}
+          pickerStyle="segmented"
+        >
+          <Text tag="absolute">绝对时间</Text>
+          <Text tag="relative">相对时间</Text>
+        </Picker>
+        <Picker
+          title="刷新频率"
+          value={refreshIntervalMinutes}
+          onChanged={setRefreshIntervalMinutes}
+          pickerStyle="menu"
+        >
+          <Text tag={15}>15 分钟</Text>
+          <Text tag={30}>30 分钟</Text>
+          <Text tag={60}>1 小时</Text>
+          <Text tag={120}>2 小时</Text>
+        </Picker>
+      </Section>
       <Section header={<Text>说明</Text>}>
         <Text>地址应是 Google Reader 兼容 API 的根地址。</Text>
         <Text>FreshRSS 请填写个人资料中单独设置的 API 密码，不是网页登录密码。</Text>
+        <Text>小组件的实际刷新时间由 iOS 系统调度，可能晚于所选频率。</Text>
       </Section>
       <Section>
         <Button
