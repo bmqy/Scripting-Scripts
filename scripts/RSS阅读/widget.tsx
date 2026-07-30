@@ -8,7 +8,7 @@ import {
     ZStack,
     modifiers,
 } from 'scripting'
-import { loadSettings, type ReaderSettings, type TimeDisplay } from './config'
+import { loadSettings, type ColorTheme, type ReaderSettings, type TimeDisplay } from './config'
 
 declare function fetch(input: string, init?: {
   method?: string
@@ -68,6 +68,49 @@ const LARGE_DISPLAY_ARTICLE_COUNT = 7
 const WIDGET_NAME = 'RSS阅读'
 const READER_ICON_SYSTEM_NAME = 'dot.radiowaves.left.and.right'
 const READER_ICON_BACKGROUND = '#38BDF8'
+
+type WidgetColor = string | { light: string; dark: string }
+
+type Palette = {
+  background: WidgetColor
+  primaryText: WidgetColor
+  headerName: WidgetColor
+  secondaryText: WidgetColor
+  articleSource: WidgetColor
+  warning: WidgetColor
+  thumbnail: WidgetColor
+}
+
+const DARK_PALETTE: Palette = {
+  background: '#1C1C1E',
+  primaryText: '#F7F7FA',
+  headerName: '#F4F4F6',
+  secondaryText: '#A6A6AC',
+  articleSource: '#A8A8AE',
+  warning: '#FFB86C',
+  thumbnail: '#075AA6',
+}
+
+const LIGHT_PALETTE: Palette = {
+  background: '#FFFFFF',
+  primaryText: '#1C1C1E',
+  headerName: '#1C1C1E',
+  secondaryText: '#6E6E73',
+  articleSource: '#6E6E73',
+  warning: '#C2410C',
+  thumbnail: '#38BDF8',
+}
+
+function resolvePalette(theme: ColorTheme): Palette {
+  if (theme === 'light') return LIGHT_PALETTE
+  if (theme === 'dark') return DARK_PALETTE
+  const keys = Object.keys(DARK_PALETTE) as (keyof Palette)[]
+  const palette = {} as Palette
+  for (const key of keys) {
+    palette[key] = { light: LIGHT_PALETTE[key] as string, dark: DARK_PALETTE[key] as string }
+  }
+  return palette
+}
 type StorageStore = {
   get<T = unknown>(key: string): T | string | null | undefined
   set(key: string, value: unknown): unknown
@@ -260,11 +303,13 @@ function relativeTimeText(timestamp: number) {
 function Header({
   data,
   timeDisplay,
+  palette,
   compact = false,
   showName = true,
 }: {
   data: ReaderData
   timeDisplay: TimeDisplay
+  palette: Palette
   compact?: boolean
   showName?: boolean
 }) {
@@ -274,25 +319,25 @@ function Header({
         <Image systemName={READER_ICON_SYSTEM_NAME} font={compact ? 11 : 13} foregroundStyle="white" />
       </ZStack>
       {showName ? (
-        <Text modifiers={modifiers().font(compact ? 'caption2' : 'subheadline').fontWeight('semibold').foregroundStyle('#F4F4F6').lineLimit(1).minScaleFactor(0.76)}>
+        <Text modifiers={modifiers().font(compact ? 'caption2' : 'subheadline').fontWeight('semibold').foregroundStyle(palette.headerName).lineLimit(1).minScaleFactor(0.76)}>
           {WIDGET_NAME}
         </Text>
       ) : null}
       <Spacer minLength={2} />
-      <Text modifiers={modifiers().font(compact ? 'caption2' : 'subheadline').foregroundStyle('#A6A6AC').lineLimit(1).minScaleFactor(0.7)}>
+      <Text modifiers={modifiers().font(compact ? 'caption2' : 'subheadline').foregroundStyle(palette.secondaryText).lineLimit(1).minScaleFactor(0.7)}>
         {timeDisplay === 'relative' ? relativeTimeText(data.updatedAt) : updatedAtText(data.updatedAt)}
       </Text>
     </HStack>
   )
 }
 
-function EmptyState({ data, compact = false }: { data: ReaderData; compact?: boolean }) {
+function EmptyState({ data, palette, compact = false }: { data: ReaderData; palette: Palette; compact?: boolean }) {
   return (
     <VStack alignment="leading" spacing={compact ? 4 : 8}>
-      <Text modifiers={modifiers().font(compact ? 'caption' : 'title3').fontWeight('semibold').foregroundStyle('#F4F4F6').lineLimit(1)}>
+      <Text modifiers={modifiers().font(compact ? 'caption' : 'title3').fontWeight('semibold').foregroundStyle(palette.primaryText).lineLimit(1)}>
         {data.error ? '暂时无法更新' : '没有未读文章'}
       </Text>
-      <Text modifiers={modifiers().font(compact ? 'caption2' : 'callout').foregroundStyle('#A6A6AC').lineLimit(compact ? 3 : 4)}>
+      <Text modifiers={modifiers().font(compact ? 'caption2' : 'callout').foregroundStyle(palette.secondaryText).lineLimit(compact ? 3 : 4)}>
         {data.error || '订阅源已全部读完。'}
       </Text>
     </VStack>
@@ -301,7 +346,7 @@ function EmptyState({ data, compact = false }: { data: ReaderData; compact?: boo
 
 type ArticleDensity = 'small' | 'medium' | 'large'
 
-function Thumbnail({ compact = false }: { compact?: boolean }) {
+function Thumbnail({ palette, compact = false }: { palette: Palette; compact?: boolean }) {
   const size = compact ? 36 : 46
   const height = compact ? 28 : 38
 
@@ -309,7 +354,7 @@ function Thumbnail({ compact = false }: { compact?: boolean }) {
     <Image
       systemName="photo"
       font={compact ? 28 : 36}
-      foregroundStyle="#075AA6"
+      foregroundStyle={palette.thumbnail}
       modifiers={modifiers().frame({ width: size, height, alignment: 'center' })}
     />
   )
@@ -317,10 +362,12 @@ function Thumbnail({ compact = false }: { compact?: boolean }) {
 
 function ArticleRow({
   article,
+  palette,
   density = 'large',
   showThumbnail = false,
 }: {
   article: ReaderArticle
+  palette: Palette
   density?: ArticleDensity
   showThumbnail?: boolean
 }) {
@@ -335,19 +382,19 @@ function ArticleRow({
   return (
     <HStack alignment="center" spacing={rowSpacing} modifiers={modifiers().frame({ maxWidth: 'infinity', alignment: 'leading' })}>
       <VStack alignment="leading" spacing={contentSpacing} modifiers={modifiers().frame({ maxWidth: 'infinity', alignment: 'leading' })}>
-        <Text modifiers={modifiers().font(sourceFont).foregroundStyle('#A8A8AE').lineLimit(1)}>
+        <Text modifiers={modifiers().font(sourceFont).foregroundStyle(palette.articleSource).lineLimit(1)}>
           {article.source}
         </Text>
-        <Text modifiers={modifiers().font(titleFont).foregroundStyle('#F7F7FA').lineLimit(titleLineLimit).minScaleFactor(0.82)}>
+        <Text modifiers={modifiers().font(titleFont).foregroundStyle(palette.primaryText).lineLimit(titleLineLimit).minScaleFactor(0.82)}>
           {article.title}
         </Text>
       </VStack>
-      {showThumbnail ? <Thumbnail compact={compact} /> : null}
+      {showThumbnail ? <Thumbnail palette={palette} compact={compact} /> : null}
     </HStack>
   )
 }
 
-function SmallWidget({ data, timeDisplay }: { data: ReaderData; timeDisplay: TimeDisplay }) {
+function SmallWidget({ data, timeDisplay, palette }: { data: ReaderData; timeDisplay: TimeDisplay; palette: Palette }) {
   const articles = data.articles.slice(0, DISPLAY_ARTICLE_COUNT)
   return (
     <VStack
@@ -356,19 +403,19 @@ function SmallWidget({ data, timeDisplay }: { data: ReaderData; timeDisplay: Tim
       modifiers={modifiers()
         .padding(14)
         .frame({ maxWidth: 'infinity', maxHeight: 'infinity', alignment: 'leading' })
-        .widgetBackground('#1C1C1E')}
+        .widgetBackground(palette.background)}
     >
-      <Header data={data} timeDisplay={timeDisplay} compact showName={false} />
+      <Header data={data} timeDisplay={timeDisplay} palette={palette} compact showName={false} />
       {articles.length > 0 ? (
         <VStack alignment="leading" spacing={7} modifiers={modifiers().frame({ maxWidth: 'infinity', alignment: 'leading' })}>
-          {articles.map(article => <ArticleRow article={article} density="small" showThumbnail={false} />)}
+          {articles.map(article => <ArticleRow article={article} palette={palette} density="small" showThumbnail={false} />)}
         </VStack>
-      ) : <EmptyState data={data} compact />}
+      ) : <EmptyState data={data} palette={palette} compact />}
     </VStack>
   )
 }
 
-function MediumWidget({ data, timeDisplay }: { data: ReaderData; timeDisplay: TimeDisplay }) {
+function MediumWidget({ data, timeDisplay, palette }: { data: ReaderData; timeDisplay: TimeDisplay; palette: Palette }) {
   const articles = data.articles.slice(0, DISPLAY_ARTICLE_COUNT)
   return (
     <VStack
@@ -377,19 +424,19 @@ function MediumWidget({ data, timeDisplay }: { data: ReaderData; timeDisplay: Ti
       modifiers={modifiers()
         .padding({ top: 14, leading: 16, bottom: 14, trailing: 16 })
         .frame({ maxWidth: 'infinity', maxHeight: 'infinity', alignment: 'leading' })
-        .widgetBackground('#1C1C1E')}
+        .widgetBackground(palette.background)}
     >
-      <Header data={data} timeDisplay={timeDisplay} />
+      <Header data={data} timeDisplay={timeDisplay} palette={palette} />
       {articles.length > 0 ? (
         <VStack alignment="leading" spacing={10} modifiers={modifiers().frame({ maxWidth: 'infinity', alignment: 'leading' })}>
-          {articles.map(article => <ArticleRow article={article} density="medium" />)}
+          {articles.map(article => <ArticleRow article={article} palette={palette} density="medium" />)}
         </VStack>
-      ) : <EmptyState data={data} />}
+      ) : <EmptyState data={data} palette={palette} />}
     </VStack>
   )
 }
 
-function LargeWidget({ data, timeDisplay }: { data: ReaderData; timeDisplay: TimeDisplay }) {
+function LargeWidget({ data, timeDisplay, palette }: { data: ReaderData; timeDisplay: TimeDisplay; palette: Palette }) {
   const articles = data.articles.slice(0, LARGE_DISPLAY_ARTICLE_COUNT)
   return (
     <VStack
@@ -398,29 +445,30 @@ function LargeWidget({ data, timeDisplay }: { data: ReaderData; timeDisplay: Tim
       modifiers={modifiers()
         .padding({ top: 16, leading: 18, bottom: 16, trailing: 18 })
         .frame({ maxWidth: 'infinity', maxHeight: 'infinity', alignment: 'leading' })
-        .widgetBackground('#1C1C1E')}
+        .widgetBackground(palette.background)}
     >
-      <Header data={data} timeDisplay={timeDisplay} />
-      {data.error ? <Text modifiers={modifiers().font('caption2').foregroundStyle('#FFB86C').lineLimit(1)}>显示缓存</Text> : null}
+      <Header data={data} timeDisplay={timeDisplay} palette={palette} />
+      {data.error ? <Text modifiers={modifiers().font('caption2').foregroundStyle(palette.warning).lineLimit(1)}>显示缓存</Text> : null}
       {articles.length > 0 ? (
         <VStack alignment="leading" spacing={8} modifiers={modifiers().frame({ maxWidth: 'infinity', alignment: 'leading' })}>
-          {articles.map(article => <ArticleRow article={article} density="large" />)}
+          {articles.map(article => <ArticleRow article={article} palette={palette} density="large" />)}
         </VStack>
-      ) : <EmptyState data={data} />}
+      ) : <EmptyState data={data} palette={palette} />}
       <Spacer minLength={2} />
     </VStack>
   )
 }
-function ReaderWidget({ data, timeDisplay }: { data: ReaderData; timeDisplay: TimeDisplay }) {
-  if (Widget.family === 'systemSmall') return <SmallWidget data={data} timeDisplay={timeDisplay} />
-  if (Widget.family === 'systemLarge' || Widget.family === 'systemExtraLarge') return <LargeWidget data={data} timeDisplay={timeDisplay} />
-  return <MediumWidget data={data} timeDisplay={timeDisplay} />
+function ReaderWidget({ data, timeDisplay, palette }: { data: ReaderData; timeDisplay: TimeDisplay; palette: Palette }) {
+  if (Widget.family === 'systemSmall') return <SmallWidget data={data} timeDisplay={timeDisplay} palette={palette} />
+  if (Widget.family === 'systemLarge' || Widget.family === 'systemExtraLarge') return <LargeWidget data={data} timeDisplay={timeDisplay} palette={palette} />
+  return <MediumWidget data={data} timeDisplay={timeDisplay} palette={palette} />
 }
 
 function present(data: ReaderData, settings: ReaderSettings | null) {
   const refreshIntervalMinutes = settings?.refreshIntervalMinutes || 30
   const timeDisplay = settings?.timeDisplay || 'absolute'
-  Widget.present(<ReaderWidget data={data} timeDisplay={timeDisplay} />, {
+  const palette = resolvePalette(settings?.theme || 'system')
+  Widget.present(<ReaderWidget data={data} timeDisplay={timeDisplay} palette={palette} />, {
     reloadPolicy: {
       policy: 'after',
       date: new Date(Date.now() + refreshIntervalMinutes * 60 * 1000),

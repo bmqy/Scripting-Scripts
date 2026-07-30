@@ -16,6 +16,7 @@ import {
     loadSettings,
     normalizeEndpoint,
     saveSettings,
+    type ColorTheme,
     type ReaderSettings,
     type RefreshIntervalMinutes,
     type TimeDisplay,
@@ -86,6 +87,7 @@ function SettingsPage() {
   const [password, setPassword] = useState(current?.password || '')
   const [timeDisplay, setTimeDisplay] = useState<TimeDisplay>(current?.timeDisplay || 'absolute')
   const [refreshIntervalMinutes, setRefreshIntervalMinutes] = useState<RefreshIntervalMinutes>(current?.refreshIntervalMinutes || 30)
+  const [theme, setTheme] = useState<ColorTheme>(current?.theme || 'system')
   const [message, setMessage] = useState('')
   const [isSaving, setIsSaving] = useState(false)
 
@@ -111,6 +113,7 @@ function SettingsPage() {
       password,
       timeDisplay,
       refreshIntervalMinutes,
+      theme,
     }
     setIsSaving(true)
     setMessage('正在测试 API 连接...')
@@ -156,6 +159,16 @@ function SettingsPage() {
         />
       </Section>
       <Section header={<Text>小组件显示</Text>}>
+        <Picker
+          title="外观模式"
+          value={theme}
+          onChanged={setTheme}
+          pickerStyle="segmented"
+        >
+          <Text tag="system">跟随系统</Text>
+          <Text tag="light">亮色</Text>
+          <Text tag="dark">暗色</Text>
+        </Picker>
         <Picker
           title="更新时间"
           value={timeDisplay}

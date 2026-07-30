@@ -4,14 +4,18 @@ export type ReaderSettings = {
   password: string
   timeDisplay: TimeDisplay
   refreshIntervalMinutes: RefreshIntervalMinutes
+  theme: ColorTheme
 }
 
 export type TimeDisplay = 'absolute' | 'relative'
 export type RefreshIntervalMinutes = 1 | 3 | 5 | 15 | 30 | 60 | 120
+export type ColorTheme = 'system' | 'light' | 'dark'
 
 const DEFAULT_TIME_DISPLAY: TimeDisplay = 'absolute'
 const DEFAULT_REFRESH_INTERVAL_MINUTES: RefreshIntervalMinutes = 30
+const DEFAULT_COLOR_THEME: ColorTheme = 'system'
 const REFRESH_INTERVAL_OPTIONS: RefreshIntervalMinutes[] = [1, 3, 5, 15, 30, 60, 120]
+const COLOR_THEME_OPTIONS: ColorTheme[] = ['system', 'light', 'dark']
 
 const SETTINGS_KEY = 'rss-reader-settings'
 
@@ -43,6 +47,12 @@ function refreshIntervalMinutes(value: unknown): RefreshIntervalMinutes {
     : DEFAULT_REFRESH_INTERVAL_MINUTES
 }
 
+function colorTheme(value: unknown): ColorTheme {
+  return typeof value === 'string' && COLOR_THEME_OPTIONS.includes(value as ColorTheme)
+    ? value as ColorTheme
+    : DEFAULT_COLOR_THEME
+}
+
 function parseSettings(value: unknown): ReaderSettings | null {
   try {
     if (!value) return null
@@ -58,6 +68,7 @@ function parseSettings(value: unknown): ReaderSettings | null {
       password: settings.password,
       timeDisplay: timeDisplay(settings.timeDisplay),
       refreshIntervalMinutes: refreshIntervalMinutes(settings.refreshIntervalMinutes),
+      theme: colorTheme(settings.theme),
     }
   } catch {
     return null
@@ -80,6 +91,7 @@ function matchesSettings(value: unknown, settings: ReaderSettings) {
     && saved.password === settings.password
     && saved.timeDisplay === settings.timeDisplay
     && saved.refreshIntervalMinutes === settings.refreshIntervalMinutes
+    && saved.theme === settings.theme
 }
 
 export function saveSettings(settings: ReaderSettings) {
