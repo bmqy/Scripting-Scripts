@@ -85,25 +85,43 @@ function SettingsPage() {
   const [endpointInput, setEndpointInput] = useState(current?.endpoint || '')
   const [username, setUsername] = useState(current?.username || '')
   const [password, setPassword] = useState(current?.password || '')
+  const [authenticatedSettings, setAuthenticatedSettings] = useState<ReaderSettings | null>(current)
   const [timeDisplay, setTimeDisplay] = useState<TimeDisplay>(current?.timeDisplay || 'absolute')
   const [refreshIntervalMinutes, setRefreshIntervalMinutes] = useState<RefreshIntervalMinutes>(current?.refreshIntervalMinutes || 30)
   const [theme, setTheme] = useState<ColorTheme>(current?.theme || 'system')
-  const [message, setMessage] = useState('')
-  const [isSaving, setIsSaving] = useState(false)
+  const [accountMessage, setAccountMessage] = useState('')
+  const [widgetMessage, setWidgetMessage] = useState('')
+  const [isSavingAccount, setIsSavingAccount] = useState(false)
+  const [isSavingWidget, setIsSavingWidget] = useState(false)
 
-  const save = async () => {
-    if (isSaving) return
+  let normalizedAccountEndpoint = ''
+  try {
+    normalizedAccountEndpoint = normalizeEndpoint(endpointInput)
+  } catch {
+    normalizedAccountEndpoint = ''
+  }
+
+  const isAccountConfigured = Boolean(
+    authenticatedSettings
+      && normalizedAccountEndpoint
+      && authenticatedSettings.endpoint === normalizedAccountEndpoint
+      && authenticatedSettings.username === username.trim()
+      && authenticatedSettings.password === password
+  )
+
+  const saveAccount = async () => {
+    if (isSavingAccount) return
 
     let endpoint: string
     try {
       endpoint = normalizeEndpoint(endpointInput)
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : '请输入有效的 API 地址。')
+      setAccountMessage(error instanceof Error ? error.message : '请输入有效的 API 地址。')
       return
     }
 
     if (!username.trim() || !password) {
-      setMessage('请填写用户名和 API 密码。')
+      setAccountMessage('请填写用户名和 API 密码。')
       return
     }
 
@@ -111,33 +129,66 @@ function SettingsPage() {
       endpoint,
       username: username.trim(),
       password,
-      timeDisplay,
-      refreshIntervalMinutes,
-      theme,
+      timeDisplay: authenticatedSettings?.timeDisplay || timeDisplay,
+      refreshIntervalMinutes: authenticatedSettings?.refreshIntervalMinutes || refreshIntervalMinutes,
+      theme: authenticatedSettings?.theme || theme,
     }
-    setIsSaving(true)
-    setMessage('正在测试 API 连接...')
+    setIsSavingAccount(true)
+    setAccountMessage('正在登录并测试 API 连接...')
+    setWidgetMessage('')
     try {
       await testReaderApi(settings)
 
       const saved = saveSettings(settings)
       if (!saved) {
-        setMessage('接口测试成功，但无法保存设置，请检查 Scripting 的本地存储后重试。')
+        setAccountMessage('接口测试成功，但无法保存账号配置，请检查 Scripting 的本地存储后重试。')
         return
       }
 
+      setAuthenticatedSettings(settings)
       Widget.reloadAll()
-      setMessage('接口测试成功，已保存到 Scripting 本地存储。小组件会在下一次刷新时读取 RSS 数据。')
+      setAccountMessage('账号登录成功，已保存账号配置。现在可以调整小组件配置。')
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : '接口测试失败，请检查 API 地址、用户名和 API 密码。')
+      setAccountMessage(error instanceof Error ? error.message : '接口测试失败，请检查 API 地址、用户名和 API 密码。')
     } finally {
-      setIsSaving(false)
+      setIsSavingAccount(false)
+    }
+  }
+
+  const saveWidget = async () => {
+    if (isSavingWidget) return
+
+    if (!isAccountConfigured || !authenticatedSettings) {
+      setWidgetMessage('请先保存并登录账号配置。')
+      return
+    }
+
+    const settings: ReaderSettings = {
+      ...authenticatedSettings,
+      timeDisplay,
+      refreshIntervalMinutes,
+      theme,
+    }
+    setIsSavingWidget(true)
+    setWidgetMessage('正在保存组件配置...')
+    try {
+      const saved = saveSettings(settings)
+      if (!saved) {
+        setWidgetMessage('无法保存组件配置，请检查 Scripting 的本地存储后重试。')
+        return
+      }
+
+      setAuthenticatedSettings(settings)
+      Widget.reloadAll()
+      setWidgetMessage('组件配置已保存，小组件会在下一次刷新时生效。')
+    } finally {
+      setIsSavingWidget(false)
     }
   }
 
   return <NavigationStack>
     <Form navigationTitle="RSS 阅读">
-      <Section header={<Text>Google Reader 兼容 API</Text>}>
+      <Section header={<Text>账号配置</Text>}>
         <TextField
           title="API 地址"
           value={endpointInput}
@@ -157,8 +208,15 @@ function SettingsPage() {
           onChanged={setPassword}
           prompt="在 FreshRSS 个人资料中设置的 API 密码"
         />
+        <Button
+          title={isSavingAccount ? '正在登录...' : '登录并保存账号'}
+          systemImage="person.crop.circle.badge.checkmark"
+          buttonStyle="borderedProminent"
+          action={() => { void saveAccount() }}
+        />
+        {accountMessage ? <Text>{accountMessage}</Text> : null}
       </Section>
-      <Section header={<Text>小组件显示</Text>}>
+      {isAccountConfigured ? <Section header={<Text>组件配置</Text>}>
         <Picker
           title="外观模式"
           value={theme}
@@ -192,25 +250,25 @@ function SettingsPage() {
           <Text tag={60}>1 小时</Text>
           <Text tag={120}>2 小时</Text>
         </Picker>
-      </Section>
-      <Section header={<Text>说明</Text>}>
-        <Text>地址应是 Google Reader 兼容 API 的根地址。</Text>
-        <Text>FreshRSS 请填写个人资料中单独设置的 API 密码，不是网页登录密码。</Text>
-        <Text>小组件的实际刷新时间由 iOS 系统调度，可能晚于所选频率。</Text>
-      </Section>
-      <Section>
         <Button
-          title={isSaving ? '正在测试...' : '保存设置'}
+          title={isSavingWidget ? '正在保存...' : '保存组件配置'}
           systemImage="checkmark"
           buttonStyle="borderedProminent"
-          action={() => { void save() }}
+          action={() => { void saveWidget() }}
         />
         <Button
           title="预览小组件"
           systemImage="rectangle.grid.1x2"
           action={() => { void Widget.preview({ family: 'systemMedium' }) }}
         />
-        {message ? <Text>{message}</Text> : null}
+        <Text>小组件的实际刷新时间由 iOS 系统调度，可能晚于所选频率。</Text>
+        {widgetMessage ? <Text>{widgetMessage}</Text> : null}
+      </Section> : <Section header={<Text>下一步</Text>}>
+        <Text>请先登录并保存账号配置，登录成功后可继续调整组件配置。</Text>
+      </Section>
+      <Section header={<Text>说明</Text>}>
+        <Text>地址应是 Google Reader 兼容 API 的根地址。</Text>
+        <Text>FreshRSS 请填写个人资料中单独设置的 API 密码，不是网页登录密码。</Text>
       </Section>
     </Form>
   </NavigationStack>
