@@ -64,6 +64,8 @@ type StreamResponse = {
 
 const CACHE_KEY = 'rss-reader-cache'
 const DISPLAY_ARTICLE_COUNT = 2
+const LARGE_DISPLAY_ARTICLE_COUNT = 5
+const WIDGET_NAME = 'RSS阅读'
 const READER_ICON_SYSTEM_NAME = 'dot.radiowaves.left.and.right'
 const READER_ICON_BACKGROUND = '#38BDF8'
 type StorageStore = {
@@ -273,7 +275,7 @@ function Header({
       </ZStack>
       {showName ? (
         <Text modifiers={modifiers().font(compact ? 'caption2' : 'subheadline').fontWeight('semibold').foregroundStyle('#F4F4F6').lineLimit(1).minScaleFactor(0.76)}>
-          {data.serverName}
+          {WIDGET_NAME}
         </Text>
       ) : null}
       <Spacer minLength={2} />
@@ -388,7 +390,7 @@ function MediumWidget({ data, timeDisplay }: { data: ReaderData; timeDisplay: Ti
 }
 
 function LargeWidget({ data, timeDisplay }: { data: ReaderData; timeDisplay: TimeDisplay }) {
-  const articles = data.articles.slice(0, DISPLAY_ARTICLE_COUNT)
+  const articles = data.articles.slice(0, LARGE_DISPLAY_ARTICLE_COUNT)
   return (
     <VStack
       alignment="leading"
