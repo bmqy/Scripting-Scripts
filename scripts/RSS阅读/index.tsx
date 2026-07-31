@@ -13,11 +13,14 @@ import {
     Text,
     TextField,
     Widget,
+    useEffect,
     useState,
 } from 'scripting'
 import {
+    DEFAULT_FEED_NAME,
     loadSettings,
     normalizeEndpoint,
+    READING_LIST_ID,
     saveSettings,
     type ColorTheme,
     type ReaderSettings,
@@ -37,6 +40,15 @@ declare function fetch(input: string, init?: {
   text(): Promise<string>
   json(): Promise<unknown>
 }>
+
+type FeedOption = {
+  id: string
+  name: string
+}
+
+type SubscriptionResponse = {
+  subscriptions?: Array<{ id?: string; title?: string }>
+}
 
 function parseAuth(text: string) {
   return text.match(/^Auth=(.+)$/m)?.[1]?.trim() || ''
@@ -83,6 +95,26 @@ async function testReaderApi(settings: ReaderSettings) {
   }
 }
 
+
+async function loadSubscriptions(settings: ReaderSettings): Promise<FeedOption[]> {
+  const auth = await login(settings)
+  const response = await fetch(`${settings.endpoint}/reader/api/0/subscription/list?output=json`, {
+    headers: {
+      Authorization: `GoogleLogin auth=${auth}`,
+      'User-Agent': 'Scripting-RSS-Reader/1.0',
+    },
+    timeout: 15,
+    debugLabel: 'RSS Reader Subscription List',
+  })
+  if (!response.ok) throw new Error(apiError('读取订阅源列表', response.status))
+
+  const data = await response.json() as SubscriptionResponse
+  return (data.subscriptions || [])
+    .filter(item => typeof item.id === 'string' && item.id.trim() && typeof item.title === 'string' && item.title.trim())
+    .map(item => ({ id: item.id!.trim(), name: item.title!.trim() }))
+    .sort((left, right) => left.name.localeCompare(right.name, 'zh-CN'))
+}
+
 function SettingsPage() {
   const current = loadSettings()
   const [endpointInput, setEndpointInput] = useState(current?.endpoint || '')
@@ -92,6 +124,11 @@ function SettingsPage() {
   const [timeDisplay, setTimeDisplay] = useState<TimeDisplay>(current?.timeDisplay || 'absolute')
   const [refreshIntervalMinutes, setRefreshIntervalMinutes] = useState<RefreshIntervalMinutes>(current?.refreshIntervalMinutes || 30)
   const [theme, setTheme] = useState<ColorTheme>(current?.theme || 'system')
+  const [feedId, setFeedId] = useState(current?.feedId || READING_LIST_ID)
+  const [feedName, setFeedName] = useState(current?.feedName || DEFAULT_FEED_NAME)
+  const [feeds, setFeeds] = useState<FeedOption[]>([])
+  const [feedMessage, setFeedMessage] = useState('')
+  const [isLoadingFeeds, setIsLoadingFeeds] = useState(false)
   const [accountMessage, setAccountMessage] = useState('')
   const [widgetMessage, setWidgetMessage] = useState('')
   const [isSavingAccount, setIsSavingAccount] = useState(false)
@@ -110,6 +147,23 @@ function SettingsPage() {
       && authenticatedSettings.username === username.trim()
       && authenticatedSettings.password === password
   )
+
+  const refreshFeeds = async (settings: ReaderSettings) => {
+    setIsLoadingFeeds(true)
+    setFeedMessage('正在加载订阅源...')
+    try {
+      setFeeds(await loadSubscriptions(settings))
+      setFeedMessage('')
+    } catch (error) {
+      setFeedMessage(error instanceof Error ? error.message : '无法加载订阅源列表。')
+    } finally {
+      setIsLoadingFeeds(false)
+    }
+  }
+
+  useEffect(() => {
+    if (current) void refreshFeeds(current)
+  }, [])
 
   const saveAccount = async () => {
     if (isSavingAccount) return
@@ -131,6 +185,8 @@ function SettingsPage() {
       endpoint,
       username: username.trim(),
       password,
+      feedId: authenticatedSettings?.feedId || READING_LIST_ID,
+      feedName: authenticatedSettings?.feedName || DEFAULT_FEED_NAME,
       timeDisplay: authenticatedSettings?.timeDisplay || timeDisplay,
       refreshIntervalMinutes: authenticatedSettings?.refreshIntervalMinutes || refreshIntervalMinutes,
       theme: authenticatedSettings?.theme || theme,
@@ -149,6 +205,7 @@ function SettingsPage() {
 
       setAuthenticatedSettings(settings)
       Widget.reloadAll()
+      void refreshFeeds(settings)
       setAccountMessage('账号登录成功，已保存账号配置。现在可以调整小组件配置。')
     } catch (error) {
       setAccountMessage(error instanceof Error ? error.message : '接口测试失败，请检查 API 地址、用户名和 API 密码。')
@@ -157,7 +214,7 @@ function SettingsPage() {
     }
   }
 
-  const saveWidget = (overrides: Partial<Pick<ReaderSettings, 'timeDisplay' | 'refreshIntervalMinutes' | 'theme'>> = {}) => {
+  const saveWidget = (overrides: Partial<Pick<ReaderSettings, 'feedId' | 'feedName' | 'timeDisplay' | 'refreshIntervalMinutes' | 'theme'>> = {}) => {
     if (!isAccountConfigured || !authenticatedSettings) {
       setWidgetMessage('请先保存并登录账号配置。')
       return
@@ -165,6 +222,8 @@ function SettingsPage() {
 
     const settings: ReaderSettings = {
       ...authenticatedSettings,
+      feedId: overrides.feedId ?? feedId,
+      feedName: overrides.feedName ?? feedName,
       timeDisplay: overrides.timeDisplay ?? timeDisplay,
       refreshIntervalMinutes: overrides.refreshIntervalMinutes ?? refreshIntervalMinutes,
       theme: overrides.theme ?? theme,
@@ -225,6 +284,23 @@ function SettingsPage() {
         {accountMessage ? <Text>{accountMessage}</Text> : null}
       </Section>
       {isAccountConfigured ? <Section header={<Text>组件配置</Text>}>
+        <Picker
+          title="显示 RSS 源"
+          value={feedId}
+          onChanged={(value) => {
+            const selected = feeds.find(feed => feed.id === value)
+            const nextName = selected?.name || DEFAULT_FEED_NAME
+            setFeedId(value)
+            setFeedName(nextName)
+            saveWidget({ feedId: value, feedName: nextName })
+          }}
+          pickerStyle="menu"
+        >
+          <Text tag={READING_LIST_ID}>{DEFAULT_FEED_NAME}</Text>
+          {feeds.map(feed => <Text tag={feed.id}>{feed.name}</Text>)}
+        </Picker>
+        {isLoadingFeeds ? <Text>正在加载订阅源...</Text> : null}
+        {feedMessage ? <Text>{feedMessage}</Text> : null}
         <HStack alignment="center">
           <Text>外观模式</Text>
           <Spacer />

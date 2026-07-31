@@ -2,6 +2,8 @@ export type ReaderSettings = {
   endpoint: string
   username: string
   password: string
+  feedId: string
+  feedName: string
   timeDisplay: TimeDisplay
   refreshIntervalMinutes: RefreshIntervalMinutes
   theme: ColorTheme
@@ -16,6 +18,9 @@ const DEFAULT_REFRESH_INTERVAL_MINUTES: RefreshIntervalMinutes = 30
 const DEFAULT_COLOR_THEME: ColorTheme = 'system'
 const REFRESH_INTERVAL_OPTIONS: RefreshIntervalMinutes[] = [1, 3, 5, 15, 30, 60, 120]
 const COLOR_THEME_OPTIONS: ColorTheme[] = ['system', 'light', 'dark']
+
+export const READING_LIST_ID = 'user/-/state/com.google/reading-list'
+export const DEFAULT_FEED_NAME = '全部未读'
 
 const SETTINGS_KEY = 'rss-reader-settings'
 
@@ -66,6 +71,8 @@ function parseSettings(value: unknown): ReaderSettings | null {
       endpoint: normalizeEndpoint(settings.endpoint),
       username: settings.username,
       password: settings.password,
+      feedId: typeof settings.feedId === 'string' && settings.feedId.trim() ? settings.feedId.trim() : READING_LIST_ID,
+      feedName: typeof settings.feedName === 'string' && settings.feedName.trim() ? settings.feedName.trim() : DEFAULT_FEED_NAME,
       timeDisplay: timeDisplay(settings.timeDisplay),
       refreshIntervalMinutes: refreshIntervalMinutes(settings.refreshIntervalMinutes),
       theme: colorTheme(settings.theme),
@@ -89,6 +96,8 @@ function matchesSettings(value: unknown, settings: ReaderSettings) {
   return saved?.endpoint === settings.endpoint
     && saved.username === settings.username
     && saved.password === settings.password
+    && saved.feedId === settings.feedId
+    && saved.feedName === settings.feedName
     && saved.timeDisplay === settings.timeDisplay
     && saved.refreshIntervalMinutes === settings.refreshIntervalMinutes
     && saved.theme === settings.theme

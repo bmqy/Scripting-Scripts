@@ -8,7 +8,7 @@ import {
     ZStack,
     modifiers,
 } from 'scripting'
-import { loadSettings, type ColorTheme, type ReaderSettings, type TimeDisplay } from './config'
+import { DEFAULT_FEED_NAME, loadSettings, READING_LIST_ID, type ColorTheme, type ReaderSettings, type TimeDisplay } from './config'
 
 declare function fetch(input: string, init?: {
   method?: string
@@ -32,6 +32,7 @@ type ReaderArticle = {
 
 type ReaderData = {
   serverName: string
+  sourceName: string
   unreadCount: number
   articles: ReaderArticle[]
   updatedAt: number
@@ -120,11 +121,11 @@ function scriptingStorage() {
   return (globalThis as unknown as { Storage?: StorageStore }).Storage
 }
 
-const UNREAD_STREAM_ID = 'user/-/state/com.google/reading-list'
+const UNREAD_STREAM_ID = READING_LIST_ID
 const READ_STREAM_ID = 'user/-/state/com.google/read'
 
 function accountId(settings: ReaderSettings) {
-  return `${settings.endpoint}\n${settings.username}`
+  return `${settings.endpoint}\n${settings.username}\n${settings.feedId}`
 }
 
 function serverName(endpoint: string) {
@@ -206,9 +207,13 @@ async function fetchJSON<T>(endpoint: string, auth: string, label: string) {
   return await response.json() as T
 }
 
-function unreadCount(response: UnreadCountsResponse) {
-  if (typeof response.max === 'number' && Number.isFinite(response.max)) return response.max
-  return response.unreadcounts?.find(item => item.id === UNREAD_STREAM_ID)?.count || 0
+function unreadCount(response: UnreadCountsResponse, streamId: string) {
+  if (streamId === UNREAD_STREAM_ID && typeof response.max === 'number' && Number.isFinite(response.max)) return response.max
+  return response.unreadcounts?.find(item => item.id === streamId)?.count || 0
+}
+
+function streamPath(streamId: string) {
+  return streamId.split('/').map(part => encodeURIComponent(part)).join('/')
 }
 
 function publishedAt(entry: StreamEntry) {
@@ -229,15 +234,18 @@ function toArticle(entry: StreamEntry): ReaderArticle {
 
 async function loadFreshData(settings: ReaderSettings): Promise<ReaderData> {
   const auth = await login(settings)
+  const streamId = settings.feedId || READING_LIST_ID
+  const sourceName = settings.feedName || DEFAULT_FEED_NAME
   const query = `output=json&n=8&xt=${encodeURIComponent(READ_STREAM_ID)}&ck=${Math.floor(Date.now() / 1000)}`
   const [counts, stream] = await Promise.all([
     fetchJSON<UnreadCountsResponse>(`${settings.endpoint}/reader/api/0/unread-count?output=json`, auth, '读取未读数'),
-    fetchJSON<StreamResponse>(`${settings.endpoint}/reader/api/0/stream/contents/reading-list?${query}`, auth, '读取文章列表'),
+    fetchJSON<StreamResponse>(`${settings.endpoint}/reader/api/0/stream/contents/${streamPath(streamId)}?${query}`, auth, '读取文章列表'),
   ])
 
   return {
     serverName: serverName(settings.endpoint),
-    unreadCount: unreadCount(counts),
+    sourceName,
+    unreadCount: unreadCount(counts, streamId),
     articles: (stream.items || []).map(toArticle),
     updatedAt: Date.now(),
   }
@@ -246,6 +254,7 @@ async function loadFreshData(settings: ReaderSettings): Promise<ReaderData> {
 function missingConfigurationData(): ReaderData {
   return {
     serverName: 'RSS 阅读',
+    sourceName: DEFAULT_FEED_NAME,
     unreadCount: 0,
     articles: [],
     updatedAt: Date.now(),
@@ -273,6 +282,7 @@ async function loadData(): Promise<ReaderData> {
     }
     return {
       serverName: serverName(settings.endpoint),
+      sourceName: settings.feedName || DEFAULT_FEED_NAME,
       unreadCount: 0,
       articles: [],
       updatedAt: Date.now(),
@@ -322,7 +332,7 @@ function Header({
       </ZStack>
       {showName ? (
         <Text modifiers={modifiers().font(compact ? 'caption2' : 'subheadline').fontWeight('semibold').foregroundStyle(palette.headerName).lineLimit(1).minScaleFactor(0.76)}>
-          {WIDGET_NAME}
+          {data.sourceName || WIDGET_NAME}
         </Text>
       ) : null}
       <Spacer minLength={2} />
