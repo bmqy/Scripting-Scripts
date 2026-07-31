@@ -11,7 +11,17 @@ import {
     type DynamicShapeStyle,
     type ShapeStyle,
 } from 'scripting'
-import { DEFAULT_FEED_NAME, loadSettings, READING_LIST_ID, type ColorTheme, type ReaderSettings, type TimeDisplay } from './config'
+import {
+  clearCachedAuth,
+  DEFAULT_FEED_NAME,
+  loadSettings,
+  readCachedAuth,
+  READING_LIST_ID,
+  writeCachedAuth,
+  type ColorTheme,
+  type ReaderSettings,
+  type TimeDisplay,
+} from './config'
 
 declare function fetch(input: string, init?: {
   method?: string
@@ -172,11 +182,32 @@ function stripHtml(value?: string) {
 }
 
 
+type ReaderApiError = Error & { status?: number }
+
 function parseAuth(text: string) {
   return text.match(/^Auth=(.+)$/m)?.[1]?.trim() || ''
 }
 
-async function login(settings: ReaderSettings) {
+function isUnauthorized(status: number) {
+  return status === 401 || status === 403
+}
+
+function readerApiError(label: string, status: number): ReaderApiError {
+  const error = new Error(`${label} 失败（HTTP ${status}）。`) as ReaderApiError
+  error.status = status
+  return error
+}
+
+function isAuthError(error: unknown) {
+  return error instanceof Error && isUnauthorized((error as ReaderApiError).status || 0)
+}
+
+async function login(settings: ReaderSettings, forceRefresh = false) {
+  if (!forceRefresh) {
+    const cached = readCachedAuth(settings)
+    if (cached) return cached
+  }
+
   const response = await fetch(`${settings.endpoint}/accounts/ClientLogin`, {
     method: 'POST',
     headers: {
@@ -189,7 +220,9 @@ async function login(settings: ReaderSettings) {
   })
   const body = await response.text()
   const auth = parseAuth(body)
-  if (!response.ok || !auth) throw new Error(`登录 Google Reader API 失败（HTTP ${response.status}）。`)
+  if (!response.ok || !auth) throw readerApiError('登录 Google Reader API', response.status)
+
+  writeCachedAuth(settings, auth)
   return auth
 }
 
@@ -202,10 +235,9 @@ async function fetchJSON<T>(endpoint: string, auth: string, label: string) {
     timeout: 15,
     debugLabel: label,
   })
-  if (!response.ok) throw new Error(`${label} 失败（HTTP ${response.status}）。`)
+  if (!response.ok) throw readerApiError(label, response.status)
   return await response.json() as T
 }
-
 function unreadCount(response: UnreadCountsResponse, streamId: string) {
   if (streamId === UNREAD_STREAM_ID && typeof response.max === 'number' && Number.isFinite(response.max)) return response.max
   return response.unreadcounts?.find(item => item.id === streamId)?.count || 0
@@ -244,8 +276,7 @@ function articleUrl(entry: StreamEntry) {
   }
 }
 
-async function loadFreshData(settings: ReaderSettings): Promise<ReaderData> {
-  const auth = await login(settings)
+async function loadFreshDataWithAuth(settings: ReaderSettings, auth: string): Promise<ReaderData> {
   const streamId = settings.feedId || READING_LIST_ID
   const sourceName = settings.feedName || DEFAULT_FEED_NAME
   const query = `output=json&n=8&xt=${encodeURIComponent(READ_STREAM_ID)}&ck=${Math.floor(Date.now() / 1000)}`
@@ -263,6 +294,18 @@ async function loadFreshData(settings: ReaderSettings): Promise<ReaderData> {
   }
 }
 
+async function loadFreshData(settings: ReaderSettings): Promise<ReaderData> {
+  const auth = await login(settings)
+  try {
+    return await loadFreshDataWithAuth(settings, auth)
+  } catch (error) {
+    if (!isAuthError(error)) throw error
+
+    clearCachedAuth(settings)
+    const refreshedAuth = await login(settings, true)
+    return await loadFreshDataWithAuth(settings, refreshedAuth)
+  }
+}
 function missingConfigurationData(): ReaderData {
   return {
     serverName: 'RSS 阅读',

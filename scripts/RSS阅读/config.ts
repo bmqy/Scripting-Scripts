@@ -13,6 +13,12 @@ export type TimeDisplay = 'absolute' | 'relative'
 export type RefreshIntervalMinutes = 1 | 3 | 5 | 15 | 30 | 60 | 120
 export type ColorTheme = 'system' | 'light' | 'dark'
 
+export type ReaderAuthCache = {
+  accountKey: string
+  auth: string
+  updatedAt: number
+}
+
 const DEFAULT_TIME_DISPLAY: TimeDisplay = 'absolute'
 const DEFAULT_REFRESH_INTERVAL_MINUTES: RefreshIntervalMinutes = 30
 const DEFAULT_COLOR_THEME: ColorTheme = 'system'
@@ -23,10 +29,12 @@ export const READING_LIST_ID = 'user/-/state/com.google/reading-list'
 export const DEFAULT_FEED_NAME = '全部未读'
 
 const SETTINGS_KEY = 'rss-reader-settings'
+const AUTH_CACHE_KEY = 'rss-reader-auth-cache'
 
 type SettingsStore = {
   get<T = unknown>(key: string): T | string | null | undefined
   set(key: string, value: unknown): boolean
+  remove?(key: string): void
 }
 
 function scriptingStorage() {
@@ -42,6 +50,58 @@ export function normalizeEndpoint(value: string) {
   return endpoint
 }
 
+export function readerAccountKey(settings: ReaderSettings) {
+  return `${settings.endpoint}\n${settings.username}\n${settings.password}`
+}
+
+function authCacheIsFresh(cache: ReaderAuthCache | null, settings: ReaderSettings) {
+  const cacheTtlMs = settings.refreshIntervalMinutes * 60 * 1000
+  return Boolean(
+    cache
+      && cache.accountKey === readerAccountKey(settings)
+      && cache.auth
+      && Date.now() - cache.updatedAt < cacheTtlMs
+  )
+}
+
+export function readCachedAuth(settings: ReaderSettings) {
+  try {
+    const value = scriptingStorage()?.get<ReaderAuthCache>(AUTH_CACHE_KEY) || null
+    const cache = value && typeof value === 'object' ? value as ReaderAuthCache : null
+    return authCacheIsFresh(cache, settings) ? cache!.auth : ''
+  } catch {
+    return ''
+  }
+}
+
+export function writeCachedAuth(settings: ReaderSettings, auth: string) {
+  try {
+    scriptingStorage()?.set(AUTH_CACHE_KEY, {
+      accountKey: readerAccountKey(settings),
+      auth,
+      updatedAt: Date.now(),
+    })
+  } catch {
+    // 认证缓存失败时继续使用本次登录结果。
+  }
+}
+
+export function clearCachedAuth(settings: ReaderSettings) {
+  try {
+    const storage = scriptingStorage()
+    const value = storage?.get<ReaderAuthCache>(AUTH_CACHE_KEY) || null
+    const cache = value && typeof value === 'object' ? value as ReaderAuthCache : null
+    if (cache?.accountKey !== readerAccountKey(settings)) return
+
+    if (storage?.remove) {
+      storage.remove(AUTH_CACHE_KEY)
+    } else {
+      storage?.set(AUTH_CACHE_KEY, null)
+    }
+  } catch {
+    // 清理缓存失败只会导致下次请求重新校验。
+  }
+}
 function timeDisplay(value: unknown): TimeDisplay {
   return value === 'relative' ? 'relative' : DEFAULT_TIME_DISPLAY
 }

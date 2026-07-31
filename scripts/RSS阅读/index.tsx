@@ -17,11 +17,15 @@ import {
     useState,
 } from 'scripting'
 import {
+    clearCachedAuth,
     DEFAULT_FEED_NAME,
     loadSettings,
     normalizeEndpoint,
+    readerAccountKey,
+    readCachedAuth,
     READING_LIST_ID,
     saveSettings,
+    writeCachedAuth,
     type ColorTheme,
     type ReaderSettings,
     type RefreshIntervalMinutes,
@@ -50,6 +54,25 @@ type SubscriptionResponse = {
   subscriptions?: Array<{ id?: string; title?: string }>
 }
 
+type FeedListCache = {
+  accountKey: string
+  feeds: FeedOption[]
+  updatedAt: number
+}
+
+type StorageStore = {
+  get<T = unknown>(key: string): T | null | undefined
+  set(key: string, value: unknown): unknown
+}
+
+const FEED_LIST_CACHE_KEY = 'rss-reader-feed-list-cache'
+const FEED_LIST_CACHE_MIN_MINUTES = 60
+const FEED_LIST_CACHE_REFRESH_MULTIPLIER = 6
+
+function scriptingStorage() {
+  return (globalThis as unknown as { Storage?: StorageStore }).Storage
+}
+
 function parseAuth(text: string) {
   return text.match(/^Auth=(.+)$/m)?.[1]?.trim() || ''
 }
@@ -60,7 +83,47 @@ function apiError(prefix: string, status: number) {
   return `${prefix}失败（HTTP ${status}）。`
 }
 
-async function login(settings: ReaderSettings) {
+function isUnauthorized(status: number) {
+  return status === 401 || status === 403
+}
+
+function feedListCacheTtlMs(settings: ReaderSettings) {
+  const minutes = Math.max(
+    settings.refreshIntervalMinutes * FEED_LIST_CACHE_REFRESH_MULTIPLIER,
+    FEED_LIST_CACHE_MIN_MINUTES,
+  )
+  return minutes * 60 * 1000
+}
+
+function readCachedFeeds(settings: ReaderSettings) {
+  try {
+    const cache = scriptingStorage()?.get<FeedListCache>(FEED_LIST_CACHE_KEY) || null
+    if (!cache || cache.accountKey !== readerAccountKey(settings)) return null
+    if (Date.now() - cache.updatedAt >= feedListCacheTtlMs(settings)) return null
+    return Array.isArray(cache.feeds) ? cache.feeds : null
+  } catch {
+    return null
+  }
+}
+
+function writeCachedFeeds(settings: ReaderSettings, feeds: FeedOption[]) {
+  try {
+    scriptingStorage()?.set(FEED_LIST_CACHE_KEY, {
+      accountKey: readerAccountKey(settings),
+      feeds,
+      updatedAt: Date.now(),
+    })
+  } catch {
+    // 订阅源缓存失败不影响设置页使用。
+  }
+}
+
+async function login(settings: ReaderSettings, forceRefresh = false) {
+  if (!forceRefresh) {
+    const cached = readCachedAuth(settings)
+    if (cached) return cached
+  }
+
   const response = await fetch(`${settings.endpoint}/accounts/ClientLogin`, {
     method: 'POST',
     headers: {
@@ -74,47 +137,79 @@ async function login(settings: ReaderSettings) {
   const body = await response.text()
   const auth = parseAuth(body)
   if (!response.ok || !auth) throw new Error(apiError('登录 Google Reader API', response.status))
+
+  writeCachedAuth(settings, auth)
   return auth
 }
 
-async function testReaderApi(settings: ReaderSettings) {
-  const auth = await login(settings)
-  const response = await fetch(`${settings.endpoint}/reader/api/0/unread-count?output=json`, {
+async function fetchWithAuth(settings: ReaderSettings, endpoint: string, debugLabel: string) {
+  let auth = await login(settings)
+  let response = await fetch(endpoint, {
     headers: {
       Authorization: `GoogleLogin auth=${auth}`,
       'User-Agent': 'Scripting-RSS-Reader/1.0',
     },
     timeout: 15,
-    debugLabel: 'RSS Reader Settings Unread Count Test',
+    debugLabel,
   })
-  if (!response.ok) throw new Error(apiError('读取未读数', response.status))
 
-  const data = await response.json()
+  if (!isUnauthorized(response.status)) return response
+
+  clearCachedAuth(settings)
+  auth = await login(settings, true)
+  response = await fetch(endpoint, {
+    headers: {
+      Authorization: `GoogleLogin auth=${auth}`,
+      'User-Agent': 'Scripting-RSS-Reader/1.0',
+    },
+    timeout: 15,
+    debugLabel,
+  })
+  return response
+}
+
+async function fetchJSON<T>(settings: ReaderSettings, endpoint: string, debugLabel: string, errorPrefix: string) {
+  const response = await fetchWithAuth(settings, endpoint, debugLabel)
+  if (!response.ok) throw new Error(apiError(errorPrefix, response.status))
+  return await response.json() as T
+}
+
+async function testReaderApi(settings: ReaderSettings) {
+  const data = await fetchJSON<unknown>(
+    settings,
+    `${settings.endpoint}/reader/api/0/unread-count?output=json`,
+    'RSS Reader Settings Unread Count Test',
+    '读取未读数',
+  )
   if (!data || typeof data !== 'object') {
     throw new Error('接口返回格式不正确，请确认服务已启用 Google Reader 兼容 API。')
   }
 }
 
 
-async function loadSubscriptions(settings: ReaderSettings): Promise<FeedOption[]> {
-  const auth = await login(settings)
-  const response = await fetch(`${settings.endpoint}/reader/api/0/subscription/list?output=json`, {
-    headers: {
-      Authorization: `GoogleLogin auth=${auth}`,
-      'User-Agent': 'Scripting-RSS-Reader/1.0',
-    },
-    timeout: 15,
-    debugLabel: 'RSS Reader Subscription List',
-  })
-  if (!response.ok) throw new Error(apiError('读取订阅源列表', response.status))
-
-  const data = await response.json() as SubscriptionResponse
-  return (data.subscriptions || [])
+async function loadFreshSubscriptions(settings: ReaderSettings): Promise<FeedOption[]> {
+  const data = await fetchJSON<SubscriptionResponse>(
+    settings,
+    `${settings.endpoint}/reader/api/0/subscription/list?output=json`,
+    'RSS Reader Subscription List',
+    '读取订阅源列表',
+  )
+  const feeds = (data.subscriptions || [])
     .filter(item => typeof item.id === 'string' && item.id.trim() && typeof item.title === 'string' && item.title.trim())
     .map(item => ({ id: item.id!.trim(), name: item.title!.trim() }))
     .sort((left, right) => left.name.localeCompare(right.name, 'zh-CN'))
+  writeCachedFeeds(settings, feeds)
+  return feeds
 }
 
+async function loadSubscriptions(settings: ReaderSettings, forceRefresh = false): Promise<FeedOption[]> {
+  if (!forceRefresh) {
+    const cached = readCachedFeeds(settings)
+    if (cached) return cached
+  }
+
+  return await loadFreshSubscriptions(settings)
+}
 function SettingsPage() {
   const current = loadSettings()
   const [endpointInput, setEndpointInput] = useState(current?.endpoint || '')
@@ -147,10 +242,10 @@ function SettingsPage() {
       && authenticatedSettings.password === password
   )
 
-  const refreshFeeds = async (settings: ReaderSettings) => {
-    setFeedMessage('正在加载订阅源...')
+  const refreshFeeds = async (settings: ReaderSettings, forceRefresh = false) => {
+    setFeedMessage(forceRefresh ? '正在刷新订阅源...' : '正在加载订阅源...')
     try {
-      setFeeds(await loadSubscriptions(settings))
+      setFeeds(await loadSubscriptions(settings, forceRefresh))
       setFeedMessage('')
     } catch (error) {
       setFeedMessage(error instanceof Error ? error.message : '无法加载订阅源列表。')
@@ -201,7 +296,7 @@ function SettingsPage() {
 
       setAuthenticatedSettings(settings)
       Widget.reloadAll()
-      void refreshFeeds(settings)
+      void refreshFeeds(settings, true)
       setAccountMessage('账号登录成功，已保存账号配置。现在可以调整小组件配置。')
     } catch (error) {
       setAccountMessage(error instanceof Error ? error.message : '接口测试失败，请检查 API 地址、用户名和 API 密码。')
@@ -354,7 +449,7 @@ function SettingsPage() {
         {widgetMessage ? <Text font="footnote" foregroundStyle="secondaryLabel">{widgetMessage}</Text> : null}
       </Section> : <Section header={<Text>下一步</Text>}>
         <Text>请先登录并保存账号配置，登录成功后可继续调整组件配置。</Text>
-      </Section>
+      </Section>}
       <Section header={<Text>说明</Text>}>
         <Text>地址应是 Google Reader 兼容 API 的根地址。</Text>
         <Text>FreshRSS 请填写个人资料中单独设置的 API 密码，不是网页登录密码。</Text>
