@@ -361,9 +361,7 @@ function SettingsPage() {
         <Text font="largeTitle" fontWeight="bold">RSS 阅读</Text>
         <Spacer />
         {isAccountConfigured ? (
-          <Button action={() => { void Widget.preview({ family: 'systemMedium' }) }}>
-            <Image systemName="rectangle.grid.1x2" />
-          </Button>
+          <Button title="预览" action={() => { void Widget.preview({ family: 'systemMedium' }) }} />
         ) : null}
       </HStack>
       <Section header={(
