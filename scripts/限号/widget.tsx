@@ -7,7 +7,8 @@ import {
     VStack,
     Widget,
     ZStack,
-    modifiers
+    modifiers,
+    type ShapeStyle,
 } from 'scripting'
 
 declare function fetch(input: string, init?: {
@@ -860,8 +861,8 @@ function WeekDayColumn({
 }) {
   const active = isCurrentDay(item, activeDate)
   const columnFrame = fixedMediumSize
-    ? { width: MEDIUM_WEEK_COLUMN_WIDTH, height: MEDIUM_WEEK_COLUMN_CONTENT_HEIGHT, alignment: 'center' }
-    : { width: MEDIUM_WEEK_COLUMN_WIDTH, alignment: 'center' }
+    ? { width: MEDIUM_WEEK_COLUMN_WIDTH, height: MEDIUM_WEEK_COLUMN_CONTENT_HEIGHT, alignment: 'center' as const }
+    : { width: MEDIUM_WEEK_COLUMN_WIDTH, alignment: 'center' as const }
 
   return (
     <VStack
@@ -1006,7 +1007,7 @@ function WeekRestrictionSection({
   title: string
   week: LimitDay[]
   activeDate?: string
-  accentColor: string
+  accentColor: ShapeStyle
 }) {
   const range = week.length > 0
     ? `${week[0].date.replace('-', '/')} - ${week[week.length - 1].date.replace('-', '/')}`

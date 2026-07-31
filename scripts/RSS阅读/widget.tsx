@@ -7,6 +7,8 @@ import {
     Widget,
     ZStack,
     modifiers,
+    type DynamicShapeStyle,
+    type ShapeStyle,
 } from 'scripting'
 import { DEFAULT_FEED_NAME, loadSettings, READING_LIST_ID, type ColorTheme, type ReaderSettings, type TimeDisplay } from './config'
 
@@ -70,19 +72,14 @@ const WIDGET_NAME = 'RSS阅读'
 const READER_ICON_SYSTEM_NAME = 'dot.radiowaves.left.and.right'
 const READER_ICON_BACKGROUND = '#38BDF8'
 
-type WidgetColor = string | { light: string; dark: string }
+type WidgetColor = ShapeStyle | DynamicShapeStyle
 
-type Palette = {
-  background: WidgetColor
-  primaryText: WidgetColor
-  headerName: WidgetColor
-  secondaryText: WidgetColor
-  articleSource: WidgetColor
-  warning: WidgetColor
-  thumbnail: WidgetColor
-}
+type PaletteKey = 'background' | 'primaryText' | 'headerName' | 'secondaryText' | 'articleSource' | 'warning' | 'thumbnail'
 
-const DARK_PALETTE: Palette = {
+type SolidPalette = Record<PaletteKey, ShapeStyle>
+type Palette = Record<PaletteKey, WidgetColor>
+
+const DARK_PALETTE: SolidPalette = {
   background: '#1C1C1E',
   primaryText: '#F7F7FA',
   headerName: '#F4F4F6',
@@ -92,7 +89,7 @@ const DARK_PALETTE: Palette = {
   thumbnail: '#075AA6',
 }
 
-const LIGHT_PALETTE: Palette = {
+const LIGHT_PALETTE: SolidPalette = {
   background: '#FFFFFF',
   primaryText: '#1C1C1E',
   headerName: '#1C1C1E',
@@ -105,15 +102,15 @@ const LIGHT_PALETTE: Palette = {
 function resolvePalette(theme: ColorTheme): Palette {
   if (theme === 'light') return LIGHT_PALETTE
   if (theme === 'dark') return DARK_PALETTE
-  const keys = Object.keys(DARK_PALETTE) as (keyof Palette)[]
+  const keys = Object.keys(DARK_PALETTE) as PaletteKey[]
   const palette = {} as Palette
   for (const key of keys) {
-    palette[key] = { light: LIGHT_PALETTE[key] as string, dark: DARK_PALETTE[key] as string }
+    palette[key] = { light: LIGHT_PALETTE[key], dark: DARK_PALETTE[key] }
   }
   return palette
 }
 type StorageStore = {
-  get<T = unknown>(key: string): T | string | null | undefined
+  get<T = unknown>(key: string): T | null
   set(key: string, value: unknown): unknown
 }
 
