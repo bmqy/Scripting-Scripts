@@ -128,7 +128,6 @@ function SettingsPage() {
   const [feedName, setFeedName] = useState(current?.feedName || DEFAULT_FEED_NAME)
   const [feeds, setFeeds] = useState<FeedOption[]>([])
   const [feedMessage, setFeedMessage] = useState('')
-  const [isLoadingFeeds, setIsLoadingFeeds] = useState(false)
   const [accountMessage, setAccountMessage] = useState('')
   const [widgetMessage, setWidgetMessage] = useState('')
   const [isSavingAccount, setIsSavingAccount] = useState(false)
@@ -149,15 +148,12 @@ function SettingsPage() {
   )
 
   const refreshFeeds = async (settings: ReaderSettings) => {
-    setIsLoadingFeeds(true)
     setFeedMessage('正在加载订阅源...')
     try {
       setFeeds(await loadSubscriptions(settings))
       setFeedMessage('')
     } catch (error) {
       setFeedMessage(error instanceof Error ? error.message : '无法加载订阅源列表。')
-    } finally {
-      setIsLoadingFeeds(false)
     }
   }
 
@@ -299,8 +295,7 @@ function SettingsPage() {
           <Text tag={READING_LIST_ID}>{DEFAULT_FEED_NAME}</Text>
           {feeds.map(feed => <Text tag={feed.id}>{feed.name}</Text>)}
         </Picker>
-        {isLoadingFeeds ? <Text>正在加载订阅源...</Text> : null}
-        {feedMessage ? <Text>{feedMessage}</Text> : null}
+        {feedMessage ? <Text font="footnote" foregroundStyle="secondaryLabel">{feedMessage}</Text> : null}
         <HStack alignment="center">
           <Text>外观模式</Text>
           <Spacer />
@@ -356,7 +351,7 @@ function SettingsPage() {
           foregroundStyle="secondaryLabel"
           listRowSeparator="hidden"
         >小组件的实际刷新时间由 iOS 系统调度，可能晚于所选频率。</Text>
-        {widgetMessage ? <Text>{widgetMessage}</Text> : null}
+        {widgetMessage ? <Text font="footnote" foregroundStyle="secondaryLabel">{widgetMessage}</Text> : null}
       </Section> : <Section header={<Text>下一步</Text>}>
         <Text>请先登录并保存账号配置，登录成功后可继续调整组件配置。</Text>
       </Section>
