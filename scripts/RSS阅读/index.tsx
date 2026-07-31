@@ -238,6 +238,22 @@ function SettingsPage() {
           <Text tag="light">亮色</Text>
           <Text tag="dark">暗色</Text>
         </Picker>
+        <HStack alignment="center" listRowSeparator="visible">
+          <Text>更新时间</Text>
+          <Spacer />
+          <Picker
+            title=""
+            value={timeDisplay}
+            onChanged={(value) => {
+              setTimeDisplay(value)
+              saveWidget({ timeDisplay: value })
+            }}
+            pickerStyle="segmented"
+          >
+            <Text tag="absolute">绝对时间</Text>
+            <Text tag="relative">相对时间</Text>
+          </Picker>
+        </HStack>
         <Picker
           title="刷新频率"
           value={refreshIntervalMinutes}
@@ -255,22 +271,6 @@ function SettingsPage() {
           <Text tag={60}>1 小时</Text>
           <Text tag={120}>2 小时</Text>
         </Picker>
-        <HStack alignment="center" listRowSeparator="hidden">
-          <Text>更新时间</Text>
-          <Spacer />
-          <Picker
-            title=""
-            value={timeDisplay}
-            onChanged={(value) => {
-              setTimeDisplay(value)
-              saveWidget({ timeDisplay: value })
-            }}
-            pickerStyle="segmented"
-          >
-            <Text tag="absolute">绝对时间</Text>
-            <Text tag="relative">相对时间</Text>
-          </Picker>
-        </HStack>
         <Text
           font="footnote"
           foregroundStyle="secondaryLabel"
