@@ -95,7 +95,6 @@ function SettingsPage() {
   const [accountMessage, setAccountMessage] = useState('')
   const [widgetMessage, setWidgetMessage] = useState('')
   const [isSavingAccount, setIsSavingAccount] = useState(false)
-  const [isSavingWidget, setIsSavingWidget] = useState(false)
 
   let normalizedAccountEndpoint = ''
   try {
@@ -158,9 +157,7 @@ function SettingsPage() {
     }
   }
 
-  const saveWidget = async () => {
-    if (isSavingWidget) return
-
+  const saveWidget = (overrides: Partial<Pick<ReaderSettings, 'timeDisplay' | 'refreshIntervalMinutes' | 'theme'>> = {}) => {
     if (!isAccountConfigured || !authenticatedSettings) {
       setWidgetMessage('请先保存并登录账号配置。')
       return
@@ -168,25 +165,20 @@ function SettingsPage() {
 
     const settings: ReaderSettings = {
       ...authenticatedSettings,
-      timeDisplay,
-      refreshIntervalMinutes,
-      theme,
+      timeDisplay: overrides.timeDisplay ?? timeDisplay,
+      refreshIntervalMinutes: overrides.refreshIntervalMinutes ?? refreshIntervalMinutes,
+      theme: overrides.theme ?? theme,
     }
-    setIsSavingWidget(true)
     setWidgetMessage('正在保存组件配置...')
-    try {
-      const saved = saveSettings(settings)
-      if (!saved) {
-        setWidgetMessage('无法保存组件配置，请检查 Scripting 的本地存储后重试。')
-        return
-      }
-
-      setAuthenticatedSettings(settings)
-      Widget.reloadAll()
-      setWidgetMessage('组件配置已保存，小组件会在下一次刷新时生效。')
-    } finally {
-      setIsSavingWidget(false)
+    const saved = saveSettings(settings)
+    if (!saved) {
+      setWidgetMessage('无法保存组件配置，请检查 Scripting 的本地存储后重试。')
+      return
     }
+
+    setAuthenticatedSettings(settings)
+    Widget.reloadAll()
+    setWidgetMessage('组件配置已保存，小组件会在下一次刷新时生效。')
   }
 
   return <NavigationStack>
@@ -232,25 +224,14 @@ function SettingsPage() {
         />
         {accountMessage ? <Text>{accountMessage}</Text> : null}
       </Section>
-      {isAccountConfigured ? <Section
-        header={
-          <HStack alignment="center">
-            <Text>组件配置</Text>
-            <Spacer />
-            <Button
-              disabled={isSavingWidget}
-              buttonStyle="plain"
-              action={() => { void saveWidget() }}
-            >
-              <Image systemName="square.and.arrow.down" />
-            </Button>
-          </HStack>
-        }
-      >
+      {isAccountConfigured ? <Section header={<Text>组件配置</Text>}>
         <Picker
           title="外观模式"
           value={theme}
-          onChanged={setTheme}
+          onChanged={(value) => {
+            setTheme(value)
+            saveWidget({ theme: value })
+          }}
           pickerStyle="segmented"
         >
           <Text tag="system">跟随系统</Text>
@@ -260,7 +241,10 @@ function SettingsPage() {
         <Picker
           title="更新时间"
           value={timeDisplay}
-          onChanged={setTimeDisplay}
+          onChanged={(value) => {
+            setTimeDisplay(value)
+            saveWidget({ timeDisplay: value })
+          }}
           pickerStyle="segmented"
         >
           <Text tag="absolute">绝对时间</Text>
@@ -269,7 +253,10 @@ function SettingsPage() {
         <Picker
           title="刷新频率"
           value={refreshIntervalMinutes}
-          onChanged={setRefreshIntervalMinutes}
+          onChanged={(value) => {
+            setRefreshIntervalMinutes(value)
+            saveWidget({ refreshIntervalMinutes: value })
+          }}
           pickerStyle="menu"
         >
           <Text tag={1}>1 分钟</Text>
