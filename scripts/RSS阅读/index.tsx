@@ -12,6 +12,7 @@ import {
     Spacer,
     Text,
     TextField,
+    VStack,
     Widget,
     useEffect,
     useState,
@@ -224,6 +225,7 @@ function SettingsPage() {
   const [feeds, setFeeds] = useState<FeedOption[]>([])
   const [feedMessage, setFeedMessage] = useState('')
   const [accountMessage, setAccountMessage] = useState('')
+  const [showAccountHelp, setShowAccountHelp] = useState(false)
   const [widgetMessage, setWidgetMessage] = useState('')
   const [isSavingAccount, setIsSavingAccount] = useState(false)
 
@@ -332,7 +334,25 @@ function SettingsPage() {
   }
 
   return <NavigationStack>
-    <Form scrollContentBackground="hidden" background="clear">
+    <Form
+      scrollContentBackground="hidden"
+      background="clear"
+      toast={{
+        isPresented: showAccountHelp,
+        onChanged: setShowAccountHelp,
+        duration: 5,
+        position: 'center',
+        backgroundColor: '#1F2937',
+        cornerRadius: 12,
+        shadowRadius: 8,
+        content: (
+          <VStack alignment="leading" spacing={6}>
+            <Text foregroundStyle="white">地址应是 Google Reader 兼容 API 的根地址。</Text>
+            <Text foregroundStyle="white">FreshRSS 请填写个人资料中单独设置的 API 密码，不是网页登录密码。</Text>
+          </VStack>
+        ),
+      }}
+    >
       <HStack
         alignment="center"
         listRowInsets={{ top: 18, bottom: 12, leading: 0, trailing: 0 }}
@@ -346,7 +366,18 @@ function SettingsPage() {
           </Button>
         ) : null}
       </HStack>
-      <Section header={<Text>账号配置</Text>}>
+      <Section header={(
+        <HStack alignment="center" spacing={4}>
+          <Text>账号配置</Text>
+          <Button
+            buttonStyle="plain"
+            controlSize="mini"
+            action={() => setShowAccountHelp(true)}
+          >
+            <Image systemName="questionmark.circle" foregroundStyle="secondaryLabel" />
+          </Button>
+        </HStack>
+      )}>
         <TextField
           title="API 地址"
           value={endpointInput}
@@ -450,10 +481,6 @@ function SettingsPage() {
       </Section> : <Section header={<Text>下一步</Text>}>
         <Text>请先登录并保存账号配置，登录成功后可继续调整组件配置。</Text>
       </Section>}
-      <Section header={<Text>说明</Text>}>
-        <Text>地址应是 Google Reader 兼容 API 的根地址。</Text>
-        <Text>FreshRSS 请填写个人资料中单独设置的 API 密码，不是网页登录密码。</Text>
-      </Section>
     </Form>
   </NavigationStack>
 }
