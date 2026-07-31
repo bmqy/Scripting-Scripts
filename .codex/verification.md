@@ -49,3 +49,12 @@
 - 已确认：预览入口仅渲染 `rectangle.grid.1x2` 图标，仍调用 `Widget.preview({ family: 'systemMedium' })`。
 - 已完成：`npm run build` 和 `git diff --check` 均通过。
 - 遗留风险：本地 Node 构建无法渲染 Scripting 原生 Form，透明背景在 Scripting App/iOS 上的最终显示效果仍需设备端确认。
+
+
+## 2026-07-31 RSS 文章链接跳转
+
+- 执行者：Codex
+- 验证命令：npm run build
+- 结果：通过；scripts/RSS阅读/widget.tsx 成功复制并打包为 dist/RSS阅读.scripting。
+- 代码检查：git diff --check 通过；已恢复本地构建生成的 dist/RSS阅读.scripting，避免将构建物作为源码变更保留。
+- 未执行项：真实 iOS/Scripting App 点击行为无法在本地 Node.js 环境模拟，需要在 Scripting App 真机或预览中点按文章行确认跳转。

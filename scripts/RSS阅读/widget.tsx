@@ -1,6 +1,7 @@
 import {
     HStack,
     Image,
+    Link,
     Spacer,
     Text,
     VStack,
@@ -26,6 +27,7 @@ declare function fetch(input: string, init?: {
 }>
 
 type ReaderArticle = {
+  url?: string
   title: string
   source: string
   excerpt: string
@@ -222,10 +224,23 @@ function publishedAt(entry: StreamEntry) {
 
 function toArticle(entry: StreamEntry): ReaderArticle {
   return {
+    url: articleUrl(entry),
     title: stripHtml(entry.title) || '未命名文章',
     source: stripHtml(entry.origin?.title) || '未知来源',
     excerpt: stripHtml(entry.summary?.content || entry.content?.content),
     publishedAt: publishedAt(entry),
+  }
+}
+
+function articleUrl(entry: StreamEntry) {
+  const href = entry.alternate?.find(item => typeof item.href === 'string' && item.href.trim())?.href?.trim()
+  if (!href) return undefined
+
+  try {
+    const url = new URL(href)
+    return url.protocol === 'http:' || url.protocol === 'https:' ? href : undefined
+  } catch {
+    return undefined
   }
 }
 
@@ -388,7 +403,7 @@ function ArticleRow({
   const contentSpacing = tiny ? 4 : 3
   const rowSpacing = density === 'large' ? 10 : 8
 
-  return (
+  const content = (
     <HStack alignment="center" spacing={rowSpacing} modifiers={modifiers().frame({ maxWidth: 'infinity', alignment: 'leading' })}>
       <VStack alignment="leading" spacing={contentSpacing} modifiers={modifiers().frame({ maxWidth: 'infinity', alignment: 'leading' })}>
         <Text modifiers={modifiers().font(sourceFont).foregroundStyle(palette.articleSource).lineLimit(1)}>
@@ -401,6 +416,8 @@ function ArticleRow({
       {showThumbnail ? <Thumbnail palette={palette} compact={compact} /> : null}
     </HStack>
   )
+
+  return article.url ? <Link url={article.url}>{content}</Link> : content
 }
 
 function SmallWidget({ data, timeDisplay, palette }: { data: ReaderData; timeDisplay: TimeDisplay; palette: Palette }) {

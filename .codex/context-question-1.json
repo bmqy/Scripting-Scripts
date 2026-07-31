@@ -1,0 +1,12 @@
+{
+  "date": "2026-07-31",
+  "executor": "Codex",
+  "question": "RSS 文章链接应如何从 Google Reader 兼容接口传递到小组件点击行为？",
+  "evidence": [
+    "scripts/RSS阅读/widget.tsx 的 StreamEntry 已声明 alternate[].href，但 toArticle 未映射该字段。",
+    "SmallWidget、MediumWidget、LargeWidget 都复用 ArticleRow，因此在 ArticleRow 统一处理即可覆盖三种尺寸。",
+    "Scripting 官方 Link 组件支持 url 属性和任意布局子节点，并明确支持在小组件中使用。"
+  ],
+  "decision": "在 ReaderArticle 中增加可选 url；仅保留有效的 http/https alternate href；有链接时用 Link 包裹整行，无链接时保留原始布局。",
+  "validation": "npm run build；检查 git diff 和构建产物是否未被纳入源码变更。"
+}

@@ -70,3 +70,13 @@
 - 技术检查：仅修改 `scripts/RSS阅读/index.tsx`，复用官方滚动背景属性、Button 自定义子视图和现有预览逻辑，无新增依赖。
 - 验证结果：`npm run build` 通过，`git diff --check` 通过。
 - 风险：真实 iOS/Scripting App 的透明背景与图标按钮尺寸仍需设备端确认。
+
+
+## 2026-07-31 RSS 文章链接跳转
+
+- 审查者：Codex
+- 技术评分：92/100
+- 需求匹配：通过。接口已有 alternate[].href，现已传递到 ReaderArticle，并由三种尺寸共用的 ArticleRow 统一提供点击跳转。
+- 兼容性：通过。链接字段为可选；缓存中的旧文章没有 URL 时仍使用原布局。
+- 风险：真实 Scripting App/iOS 点击行为未在当前 Windows 环境实机验证。
+- 结论：通过，建议在 Scripting App 预览或真机中完成一次点击回归。

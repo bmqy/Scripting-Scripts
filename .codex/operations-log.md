@@ -56,3 +56,11 @@
 - 将预览按钮从带标题和 `systemImage` 的形式改为自定义 `Image` 子节点，仅保留 `rectangle.grid.1x2` 图标。
 - 预览动作和账号配置条件保持不变。
 - 执行 `npm run build` 通过，并还原本地生成的 `dist/RSS阅读.scripting`。
+
+
+## 2026-07-31 Codex RSS 文章链接跳转
+
+- 重新执行 git pull --ff-only origin dev，通过 fast-forward 同步远端分支。
+- 读取 scripting-app-development 技能、项目参考文档和官方 Scripting 文档，确认 Link 组件支持小组件中的可点击 URL。
+- 检查 scripts/RSS阅读/widget.tsx：复用 StreamEntry.alternate[].href，在 ReaderArticle 和 ArticleRow 中接入文章链接。
+- 已完成源码替换，待执行 npm run build、git diff 和构建产物状态检查。
