@@ -37,3 +37,9 @@
 - 已确认：刷新调度提示位于刷新频率 Picker 后，并使用 `font="footnote" foregroundStyle="secondaryLabel"`。
 - 已完成：`npm run build` 和 `git diff --check` 均通过。
 - 遗留风险：本地 Node 构建无法渲染 Scripting 原生设置页，导航栏实际视觉对齐仍需在 Scripting App/iOS 中确认。
+## 2026-07-31 RSS 阅读标题与预览图标同行对齐
+
+- 已确认：页面标题和预览按钮位于同一 `HStack`，按钮只在账号配置完成时显示。
+- 已确认：预览动作仍调用 `Widget.preview({ family: 'systemMedium' })`。
+- 已完成：`npm run build` 和 `git diff --check` 均通过。
+- 遗留风险：本地 Node 构建无法渲染 Scripting 原生 Form，首行的最终间距仍需在 Scripting App/iOS 设备端确认。

@@ -1,16 +1,16 @@
 import {
     Button,
     Form,
+    HStack,
     Navigation,
     NavigationStack,
     Picker,
     Script,
     Section,
     SecureField,
+    Spacer,
     Text,
     TextField,
-    Toolbar,
-    ToolbarItem,
     Widget,
     useState,
 } from 'scripting'
@@ -189,21 +189,22 @@ function SettingsPage() {
   }
 
   return <NavigationStack>
-    <Form
-      navigationTitle="RSS 阅读"
-      navigationBarTitleDisplayMode="large"
-      toolbar={isAccountConfigured ? (
-        <Toolbar>
-          <ToolbarItem placement="topBarTrailing">
-            <Button
-              title="预览"
-              systemImage="rectangle.grid.1x2"
-              action={() => { void Widget.preview({ family: 'systemMedium' }) }}
-            />
-          </ToolbarItem>
-        </Toolbar>
-      ) : undefined}
-    >
+    <Form>
+      <HStack
+        alignment="center"
+        listRowInsets={{ top: 18, bottom: 12, leading: 0, trailing: 0 }}
+        listRowSeparator="hidden"
+      >
+        <Text font="largeTitle" fontWeight="bold">RSS 阅读</Text>
+        <Spacer />
+        {isAccountConfigured ? (
+          <Button
+            title="预览"
+            systemImage="rectangle.grid.1x2"
+            action={() => { void Widget.preview({ family: 'systemMedium' }) }}
+          />
+        ) : null}
+      </HStack>
       <Section header={<Text>账号配置</Text>}>
         <TextField
           title="API 地址"

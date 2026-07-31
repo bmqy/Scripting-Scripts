@@ -52,3 +52,12 @@
 - 技术检查：仅修改 `scripts/RSS阅读/index.tsx`，复用官方 `navigationBarTitleDisplayMode`、Toolbar placement 和系统色名，无新增依赖。
 - 验证结果：`npm run build` 通过，`git diff --check` 通过。
 - 风险：真实 iOS/Scripting App 的导航栏基线和大标题视觉仍需设备端确认。
+## 2026-07-31 RSS 阅读标题与预览图标同行对齐审查
+
+- 审查者：Codex
+- 结论：通过
+- 综合评分：95/100
+- 需求匹配：预览图标与 RSS 阅读标题由同一横向布局容器控制，解决 large title 与 topBarTrailing 的垂直错位。
+- 技术检查：仅修改 `scripts/RSS阅读/index.tsx`，复用官方 HStack、Spacer、Form 行布局属性和现有预览逻辑，无新增依赖。
+- 验证结果：`npm run build` 通过，`git diff --check` 通过。
+- 风险：真实 iOS/Scripting App 的 Form 首行边距和按钮视觉尺寸仍需设备端确认。

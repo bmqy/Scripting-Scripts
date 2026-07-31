@@ -44,3 +44,9 @@
 - 在 `scripts/RSS阅读/index.tsx` 中显式设置 `navigationBarTitleDisplayMode="large"`，保持 RSS 阅读大标题与右侧预览入口的标题栏布局关系。
 - 将 iOS 刷新调度提示改为 `footnote` 字号和 `secondaryLabel` 系统次要文本色。
 - 执行 `npm run build` 通过，并还原本地生成的 `dist/RSS阅读.scripting`。
+## 2026-07-31 Codex RSS 阅读标题与预览图标同行对齐
+
+- 根据用户截图确认：`topBarTrailing` 位于大标题上方，无法与 RSS 阅读文字同一水平线。
+- 将页面标题和预览按钮改为 Form 首行的自定义 `HStack`，使用 `largeTitle`、`Spacer`、`listRowInsets` 和隐藏分隔线保持原生表单布局。
+- 移除系统 `navigationTitle`、`navigationBarTitleDisplayMode` 和 Toolbar 标题栏按钮，避免重复标题或图标错位。
+- 执行 `npm run build` 通过，并还原本地生成的 `dist/RSS阅读.scripting`。
