@@ -281,7 +281,7 @@ function SettingsPage() {
       </Section>
       {isAccountConfigured ? <Section header={<Text>组件配置</Text>}>
         <Picker
-          title="显示 RSS 源"
+          title="RSS 源"
           value={feedId}
           onChanged={(value) => {
             const selected = feeds.find(feed => feed.id === value)
