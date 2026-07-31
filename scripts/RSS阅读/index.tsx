@@ -191,6 +191,7 @@ function SettingsPage() {
   return <NavigationStack>
     <Form
       navigationTitle="RSS 阅读"
+      navigationBarTitleDisplayMode="large"
       toolbar={isAccountConfigured ? (
         <Toolbar>
           <ToolbarItem placement="topBarTrailing">
@@ -265,7 +266,7 @@ function SettingsPage() {
           <Text tag={60}>1 小时</Text>
           <Text tag={120}>2 小时</Text>
         </Picker>
-        <Text>小组件的实际刷新时间由 iOS 系统调度，可能晚于所选频率。</Text>
+        <Text font="footnote" foregroundStyle="secondaryLabel">小组件的实际刷新时间由 iOS 系统调度，可能晚于所选频率。</Text>
         <Button
           title={isSavingWidget ? '正在保存...' : '保存组件配置'}
           buttonStyle="borderedProminent"

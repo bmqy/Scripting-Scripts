@@ -42,3 +42,13 @@
 - 需求匹配：预览入口已从 Section 行移动到标题右侧工具栏，文案简化为“预览”；iOS 刷新调度提示已紧邻刷新频率设置项。
 - 验证结果：`npm run build` 通过，`git diff --check` 无错误。
 - 风险：Scripting 原生导航栏在真实 iOS 上的具体图文展示由系统决定，需要在设备端做视觉确认。
+
+## 2026-07-31 RSS 阅读设置页二次布局优化审查
+
+- 审查者：Codex
+- 结论：通过
+- 综合评分：96/100
+- 需求匹配：预览入口保持在 RSS 阅读大标题所属导航栏右侧；刷新调度说明使用系统次要信息样式。
+- 技术检查：仅修改 `scripts/RSS阅读/index.tsx`，复用官方 `navigationBarTitleDisplayMode`、Toolbar placement 和系统色名，无新增依赖。
+- 验证结果：`npm run build` 通过，`git diff --check` 通过。
+- 风险：真实 iOS/Scripting App 的导航栏基线和大标题视觉仍需设备端确认。

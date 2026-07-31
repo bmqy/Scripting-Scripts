@@ -30,3 +30,10 @@
 - 代码核对：`Form` 已增加 `toolbar`；账号已配置时右上角显示“预览”按钮并调用 `Widget.preview({ family: 'systemMedium' })`；组件配置 Section 内原预览按钮已删除。
 - 代码核对：刷新调度提示 `小组件的实际刷新时间由 iOS 系统调度，可能晚于所选频率。` 已移动到“刷新频率”Picker 后。
 - 仍需验证：本地 Node 构建不能渲染 Scripting 原生设置页，最终导航栏按钮位置和 Form 行距需在 iOS/Scripting App 中确认。
+
+## 2026-07-31 RSS 阅读设置页二次布局优化
+
+- 已确认：`Form` 显式使用 `navigationBarTitleDisplayMode="large"`，预览按钮仍位于 `topBarTrailing`。
+- 已确认：刷新调度提示位于刷新频率 Picker 后，并使用 `font="footnote" foregroundStyle="secondaryLabel"`。
+- 已完成：`npm run build` 和 `git diff --check` 均通过。
+- 遗留风险：本地 Node 构建无法渲染 Scripting 原生设置页，导航栏实际视觉对齐仍需在 Scripting App/iOS 中确认。

@@ -37,3 +37,10 @@
 - 修改 `scripts/RSS阅读/index.tsx`：新增 `Toolbar`/`ToolbarItem`，将预览按钮放入 `topBarTrailing`，按钮文案简化为“预览”并保留系统图标。
 - 将 iOS 刷新调度提示移动到“刷新频率”Picker 后方，删除组件配置 Section 内原“预览小组件”行。
 - 执行 `npm run build` 通过；按仓库约定还原本地生成的 `dist/RSS阅读.scripting`，只保留源码和审计记录变更。
+
+## 2026-07-31 Codex RSS 阅读设置页二次布局优化
+
+- 执行 `git pull --ff-only origin dev`，Fast-forward 同步远端构建产物。
+- 在 `scripts/RSS阅读/index.tsx` 中显式设置 `navigationBarTitleDisplayMode="large"`，保持 RSS 阅读大标题与右侧预览入口的标题栏布局关系。
+- 将 iOS 刷新调度提示改为 `footnote` 字号和 `secondaryLabel` 系统次要文本色。
+- 执行 `npm run build` 通过，并还原本地生成的 `dist/RSS阅读.scripting`。
