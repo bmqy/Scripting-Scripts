@@ -239,18 +239,6 @@ function SettingsPage() {
           <Text tag="dark">暗色</Text>
         </Picker>
         <Picker
-          title="更新时间"
-          value={timeDisplay}
-          onChanged={(value) => {
-            setTimeDisplay(value)
-            saveWidget({ timeDisplay: value })
-          }}
-          pickerStyle="segmented"
-        >
-          <Text tag="absolute">绝对时间</Text>
-          <Text tag="relative">相对时间</Text>
-        </Picker>
-        <Picker
           title="刷新频率"
           value={refreshIntervalMinutes}
           onChanged={(value) => {
@@ -267,7 +255,24 @@ function SettingsPage() {
           <Text tag={60}>1 小时</Text>
           <Text tag={120}>2 小时</Text>
         </Picker>
-        <Text font="footnote" foregroundStyle="secondaryLabel">小组件的实际刷新时间由 iOS 系统调度，可能晚于所选频率。</Text>
+        <Picker
+          title="更新时间"
+          value={timeDisplay}
+          onChanged={(value) => {
+            setTimeDisplay(value)
+            saveWidget({ timeDisplay: value })
+          }}
+          pickerStyle="segmented"
+          listRowSeparator="hidden"
+        >
+          <Text tag="absolute">绝对时间</Text>
+          <Text tag="relative">相对时间</Text>
+        </Picker>
+        <Text
+          font="footnote"
+          foregroundStyle="secondaryLabel"
+          listRowSeparator="hidden"
+        >小组件的实际刷新时间由 iOS 系统调度，可能晚于所选频率。</Text>
         {widgetMessage ? <Text>{widgetMessage}</Text> : null}
       </Section> : <Section header={<Text>下一步</Text>}>
         <Text>请先登录并保存账号配置，登录成功后可继续调整组件配置。</Text>
