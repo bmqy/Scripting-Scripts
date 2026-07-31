@@ -225,19 +225,23 @@ function SettingsPage() {
         {accountMessage ? <Text>{accountMessage}</Text> : null}
       </Section>
       {isAccountConfigured ? <Section header={<Text>组件配置</Text>}>
-        <Picker
-          title="外观模式"
-          value={theme}
-          onChanged={(value) => {
-            setTheme(value)
-            saveWidget({ theme: value })
-          }}
-          pickerStyle="segmented"
-        >
-          <Text tag="system">跟随系统</Text>
-          <Text tag="light">亮色</Text>
-          <Text tag="dark">暗色</Text>
-        </Picker>
+        <HStack alignment="center">
+          <Text>外观模式</Text>
+          <Spacer />
+          <Picker
+            title=""
+            value={theme}
+            onChanged={(value) => {
+              setTheme(value)
+              saveWidget({ theme: value })
+            }}
+            pickerStyle="segmented"
+          >
+            <Text tag="system">跟随系统</Text>
+            <Text tag="light">亮色</Text>
+            <Text tag="dark">暗色</Text>
+          </Picker>
+        </HStack>
         <HStack alignment="center" listRowSeparator="visible">
           <Text>更新时间</Text>
           <Spacer />
