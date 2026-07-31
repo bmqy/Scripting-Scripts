@@ -50,3 +50,9 @@
 - 将页面标题和预览按钮改为 Form 首行的自定义 `HStack`，使用 `largeTitle`、`Spacer`、`listRowInsets` 和隐藏分隔线保持原生表单布局。
 - 移除系统 `navigationTitle`、`navigationBarTitleDisplayMode` 和 Toolbar 标题栏按钮，避免重复标题或图标错位。
 - 执行 `npm run build` 通过，并还原本地生成的 `dist/RSS阅读.scripting`。
+## 2026-07-31 Codex RSS 设置页背景与预览入口简化
+
+- 根据用户反馈，将 `Form` 的默认滚动内容背景隐藏并设置为透明，避免设置页出现额外背景色。
+- 将预览按钮从带标题和 `systemImage` 的形式改为自定义 `Image` 子节点，仅保留 `rectangle.grid.1x2` 图标。
+- 预览动作和账号配置条件保持不变。
+- 执行 `npm run build` 通过，并还原本地生成的 `dist/RSS阅读.scripting`。

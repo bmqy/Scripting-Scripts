@@ -43,3 +43,9 @@
 - 已确认：预览动作仍调用 `Widget.preview({ family: 'systemMedium' })`。
 - 已完成：`npm run build` 和 `git diff --check` 均通过。
 - 遗留风险：本地 Node 构建无法渲染 Scripting 原生 Form，首行的最终间距仍需在 Scripting App/iOS 设备端确认。
+## 2026-07-31 RSS 设置页背景与预览入口简化
+
+- 已确认：`Form` 使用 `scrollContentBackground="hidden" background="clear"`。
+- 已确认：预览入口仅渲染 `rectangle.grid.1x2` 图标，仍调用 `Widget.preview({ family: 'systemMedium' })`。
+- 已完成：`npm run build` 和 `git diff --check` 均通过。
+- 遗留风险：本地 Node 构建无法渲染 Scripting 原生 Form，透明背景在 Scripting App/iOS 上的最终显示效果仍需设备端确认。

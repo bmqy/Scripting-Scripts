@@ -2,6 +2,7 @@ import {
     Button,
     Form,
     HStack,
+    Image,
     Navigation,
     NavigationStack,
     Picker,
@@ -189,7 +190,7 @@ function SettingsPage() {
   }
 
   return <NavigationStack>
-    <Form>
+    <Form scrollContentBackground="hidden" background="clear">
       <HStack
         alignment="center"
         listRowInsets={{ top: 18, bottom: 12, leading: 0, trailing: 0 }}
@@ -198,11 +199,9 @@ function SettingsPage() {
         <Text font="largeTitle" fontWeight="bold">RSS 阅读</Text>
         <Spacer />
         {isAccountConfigured ? (
-          <Button
-            title="预览"
-            systemImage="rectangle.grid.1x2"
-            action={() => { void Widget.preview({ family: 'systemMedium' }) }}
-          />
+          <Button action={() => { void Widget.preview({ family: 'systemMedium' }) }}>
+            <Image systemName="rectangle.grid.1x2" />
+          </Button>
         ) : null}
       </HStack>
       <Section header={<Text>账号配置</Text>}>

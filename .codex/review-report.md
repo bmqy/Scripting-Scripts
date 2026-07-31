@@ -61,3 +61,12 @@
 - 技术检查：仅修改 `scripts/RSS阅读/index.tsx`，复用官方 HStack、Spacer、Form 行布局属性和现有预览逻辑，无新增依赖。
 - 验证结果：`npm run build` 通过，`git diff --check` 通过。
 - 风险：真实 iOS/Scripting App 的 Form 首行边距和按钮视觉尺寸仍需设备端确认。
+## 2026-07-31 RSS 设置页背景与预览入口简化审查
+
+- 审查者：Codex
+- 结论：通过
+- 综合评分：96/100
+- 需求匹配：移除 Form 默认滚动背景；预览入口改为纯图标，消除标题与图标间距。
+- 技术检查：仅修改 `scripts/RSS阅读/index.tsx`，复用官方滚动背景属性、Button 自定义子视图和现有预览逻辑，无新增依赖。
+- 验证结果：`npm run build` 通过，`git diff --check` 通过。
+- 风险：真实 iOS/Scripting App 的透明背景与图标按钮尺寸仍需设备端确认。

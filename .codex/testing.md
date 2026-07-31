@@ -46,3 +46,10 @@
 - 结果：通过；RSS 阅读脚本成功打包，未修改限号脚本。
 - 产物处理：按仓库约定还原本地生成的 `dist/RSS阅读.scripting`。
 - 静态检查：`git diff --check` 通过。
+## 2026-07-31 RSS 设置页背景与预览入口简化
+
+- 执行者：Codex
+- 命令：`npm run build`
+- 结果：通过；RSS 阅读脚本成功打包，未修改限号脚本。
+- 产物处理：按仓库约定还原本地生成的 `dist/RSS阅读.scripting`。
+- 静态检查：`git diff --check` 通过。
