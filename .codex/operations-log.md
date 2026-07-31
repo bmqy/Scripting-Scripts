@@ -29,4 +29,11 @@
 - 读取 `scripts/RSS阅读/index.tsx`，确认 `登录并保存账号` 与 `保存组件配置` 两个 `borderedProminent` 按钮均传入 `systemImage`。
 - 移除这两个主按钮的 `systemImage` 参数，避免 Scripting/iOS 未渲染图标时仍保留左侧空位。
 - 保留 `预览小组件` 的 `rectangle.grid.1x2` 图标，因为截图中该列表行图标正常显示。
-- 执行 `npm run build` 通过，重新生成本地 `dist/RSS阅读.scripting`。
+- 执行 `npm run build` 通过，重新生成本地 `dist/RSS阅读.scripting`。## 2026-07-31 Codex RSS 阅读设置页布局优化
+
+- 执行 `git pull --ff-only origin dev`，结果：Fast-forward，同步远端 `dist/*.scripting` 更新。
+- 读取 `scripting-app-development` 技能、`references/project-development.md`、官方 `https://scriptingapp.github.io/zh/llms.txt` 与 Toolbar 文档。
+- `tool_search` 未暴露 code-index 或 shrimp-task-manager 的可调用工具，改用 `rg --files`、`git diff` 和本地文件读取收集上下文。
+- 修改 `scripts/RSS阅读/index.tsx`：新增 `Toolbar`/`ToolbarItem`，将预览按钮放入 `topBarTrailing`，按钮文案简化为“预览”并保留系统图标。
+- 将 iOS 刷新调度提示移动到“刷新频率”Picker 后方，删除组件配置 Section 内原“预览小组件”行。
+- 执行 `npm run build` 通过；按仓库约定还原本地生成的 `dist/RSS阅读.scripting`，只保留源码和审计记录变更。

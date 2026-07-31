@@ -1,30 +1,30 @@
 {
-  "date": "2026-07-30",
+  "date": "2026-07-31",
   "executor": "Codex",
-  "task": "RSS 阅读小组件优化：隐藏标题名称、保证更新时间完整显示、显示两条文章",
-  "module": "scripts/RSS阅读/widget.tsx",
-  "currentImplementation": "RSS 阅读小组件按 Widget.family 分为 systemSmall、systemMedium、systemLarge/systemExtraLarge；Header 原先同时显示图标、RSS 阅读名称和相对更新时间；systemSmall 原先显示 1 条文章，systemMedium 显示 2 条，systemLarge 显示 7 条。",
+  "task": "RSS 阅读组件设置页面布局优化：预览按钮移到标题右侧，刷新调度提示紧邻刷新频率设置项",
+  "module": "scripts/RSS阅读/index.tsx",
+  "currentImplementation": "设置页由 SettingsPage 渲染，外层为 NavigationStack + Form，标题通过 Form navigationTitle=\"RSS 阅读\" 设置；组件配置 Section 内原有刷新频率 Picker、保存组件配置按钮、预览小组件按钮和 iOS 调度提示文本。",
   "similarPatterns": [
-    "scripts/限号/widget.tsx 使用 Header 组件承载标题与更新时间类信息",
-    "scripts/限号/widget.tsx 使用 Widget.family 做尺寸分支",
-    "scripts/RSS阅读/widget.tsx 已使用 slice(...) 控制不同尺寸的文章显示数量"
+    "scripts/RSS阅读/index.tsx 已使用 Button 的 systemImage 属性呈现预览按钮图标",
+    "scripts/RSS阅读/index.tsx 已使用 Form、Section、Picker 组织设置项",
+    "scripts/RSS阅读/widget.tsx 已使用 Widget.preview 相关 Widget API 进行组件预览入口"
   ],
-  "techStack": "Scripting App TSX，小组件入口 widget.tsx，构建验证命令 npm run build",
+  "techStack": "Scripting App TSX，普通设置页入口 index.tsx，构建验证命令 npm run build",
   "keyQuestions": [
     {
       "priority": "高",
-      "question": "标题名称在哪里显示？",
-      "answer": "Header 组件中固定文本 RSS 阅读。"
+      "question": "预览按钮应放在哪里？",
+      "answer": "官方 Toolbar 文档支持在 Form/List 等视图通过 toolbar 添加导航栏项目；使用 ToolbarItem placement=\"topBarTrailing\" 放在标题右侧。"
     },
     {
       "priority": "高",
-      "question": "更新时间为什么可能显示不全？",
-      "answer": "Header 中标题名称占用横向空间，更新时间只能在右侧剩余区域 lineLimit(1) 显示。"
+      "question": "刷新调度提示如何和刷新频率设置项归组？",
+      "answer": "将提示 Text 从预览按钮之后移动到刷新频率 Picker 之后，使其在同一 Section 内紧跟该设置项。"
     },
     {
-      "priority": "高",
-      "question": "文章数量在哪里控制？",
-      "answer": "SmallWidget 使用 data.articles[0]，MediumWidget 和 LargeWidget 使用 slice(...)。"
+      "priority": "中",
+      "question": "是否改变未配置账号时的预览行为？",
+      "answer": "沿用原行为，仅在 isAccountConfigured 为 true 时显示预览入口。"
     }
   ],
   "sufficiencyCheck": {
@@ -34,5 +34,5 @@
     "validationKnown": true
   },
   "validation": "npm run build",
-  "notes": "本次只调整现有布局与列表数量，不新增 Scripting API。官方 llms.txt 已确认小组件文档入口存在。"
+  "notes": "已读取 scripting-app-development 技能、项目参考文档和官方 llms.txt；tool_search 未暴露 code-index 或 shrimp-task-manager 可调用工具，本次使用 rg/git diff/npm build 完成本地验证。"
 }

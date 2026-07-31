@@ -9,6 +9,8 @@ import {
     SecureField,
     Text,
     TextField,
+    Toolbar,
+    ToolbarItem,
     Widget,
     useState,
 } from 'scripting'
@@ -187,7 +189,20 @@ function SettingsPage() {
   }
 
   return <NavigationStack>
-    <Form navigationTitle="RSS 阅读">
+    <Form
+      navigationTitle="RSS 阅读"
+      toolbar={isAccountConfigured ? (
+        <Toolbar>
+          <ToolbarItem placement="topBarTrailing">
+            <Button
+              title="预览"
+              systemImage="rectangle.grid.1x2"
+              action={() => { void Widget.preview({ family: 'systemMedium' }) }}
+            />
+          </ToolbarItem>
+        </Toolbar>
+      ) : undefined}
+    >
       <Section header={<Text>账号配置</Text>}>
         <TextField
           title="API 地址"
@@ -250,17 +265,12 @@ function SettingsPage() {
           <Text tag={60}>1 小时</Text>
           <Text tag={120}>2 小时</Text>
         </Picker>
+        <Text>小组件的实际刷新时间由 iOS 系统调度，可能晚于所选频率。</Text>
         <Button
           title={isSavingWidget ? '正在保存...' : '保存组件配置'}
           buttonStyle="borderedProminent"
           action={() => { void saveWidget() }}
         />
-        <Button
-          title="预览小组件"
-          systemImage="rectangle.grid.1x2"
-          action={() => { void Widget.preview({ family: 'systemMedium' }) }}
-        />
-        <Text>小组件的实际刷新时间由 iOS 系统调度，可能晚于所选频率。</Text>
         {widgetMessage ? <Text>{widgetMessage}</Text> : null}
       </Section> : <Section header={<Text>下一步</Text>}>
         <Text>请先登录并保存账号配置，登录成功后可继续调整组件配置。</Text>

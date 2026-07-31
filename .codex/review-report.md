@@ -33,4 +33,12 @@
 - 技术检查：改动仅删除两个主按钮的 `systemImage` 属性，不影响账号保存、组件保存或预览逻辑。
 - 需求匹配：截图中的左侧空白图标位已通过移除图标槽位解决。
 - 验证结果：`npm run build` 通过，并核对打包文件内容。
-- 风险：真实按钮居中效果仍需在 Scripting App/iOS 侧确认。
+- 风险：真实按钮居中效果仍需在 Scripting App/iOS 侧确认。## 2026-07-31 RSS 阅读设置页布局优化审查
+
+- 审查者：Codex
+- 结论：通过
+- 综合评分：94/100
+- 技术检查：改动集中在 `scripts/RSS阅读/index.tsx`，复用官方 Toolbar API、现有 Button/Widget.preview 调用和既有状态条件；未新增依赖。
+- 需求匹配：预览入口已从 Section 行移动到标题右侧工具栏，文案简化为“预览”；iOS 刷新调度提示已紧邻刷新频率设置项。
+- 验证结果：`npm run build` 通过，`git diff --check` 无错误。
+- 风险：Scripting 原生导航栏在真实 iOS 上的具体图文展示由系统决定，需要在设备端做视觉确认。

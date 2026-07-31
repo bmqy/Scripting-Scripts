@@ -24,4 +24,9 @@
 
 - 可执行验证：`npm run build` 通过。
 - 代码核对：`登录并保存账号` 与 `保存组件配置` 按钮已移除 `systemImage`，避免蓝色按钮左侧空白。
-- 仍需验证：本地构建不能渲染 Scripting 原生表单，需要在 iOS/Scripting App 配置页确认按钮文字居中显示。
+- 仍需验证：本地构建不能渲染 Scripting 原生表单，需要在 iOS/Scripting App 配置页确认按钮文字居中显示。## 2026-07-31 RSS 阅读设置页布局优化
+
+- 可执行验证：`npm run build` 通过。
+- 代码核对：`Form` 已增加 `toolbar`；账号已配置时右上角显示“预览”按钮并调用 `Widget.preview({ family: 'systemMedium' })`；组件配置 Section 内原预览按钮已删除。
+- 代码核对：刷新调度提示 `小组件的实际刷新时间由 iOS 系统调度，可能晚于所选频率。` 已移动到“刷新频率”Picker 后。
+- 仍需验证：本地 Node 构建不能渲染 Scripting 原生设置页，最终导航栏按钮位置和 Form 行距需在 iOS/Scripting App 中确认。

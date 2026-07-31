@@ -25,4 +25,9 @@
 - 执行者：Codex
 - 命令：`npm run build`
 - 结果：通过。构建脚本重新打包 `RSS阅读`。
-- 包内容核对：`dist/RSS阅读.scripting` 内两个 `borderedProminent` 按钮不再带 `systemImage`；`预览小组件` 仍保留 `rectangle.grid.1x2`。
+- 包内容核对：`dist/RSS阅读.scripting` 内两个 `borderedProminent` 按钮不再带 `systemImage`；`预览小组件` 仍保留 `rectangle.grid.1x2`。## 2026-07-31 RSS 阅读设置页布局优化
+
+- 执行者：Codex
+- 命令：`npm run build`
+- 结果：通过。构建脚本重新打包 `RSS阅读`，并跳过未变化的 `限号`。
+- 产物处理：`dist/RSS阅读.scripting` 因本地构建被更新，随后按仓库约定还原，未保留为待提交变更。
