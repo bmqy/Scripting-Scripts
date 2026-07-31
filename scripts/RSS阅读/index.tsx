@@ -232,7 +232,21 @@ function SettingsPage() {
         />
         {accountMessage ? <Text>{accountMessage}</Text> : null}
       </Section>
-      {isAccountConfigured ? <Section header={<Text>组件配置</Text>}>
+      {isAccountConfigured ? <Section
+        header={
+          <HStack alignment="center">
+            <Text>组件配置</Text>
+            <Spacer />
+            <Button
+              disabled={isSavingWidget}
+              buttonStyle="plain"
+              action={() => { void saveWidget() }}
+            >
+              <Image systemName="square.and.arrow.down" />
+            </Button>
+          </HStack>
+        }
+      >
         <Picker
           title="外观模式"
           value={theme}
@@ -267,11 +281,6 @@ function SettingsPage() {
           <Text tag={120}>2 小时</Text>
         </Picker>
         <Text font="footnote" foregroundStyle="secondaryLabel">小组件的实际刷新时间由 iOS 系统调度，可能晚于所选频率。</Text>
-        <Button
-          title={isSavingWidget ? '正在保存...' : '保存组件配置'}
-          buttonStyle="borderedProminent"
-          action={() => { void saveWidget() }}
-        />
         {widgetMessage ? <Text>{widgetMessage}</Text> : null}
       </Section> : <Section header={<Text>下一步</Text>}>
         <Text>请先登录并保存账号配置，登录成功后可继续调整组件配置。</Text>
