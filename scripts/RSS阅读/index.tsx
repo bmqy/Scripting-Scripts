@@ -469,6 +469,9 @@ function SettingsPage() {
           <Text tag={30}>30 分钟</Text>
           <Text tag={60}>1 小时</Text>
           <Text tag={120}>2 小时</Text>
+          <Text tag={180}>3 小时</Text>
+          <Text tag={360}>6 小时</Text>
+          <Text tag={720}>12 小时</Text>
         </Picker>
         <Text
           font="footnote"

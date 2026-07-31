@@ -10,7 +10,7 @@ export type ReaderSettings = {
 }
 
 export type TimeDisplay = 'absolute' | 'relative'
-export type RefreshIntervalMinutes = 1 | 3 | 5 | 15 | 30 | 60 | 120
+export type RefreshIntervalMinutes = 1 | 3 | 5 | 15 | 30 | 60 | 120 | 180 | 360 | 720
 export type ColorTheme = 'system' | 'light' | 'dark'
 
 export type ReaderAuthCache = {
@@ -22,7 +22,7 @@ export type ReaderAuthCache = {
 const DEFAULT_TIME_DISPLAY: TimeDisplay = 'absolute'
 const DEFAULT_REFRESH_INTERVAL_MINUTES: RefreshIntervalMinutes = 30
 const DEFAULT_COLOR_THEME: ColorTheme = 'system'
-const REFRESH_INTERVAL_OPTIONS: RefreshIntervalMinutes[] = [1, 3, 5, 15, 30, 60, 120]
+const REFRESH_INTERVAL_OPTIONS: RefreshIntervalMinutes[] = [1, 3, 5, 15, 30, 60, 120, 180, 360, 720]
 const COLOR_THEME_OPTIONS: ColorTheme[] = ['system', 'light', 'dark']
 
 export const READING_LIST_ID = 'user/-/state/com.google/reading-list'
