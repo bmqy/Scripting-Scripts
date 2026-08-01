@@ -1,38 +1,28 @@
-{
-  "date": "2026-07-31",
+﻿{
+  "date": "2026-08-01",
   "executor": "Codex",
-  "task": "RSS 阅读组件设置页面布局优化：预览按钮移到标题右侧，刷新调度提示紧邻刷新频率设置项",
+  "task": "RSS 阅读设置页显示源未读数量，并在文章滚出屏幕后自动标记已读和更新计数",
   "module": "scripts/RSS阅读/index.tsx",
-  "currentImplementation": "设置页由 SettingsPage 渲染，外层为 NavigationStack + Form，标题通过 Form navigationTitle=\"RSS 阅读\" 设置；组件配置 Section 内原有刷新频率 Picker、保存组件配置按钮、预览小组件按钮和 iOS 调度提示文本。",
-  "similarPatterns": [
-    "scripts/RSS阅读/index.tsx 已使用 Button 的 systemImage 属性呈现预览按钮图标",
-    "scripts/RSS阅读/index.tsx 已使用 Form、Section、Picker 组织设置项",
-    "scripts/RSS阅读/widget.tsx 已使用 Widget.preview 相关 Widget API 进行组件预览入口"
-  ],
-  "techStack": "Scripting App TSX，普通设置页入口 index.tsx，构建验证命令 npm run build",
-  "keyQuestions": [
-    {
-      "priority": "高",
-      "question": "预览按钮应放在哪里？",
-      "answer": "官方 Toolbar 文档支持在 Form/List 等视图通过 toolbar 添加导航栏项目；使用 ToolbarItem placement=\"topBarTrailing\" 放在标题右侧。"
-    },
-    {
-      "priority": "高",
-      "question": "刷新调度提示如何和刷新频率设置项归组？",
-      "answer": "将提示 Text 从预览按钮之后移动到刷新频率 Picker 之后，使其在同一 Section 内紧跟该设置项。"
-    },
-    {
-      "priority": "中",
-      "question": "是否改变未配置账号时的预览行为？",
-      "answer": "沿用原行为，仅在 isAccountConfigured 为 true 时显示预览入口。"
-    }
-  ],
-  "sufficiencyCheck": {
-    "interfaceContractClear": true,
-    "technicalChoiceUnderstood": true,
-    "mainRisksIdentified": true,
-    "validationKnown": true
+  "currentImplementation": {
+    "sourceUnreadCount": "FeedOverview.unreadCount 已由 unread-count 接口加载，文章详情页通过 navigationTitle 显示源名和当前未读数。",
+    "articleReadState": "文章列表请求增加 xt=state/com.google/read，只加载未读文章；通过 edit-tag 接口批量添加 read 标签。",
+    "visibility": "详情页使用官方 ScrollView.onScrollTargetVisibilityChange，LazyVStack 开启 scrollTargetLayout，threshold=0 表示完全离屏后触发。",
+    "countSync": "详情页本地计数和 FeedManagementPage 源列表计数均在标记成功后递减。"
   },
-  "validation": "npm run build",
-  "notes": "已读取 scripting-app-development 技能、项目参考文档和官方 llms.txt；tool_search 未暴露 code-index 或 shrimp-task-manager 可调用工具，本次使用 rg/git diff/npm build 完成本地验证。"
+  "similarPatterns": [
+    "FeedManagementPage 已有源未读数展示与全部已读操作。",
+    "loadUnreadItemIds 已有分页读取未读文章 ID 的实现。",
+    "widget.tsx 已使用 xt=read 只读取未读文章。"
+  ],
+  "officialReferences": [
+    "https://scriptingapp.github.io/llms.txt",
+    "https://scriptingapp.github.io/TestFlight/guide/Changelog/3.1.0/ScrollView%3A%20scroll%20position%20%26%20visibility%20tracking/",
+    "https://scriptingapp.github.io/guide/Views/Layout/LazyVStack/"
+  ],
+  "validationPlan": [
+    "npm run build",
+    "git diff --check",
+    "npx tsc --noEmit --pretty false（受仓库缺少 dts/scripting.d.ts 阻塞）",
+    "iOS 18+ Scripting App 手动进入源文章列表并滚动验证"
+  ]
 }

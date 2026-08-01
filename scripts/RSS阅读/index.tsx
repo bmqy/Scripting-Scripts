@@ -3,6 +3,7 @@ import {
     Form,
     HStack,
     Image,
+    LazyVStack,
     Link,
     List,
     Navigation,
@@ -12,6 +13,7 @@ import {
     Script,
     Section,
     SecureField,
+    ScrollView,
     Spacer,
     Text,
     TextField,
@@ -359,7 +361,7 @@ async function loadArticlePage(settings: ReaderSettings, feedId: string, continu
   const continuationQuery = continuation ? `&c=${encodeURIComponent(continuation)}` : ''
   const data = await fetchJSON<StreamResponse>(
     settings,
-    `${settings.endpoint}/reader/api/0/stream/contents/${streamPath(feedId)}?output=json&n=${ARTICLE_PAGE_SIZE}&ck=${Math.floor(Date.now() / 1000)}${continuationQuery}`,
+    `${settings.endpoint}/reader/api/0/stream/contents/${streamPath(feedId)}?output=json&n=${ARTICLE_PAGE_SIZE}&xt=${encodeURIComponent(READ_STATE_ID)}&ck=${Math.floor(Date.now() / 1000)}${continuationQuery}`,
     'RSS Reader Article List',
     '读取文章列表',
   )
@@ -400,16 +402,21 @@ async function loadUnreadItemIds(settings: ReaderSettings, feedId: string) {
 
 async function markAllUnreadAsRead(settings: ReaderSettings, feedId: string) {
   const ids = await loadUnreadItemIds(settings, feedId)
-  for (let index = 0; index < ids.length; index += ITEM_ID_PAGE_SIZE) {
-    const body = ids
+  return await markItemsAsRead(settings, ids)
+}
+
+async function markItemsAsRead(settings: ReaderSettings, ids: string[]) {
+  const uniqueIds = Array.from(new Set(ids.filter(id => typeof id === 'string' && id.trim()).map(id => id.trim())))
+  for (let index = 0; index < uniqueIds.length; index += ITEM_ID_PAGE_SIZE) {
+    const body = uniqueIds
       .slice(index, index + ITEM_ID_PAGE_SIZE)
-      .map(id => `i=${encodeURIComponent(id)}`)
-      .concat(`a=${encodeURIComponent(READ_STATE_ID)}`, 'async=true')
+      .map(id => 'i=' + encodeURIComponent(id))
+      .concat('a=' + encodeURIComponent(READ_STATE_ID), 'async=true')
       .join('&')
     const response = await fetchWithAuth(
       settings,
-      `${settings.endpoint}/reader/api/0/edit-tag`,
-      'RSS Reader Mark All Unread Read',
+      settings.endpoint + '/reader/api/0/edit-tag',
+      'RSS Reader Mark Articles Read',
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -419,7 +426,7 @@ async function markAllUnreadAsRead(settings: ReaderSettings, feedId: string) {
     if (!response.ok) throw new Error(apiError('标记文章已读', response.status))
   }
 
-  return ids.length
+  return uniqueIds.length
 }
 
 function formatArticleDate(timestamp: number) {
@@ -427,11 +434,42 @@ function formatArticleDate(timestamp: number) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
 }
 
-function ArticleListPage({ settings, feed }: { settings: ReaderSettings; feed: FeedOption }) {
+function ArticleListPage({
+  settings,
+  feed,
+  onUnreadCountChanged,
+}: {
+  settings: ReaderSettings
+  feed: FeedOverview
+  onUnreadCountChanged: (feedId: string, count: number) => void
+}) {
   const [pages, setPages] = useState<ArticlePage[]>([])
   const [pageIndex, setPageIndex] = useState(0)
   const [isLoading, setIsLoading] = useState(false)
   const [message, setMessage] = useState('')
+  const [unreadCount, setUnreadCount] = useState(feed.unreadCount)
+  const [visibleTargetIds, setVisibleTargetIds] = useState<string[]>([])
+  const [markedReadIds, setMarkedReadIds] = useState<string[]>([])
+  const [pendingReadIds, setPendingReadIds] = useState<string[]>([])
+
+  const articleTargetId = (article: ReaderArticle, index: number) => 'article-' + pageIndex + '-' + (article.id || index)
+
+  const markArticlesRead = async (articleIds: string[]) => {
+    const candidates = Array.from(new Set(articleIds.filter(id => !markedReadIds.includes(id) && !pendingReadIds.includes(id))))
+    if (candidates.length === 0) return
+
+    setPendingReadIds((previous: string[]) => Array.from(new Set([...previous, ...candidates])))
+    try {
+      const count = await markItemsAsRead(settings, candidates)
+      setMarkedReadIds((previous: string[]) => Array.from(new Set([...previous, ...candidates])))
+      setUnreadCount((previous: number) => Math.max(0, previous - count))
+      onUnreadCountChanged(feed.id, count)
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : '标记文章已读失败。')
+    } finally {
+      setPendingReadIds((previous: string[]) => previous.filter(id => !candidates.includes(id)))
+    }
+  }
 
   const loadPage = async (index: number, continuation = '') => {
     if (isLoading) return
@@ -445,6 +483,7 @@ function ArticleListPage({ settings, feed }: { settings: ReaderSettings; feed: F
         return next
       })
       setPageIndex(index)
+      setVisibleTargetIds([])
     } catch (error) {
       setMessage(error instanceof Error ? error.message : '无法读取文章列表。')
     } finally {
@@ -457,7 +496,14 @@ function ArticleListPage({ settings, feed }: { settings: ReaderSettings; feed: F
   }, [])
 
   const currentPage = pages[pageIndex]
+  const markCurrentPageAsRead = () => {
+    if (!currentPage) return
+    void markArticlesRead(currentPage.items.map(article => article.id).filter((id): id is string => Boolean(id)))
+    setVisibleTargetIds([])
+  }
+
   const goNext = () => {
+    markCurrentPageAsRead()
     if (pageIndex + 1 < pages.length) {
       setPageIndex(pageIndex + 1)
       return
@@ -465,38 +511,69 @@ function ArticleListPage({ settings, feed }: { settings: ReaderSettings; feed: F
     if (currentPage?.continuation) void loadPage(pageIndex + 1, currentPage.continuation)
   }
 
-  return <List navigationTitle={feed.name} navigationBarTitleDisplayMode='inline'>
-    {message ? <Section>
-      <Text foregroundStyle='secondaryLabel'>{message}</Text>
-      <Button title='重试' disabled={isLoading} action={() => { void loadPage(0) }} />
-    </Section> : null}
-    {isLoading && !currentPage ? <Section><Text foregroundStyle='secondaryLabel'>正在加载文章...</Text></Section> : null}
-    {!isLoading && currentPage && currentPage.items.length === 0 ? (
-      <Section><Text foregroundStyle='secondaryLabel'>这个源暂无文章。</Text></Section>
-    ) : null}
-    {currentPage?.items.map((article: ReaderArticle, index: number) => {
-      const content = <VStack alignment='leading' spacing={4}>
-        <Text font='headline' lineLimit={2} truncationMode='tail'>{article.title}</Text>
-        <Text font='caption' foregroundStyle='secondaryLabel'>{article.source} · {formatArticleDate(article.publishedAt)}</Text>
-        {article.excerpt ? <Text font='subheadline' foregroundStyle='secondaryLabel' lineLimit={3} truncationMode='tail'>{article.excerpt}</Text> : null}
-      </VStack>
+  const goPrevious = () => {
+    markCurrentPageAsRead()
+    setPageIndex(pageIndex - 1)
+  }
 
-      return <Section key={article.id || `${pageIndex}-${index}`}>
-        {article.url ? <Link url={article.url}>{content}</Link> : content}
-      </Section>
-    })}
-    {currentPage ? <Section>
-      <HStack alignment='center'>
-        <Button title='上一页' disabled={isLoading || pageIndex === 0} action={() => setPageIndex(pageIndex - 1)} />
-        <Spacer />
-        <Text foregroundStyle='secondaryLabel'>第 {pageIndex + 1} 页</Text>
-        <Spacer />
-        <Button title='下一页' disabled={isLoading || (!currentPage.continuation && pageIndex + 1 >= pages.length)} action={goNext} />
-      </HStack>
-    </Section> : null}
-  </List>
+  const handleVisibleIdsChanged = (ids: string[]) => {
+    const leavingTargetIds = visibleTargetIds.filter(id => !ids.includes(id))
+    const leavingArticleIds = leavingTargetIds
+      .map(targetId => currentPage?.items.find((article, index) => articleTargetId(article, index) === targetId)?.id)
+      .filter((id): id is string => Boolean(id))
+
+    setVisibleTargetIds(ids)
+    if (leavingArticleIds.length > 0) void markArticlesRead(leavingArticleIds)
+  }
+
+  return <ScrollView
+    navigationTitle={feed.name + ' · ' + unreadCount + ' 篇未读'}
+    navigationBarTitleDisplayMode='inline'
+    onScrollTargetVisibilityChange={{
+      idType: 'string',
+      threshold: 0,
+      onChanged: ids => handleVisibleIdsChanged(ids as string[]),
+    }}
+  >
+    <LazyVStack alignment='leading' spacing={10} scrollTargetLayout>
+      {message ? <Section>
+        <Text foregroundStyle='secondaryLabel'>{message}</Text>
+        <Button title='重试' disabled={isLoading} action={() => { void loadPage(0) }} />
+      </Section> : null}
+      {isLoading && !currentPage ? <Section><Text foregroundStyle='secondaryLabel'>正在加载文章...</Text></Section> : null}
+      {!isLoading && currentPage && currentPage.items.length === 0 ? (
+        <Section><Text foregroundStyle='secondaryLabel'>这个源暂无未读文章。</Text></Section>
+      ) : null}
+      {currentPage?.items.map((article: ReaderArticle, index: number) => {
+        const content = <VStack
+          alignment='leading'
+          spacing={4}
+          padding={{ top: 14, leading: 16, bottom: 14, trailing: 16 }}
+          background='secondarySystemGroupedBackground'
+          frame={{ maxWidth: 'infinity', alignment: 'leading' }}
+        >
+          <Text font='headline' lineLimit={2} truncationMode='tail'>{article.title}</Text>
+          <Text font='caption' foregroundStyle='secondaryLabel'>{article.source} · {formatArticleDate(article.publishedAt)}</Text>
+          {article.excerpt ? <Text font='subheadline' foregroundStyle='secondaryLabel' lineLimit={3} truncationMode='tail'>{article.excerpt}</Text> : null}
+        </VStack>
+
+        const targetId = articleTargetId(article, index)
+        return <VStack key={targetId} alignment='leading'>
+          {article.url ? <Link url={article.url}>{content}</Link> : content}
+        </VStack>
+      })}
+      {currentPage ? <Section>
+        <HStack alignment='center'>
+          <Button title='上一页' disabled={isLoading || pageIndex === 0} action={goPrevious} />
+          <Spacer />
+          <Text foregroundStyle='secondaryLabel'>第 {pageIndex + 1} 页</Text>
+          <Spacer />
+          <Button title='下一页' disabled={isLoading || (!currentPage.continuation && pageIndex + 1 >= pages.length)} action={goNext} />
+        </HStack>
+      </Section> : null}
+    </LazyVStack>
+  </ScrollView>
 }
-
 function FeedManagementPage({
   settings,
   onDefaultChanged,
@@ -547,6 +624,11 @@ function FeedManagementPage({
     setToastMessage(`已将“${feed.name}”设为小组件默认源。`)
   }
 
+  const onUnreadCountChanged = (feedId: string, count: number) => {
+    setFeeds((previous: FeedOverview[]) => previous.map(item => item.id === feedId
+      ? { ...item, unreadCount: Math.max(0, item.unreadCount - count) }
+      : item))
+  }
   const markFeedRead = async (feed: FeedOverview) => {
     if (busyFeedId) return
     setBusyFeedId(feed.id)
@@ -580,7 +662,7 @@ function FeedManagementPage({
         if (!isPresented) setSelectedFeed(null)
       },
       content: selectedFeed
-        ? <ArticleListPage key={selectedFeed.id} settings={settings} feed={selectedFeed} />
+        ? <ArticleListPage key={selectedFeed.id} settings={settings} feed={selectedFeed} onUnreadCountChanged={onUnreadCountChanged} />
         : <Text>请选择 RSS 源</Text>,
     }}
     toast={{

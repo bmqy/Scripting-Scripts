@@ -85,3 +85,13 @@
 - ä¿®æ”¹ `scripts/RSSé˜…è¯»/widget.tsx`ï¼šä¸ºå°å·å’Œä¸­å·è¡¥å…… `Spacer minLength={2}`ï¼Œå¹¶å°†ç©ºçŠ¶æ€æ”¹ä¸ºå•è¡Œæ–‡æœ¬ã€‚
 - æ‰§è¡Œ `npm run build` é€šè¿‡ï¼›æŒ‰ä»“åº“çº¦å®šè¿˜åŸæœ¬åœ°ç”Ÿæˆçš„ `dist/RSSé˜…è¯».scripting`ã€‚
 - `npx tsc --noEmit` å› ä»“åº“ç¼ºå°‘ `scripting` ç±»å‹å£°æ˜å¤±è´¥ï¼›`git diff --check` é€šè¿‡ã€‚
+
+## 2026-08-01 RSS Î´¶Á¼ÆÊıÓë×Ô¶¯ÒÑ¶Á
+- Ö´ĞĞÕß£ºCodex¡£
+- ÒÑ¶ÁÈ¡ scripting-app-development ¼¼ÄÜ¼°ÏîÄ¿ÉúÃüÖÜÆÚ¡¢iOS Ò³Ãæ¡¢ÑéÖ¤¹æ·¶¡£
+- ÒÑÖ´ĞĞ sequential thinking£»´úÂëË÷Òı¹¤¾ß²»¿ÉÓÃ£¬ÄÚ²¿¼ìË÷½µ¼¶Îª rg¡£
+- ÒÑÖ´ĞĞ git pull --ff-only origin dev£»Òò±¾µØÓëÔ¶¶Ë¸÷ÓĞÒ»¸öÌá½»ÎŞ·¨¿ì½ø£¬±£Áô±¾µØÌá½»²¢±ä»ùµ½ origin/dev¡£
+- ÒÑ²éÔÄ¹Ù·½ llms.txt¡¢ScrollView ¿É¼ûĞÔ×·×ÙºÍ LazyVStack ÎÄµµ£¬È·ÈÏ onScrollTargetVisibilityChange¡¢scrollTargetLayout¡¢key¡¢threshold ÓÃ·¨¡£
+- ĞŞ¸Ä scripts/RSSÔÄ¶Á/index.tsx£ºÔö¼ÓÎ´¶ÁÉ¸Ñ¡¡¢ÅúÁ¿±ê¼ÇÒÑ¶Á¡¢ÀëÆÁ¿É¼ûĞÔ´¦Àí¡¢ÏêÇé±êÌâ¼ÆÊıºÍÉÏ¼¶ÁĞ±í¼ÆÊıÍ¬²½¡£
+- npm run build Ç¿ÖÆÖØÅÜ³É¹¦£»¹¹½¨²úÎïÒÑ»Ö¸´£¬²»ÄÉÈë±¾´ÎÔ´Âë±ä¸ü¡£
+- npx tsc --noEmit --pretty false ÒòÈ±ÉÙ dts/scripting.d.ts Ê§°Ü£¬´íÎóÖ÷ÒªÎªÔËĞĞÊ±Ä£¿éºÍ JSX ÀàĞÍÈ±Ê§£¬ÒÑ¼ÇÂ¼ÔÚÑéÖ¤ÎÄ¼ş¡£
