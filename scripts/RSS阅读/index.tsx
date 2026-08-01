@@ -487,6 +487,8 @@ const ARTICLE_FILTER_LABELS: Record<ArticleFilter, string> = {
   all: '全部',
 }
 
+const ARTICLE_LIST_END_TARGET_ID = 'article-list-end'
+
 function ArticleListPage({
   settings,
   feed,
@@ -575,15 +577,16 @@ function ArticleListPage({
   }, [])
 
   const lastPage = pages[pages.length - 1]
-  const lastArticle = lastPage?.items[lastPage.items.length - 1]
-  const lastArticleTargetId = lastArticle && lastPage
-    ? articleTargetId(lastArticle, pages.length - 1, lastPage.items.length - 1)
-    : ''
 
-  const loadNextPage = () => {
-    if (isLoading || !lastPage?.continuation) return
+  useEffect(() => {
+    if (
+      !visibleTargetIds.includes(ARTICLE_LIST_END_TARGET_ID)
+      || isLoading
+      || message
+      || !lastPage?.continuation
+    ) return
     void loadPage(pages.length, lastPage.continuation)
-  }
+  }, [visibleTargetIds, pages, isLoading, message])
 
   const retryLoad = () => {
     if (lastPage?.continuation && pages.length > 0) {
@@ -606,12 +609,7 @@ function ArticleListPage({
     setVisibleTargetIds(ids)
     if (leavingArticleIds.length > 0) void markArticlesRead(leavingArticleIds)
 
-    if (lastArticleTargetId && ids.includes(lastArticleTargetId) && lastPage?.continuation) {
-      loadNextPage()
-      return
-    }
-
-    if (lastArticleTargetId && leavingTargetIds.includes(lastArticleTargetId) && !lastPage?.continuation && !hasReachedEnd) {
+    if (leavingTargetIds.includes(ARTICLE_LIST_END_TARGET_ID) && !lastPage?.continuation && !hasReachedEnd) {
       setHasReachedEnd(true)
       if (hasNextFeed) onNextFeed()
     }
@@ -668,11 +666,16 @@ function ArticleListPage({
           background='secondarySystemGroupedBackground'
           frame={{ maxWidth: 'infinity', alignment: 'leading' }}
         >
-          <Text font='headline' lineLimit={2} truncationMode='tail'>{article.title}</Text>
-          <Text font='caption' foregroundStyle='secondaryLabel'>
-            {article.source} · {formatArticleDate(article.publishedAt)}
-            {articleFilter === 'unread' ? '' : article.isRead ? ' · 已读' : ' · 未读'}
-          </Text>
+          <Text
+            font='headline'
+            lineLimit={2}
+            truncationMode='tail'
+            foregroundStyle={article.isRead ? 'secondaryLabel' : 'systemBlue'}
+          >{article.title}</Text>
+          <HStack alignment='center' spacing={4}>
+            <Text font='caption' foregroundStyle='secondaryLabel'>{article.source} · {formatArticleDate(article.publishedAt)}</Text>
+            <Text font='caption' foregroundStyle={article.isRead ? 'secondaryLabel' : 'systemBlue'}>{article.isRead ? '已读' : '未读'}</Text>
+          </HStack>
           {article.excerpt ? <Text font='subheadline' foregroundStyle='secondaryLabel' lineLimit={3} truncationMode='tail'>{article.excerpt}</Text> : null}
         </VStack>
 
@@ -681,8 +684,24 @@ function ArticleListPage({
           {article.url ? <Link url={article.url}>{content}</Link> : content}
         </VStack>
       }))}
-      {isLoading && pages.length > 0 ? <Section><VStack alignment='leading' padding={{ leading: 16, trailing: 16 }}><Text foregroundStyle='secondaryLabel'>正在加载下一页...</Text></VStack></Section> : null}
-      {!isLoading && hasReachedEnd && !hasNextFeed ? <Section><VStack alignment='leading' padding={{ leading: 16, trailing: 16 }}><Text foregroundStyle='secondaryLabel'>已经是最后一个源。</Text></VStack></Section> : null}
+      {pages.length > 0 ? <VStack
+        key={ARTICLE_LIST_END_TARGET_ID}
+        alignment='leading'
+        padding={{ top: 10, leading: 16, bottom: 18, trailing: 16 }}
+      >
+        <Text foregroundStyle='secondaryLabel'>
+          {isLoading
+            ? '正在加载下一页...'
+            : lastPage?.continuation
+              ? '继续上滑加载更多...'
+              : hasNextFeed
+                ? '继续上滑切换到下一个源...'
+                : hasReachedEnd
+                  ? '已经是最后一个源。'
+                  : '已到当前源末尾，继续上滑...'
+          }
+        </Text>
+      </VStack> : null}
     </LazyVStack>
   </ScrollView>
 }

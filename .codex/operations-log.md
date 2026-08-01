@@ -136,3 +136,13 @@
 - 当前源的最后一页最后一条文章滚出屏幕后，若存在下一个源则自动切换到下一个源；最后一个源显示结束提示。
 - 可见性识别改为跨所有已加载页面按稳定 target ID 查找文章，滚出屏幕的未读文章统一调用标记已读逻辑。
 - 依据官方滚动可见性文档确认 `scrollTargetLayout`、子节点 `key` 和 `onScrollTargetVisibilityChange` 的组合方式：https://scriptingapp.github.io/TestFlight/zh/guide/Views/Scroll%20views/。
+
+## 2026-08-01 RSS 底部触发与文章状态视觉修正
+
+- 执行者：Codex。
+- 执行前执行 `git pull --ff-only origin dev`，同步远端自动构建产物。
+- 增加固定的 `article-list-end` 滚动目标：底部目标可见时自动加载 continuation，并显示“继续上滑加载更多…”或“正在加载下一页…”。
+- 没有 continuation 时，底部目标滑出屏幕后切换下一个源；最后一个源显示结束提示。
+- 将加载触发从动态最后一篇文章 target 改为固定底部 target，并用 `useEffect` 处理底部目标在追加数据后仍保持可见的情况。
+- 已读文章标题改为次要颜色并显示“已读”，未读文章保持蓝色并显示“未读”，便于区分状态。
+- 依据官方 `useEffect` 与 ScrollView 可见性文档实现状态驱动的底部加载：https://scriptingapp.github.io/TestFlight/guide/Quick%20Start、https://scriptingapp.github.io/llms.txt。

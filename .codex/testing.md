@@ -139,3 +139,13 @@
 - TypeScript 诊断：`npx tsc --noEmit --pretty false` 受本机 Volta 无法创建 `C:\Users\88268\AppData\Local\Volta` 目录影响，未能启动诊断；项目此前也缺少 `dts/scripting.d.ts`。
 - 设备验证：未连接 Scripting App/iOS 预览环境，仍需实际验证连续滚动触底、源切换和离屏已读请求。
 - 构建产物：已还原本地生成的 `dist/RSS阅读.scripting`，未纳入提交。
+
+## 2026-08-01 RSS 底部加载提示、离屏状态与源切换验证
+
+- 执行者：Codex。
+- 冒烟验证：`npm run build` 通过，RSS 阅读脚本成功打包。
+- 静态验证：`git diff --check` 通过。
+- 代码核对：底部 sentinel 有固定 key；可见时触发下一页请求；请求中有加载提示；无 continuation 时滑出触发下一个源；文章标题和状态标签按 isRead 区分颜色。
+- TypeScript 诊断：本机 `npx tsc` 受 Volta 无法创建 `C:\Users\88268\AppData\Local\Volta` 目录影响，未能启动；项目仍缺少 `dts/scripting.d.ts`。
+- 设备验证：未连接 Scripting App/iOS 预览环境，需实际确认可见性回调和菜单导航时序。
+- 构建产物：已还原本地生成的 `dist/RSS阅读.scripting`，未纳入提交。

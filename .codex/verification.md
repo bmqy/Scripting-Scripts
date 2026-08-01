@@ -117,3 +117,12 @@
 - 结构检查：文章 target ID 包含页面序号和文章 ID，跨页渲染后保持稳定；可见性回调会从全部已加载页面解析离屏文章。
 - 分页检查：有 continuation 时自动追加下一页；无 continuation 且最后文章离屏时调用下一个源回调；无下一个源时显示结束提示。
 - 未执行项：未在真实 Scripting App/Reader 服务中验证滚动回调和 API 标记请求。
+
+## 2026-08-01 RSS 底部加载提示、离屏状态与源切换验证
+
+- `npm run build`：通过。
+- `git diff --check`：通过。
+- 底部加载：固定 sentinel 作为 LazyVStack 直接子节点并设置 key，符合官方可见性回调的 scroll target 要求。
+- 状态视觉：文章标题和“已读/未读”标签均由 `article.isRead` 驱动；标记成功后已有页面状态会同步变灰。
+- 源切换：无 continuation 且底部 sentinel 离开可见集合时调用 `onNextFeed`，最后一个源不再继续切换。
+- 未执行项：真实 Scripting App/Reader 服务的 UI 与网络回归。
