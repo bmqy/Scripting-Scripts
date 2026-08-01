@@ -817,13 +817,13 @@ function SettingsPage() {
           />
         }>
           <HStack alignment="center">
-            <Text>RSS 源管理</Text>
+            <Text>RSS 源</Text>
             <Spacer />
             <Text
               foregroundStyle="secondaryLabel"
               lineLimit={1}
               truncationMode="tail"
-              frame={{ width: 160 }}
+              frame={{ width: 160, alignment: 'trailing' }}
               multilineTextAlignment="trailing"
             >{feedName}</Text>
           </HStack>
