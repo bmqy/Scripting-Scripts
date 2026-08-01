@@ -100,3 +100,8 @@
 - 用户反馈导航标题过长导致未读数被截断。
 - 修改 scripts/RSS阅读/index.tsx：源名称最多显示 10 个字符，超出使用省略号，未读数始终以括号后缀显示。
 - 按仓库流程同步 origin/dev；npm run build 成功，dist 产物已恢复。
+
+## 2026-08-01 RSS 文章列表左右留白修正
+- 用户反馈空状态提示和分页控件贴屏幕边缘。
+- 为空状态 VStack 和分页 HStack 增加 16 点 leading/trailing padding，与文章卡片保持一致。
+- npm run build 成功，dist 产物已恢复。

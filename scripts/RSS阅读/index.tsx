@@ -552,7 +552,7 @@ function ArticleListPage({
       </Section> : null}
       {isLoading && !currentPage ? <Section><Text foregroundStyle='secondaryLabel'>正在加载文章...</Text></Section> : null}
       {!isLoading && currentPage && currentPage.items.length === 0 ? (
-        <Section><Text foregroundStyle='secondaryLabel'>这个源暂无未读文章。</Text></Section>
+        <Section><VStack alignment='leading' padding={{ leading: 16, trailing: 16 }}><Text foregroundStyle='secondaryLabel'>这个源暂无未读文章。</Text></VStack></Section>
       ) : null}
       {currentPage?.items.map((article: ReaderArticle, index: number) => {
         const content = <VStack
@@ -573,7 +573,7 @@ function ArticleListPage({
         </VStack>
       })}
       {currentPage ? <Section>
-        <HStack alignment='center'>
+        <HStack alignment='center' padding={{ leading: 16, trailing: 16 }}>
           <Button title='上一页' disabled={isLoading || pageIndex === 0} action={goPrevious} />
           <Spacer />
           <Text foregroundStyle='secondaryLabel'>第 {pageIndex + 1} 页</Text>
