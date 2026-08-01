@@ -489,7 +489,7 @@ function SettingsPage() {
         >小组件的实际刷新时间由 iOS 系统调度，可能晚于所选频率。</Text>
         {widgetMessage ? <Text font="footnote" foregroundStyle="secondaryLabel">{widgetMessage}</Text> : null}
       </Section> : <Section>
-        <Text foregroundStyle="secondaryLabel">请先登录并保存账号配置，登录成功后可继续调整组件配置。</Text>
+        <Text font="footnote" foregroundStyle="secondaryLabel">请先登录并保存账号配置，登录成功后可继续调整组件配置。</Text>
       </Section>}
     </Form>
   </NavigationStack>
