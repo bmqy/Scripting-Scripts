@@ -224,7 +224,7 @@ function SettingsPage() {
   const [feedName, setFeedName] = useState(current?.feedName || DEFAULT_FEED_NAME)
   const [feeds, setFeeds] = useState<FeedOption[]>([])
   const [feedMessage, setFeedMessage] = useState('')
-  const [accountMessage, setAccountMessage] = useState('')
+  const [accountToastMessage, setAccountToastMessage] = useState('')
   const [showAccountHelp, setShowAccountHelp] = useState(false)
   const [widgetSavedToast, setWidgetSavedToast] = useState(false)
   const [widgetMessage, setWidgetMessage] = useState('')
@@ -266,12 +266,12 @@ function SettingsPage() {
     try {
       endpoint = normalizeEndpoint(endpointInput)
     } catch (error) {
-      setAccountMessage(error instanceof Error ? error.message : '请输入有效的 API 地址。')
+      setAccountToastMessage(error instanceof Error ? error.message : '请输入有效的 API 地址。')
       return
     }
 
     if (!username.trim() || !password) {
-      setAccountMessage('请填写用户名和 API 密码。')
+      setAccountToastMessage('请填写用户名和 API 密码。')
       return
     }
 
@@ -286,23 +286,23 @@ function SettingsPage() {
       theme: authenticatedSettings?.theme || theme,
     }
     setIsSavingAccount(true)
-    setAccountMessage('正在登录并测试 API 连接...')
+    setAccountToastMessage('正在登录并测试 API 连接...')
     setWidgetMessage('')
     try {
       await testReaderApi(settings)
 
       const saved = saveSettings(settings)
       if (!saved) {
-        setAccountMessage('接口测试成功，但无法保存账号配置，请检查 Scripting 的本地存储后重试。')
+        setAccountToastMessage('接口测试成功，但无法保存账号配置，请检查 Scripting 的本地存储后重试。')
         return
       }
 
       setAuthenticatedSettings(settings)
       Widget.reloadAll()
       void refreshFeeds(settings, true)
-      setAccountMessage('账号登录成功，已保存账号配置。现在可以调整小组件配置。')
+      setAccountToastMessage('账号登录成功，已保存账号配置。现在可以调整组件配置。')
     } catch (error) {
-      setAccountMessage(error instanceof Error ? error.message : '接口测试失败，请检查 API 地址、用户名和 API 密码。')
+      setAccountToastMessage(error instanceof Error ? error.message : '接口测试失败，请检查 API 地址、用户名和 API 密码。')
     } finally {
       setIsSavingAccount(false)
     }
@@ -340,15 +340,16 @@ function SettingsPage() {
       scrollContentBackground="hidden"
       background="clear"
       toast={{
-        isPresented: showAccountHelp || widgetSavedToast,
+        isPresented: showAccountHelp || widgetSavedToast || Boolean(accountToastMessage),
         onChanged: (isPresented) => {
           if (!isPresented) {
             setShowAccountHelp(false)
             setWidgetSavedToast(false)
+            setAccountToastMessage('')
           }
         },
-        duration: widgetSavedToast ? 2 : 5,
-        position: widgetSavedToast ? 'bottom' : 'center',
+        duration: accountToastMessage ? 3 : widgetSavedToast ? 2 : 5,
+        position: accountToastMessage || widgetSavedToast ? 'bottom' : 'center',
         backgroundColor: '#1F2937',
         cornerRadius: 12,
         shadowRadius: 8,
@@ -357,7 +358,9 @@ function SettingsPage() {
             <Text foregroundStyle="white">地址应是 Google Reader 兼容 API 的根地址。</Text>
             <Text foregroundStyle="white">FreshRSS 请填写个人资料中单独设置的 API 密码，不是网页登录密码。</Text>
           </VStack>
-        ) : <Text foregroundStyle="white">组件配置已保存，小组件会在下一次刷新时生效。</Text>,
+        ) : widgetSavedToast ? (
+          <Text foregroundStyle="white">组件配置已保存，小组件会在下一次刷新时生效。</Text>
+        ) : <Text foregroundStyle="white">{accountToastMessage}</Text>,
       }}
     >
       <HStack
@@ -408,7 +411,6 @@ function SettingsPage() {
           disabled={isSavingAccount || isAccountConfigured}
           action={() => { void saveAccount() }}
         />
-        {accountMessage ? <Text>{accountMessage}</Text> : null}
       </Section>
       {isAccountConfigured ? <Section header={<Text>组件配置</Text>}>
         <Picker
@@ -486,8 +488,8 @@ function SettingsPage() {
           listRowSeparator="hidden"
         >小组件的实际刷新时间由 iOS 系统调度，可能晚于所选频率。</Text>
         {widgetMessage ? <Text font="footnote" foregroundStyle="secondaryLabel">{widgetMessage}</Text> : null}
-      </Section> : <Section header={<Text>下一步</Text>}>
-        <Text>请先登录并保存账号配置，登录成功后可继续调整组件配置。</Text>
+      </Section> : <Section>
+        <Text foregroundStyle="secondaryLabel">请先登录并保存账号配置，登录成功后可继续调整组件配置。</Text>
       </Section>}
     </Form>
   </NavigationStack>
