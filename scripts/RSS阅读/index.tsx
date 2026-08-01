@@ -615,14 +615,20 @@ function FeedManagementPage({
           disabled={feed.id === defaultFeedId || Boolean(busyFeedId)}
           action={() => selectDefault(feed)}
         >
-          <Text font='subheadline'>{feed.id === defaultFeedId ? '默认源' : '设为默认'}</Text>
+          <Text
+            font='subheadline'
+            foregroundStyle={feed.id === defaultFeedId || Boolean(busyFeedId) ? 'secondaryLabel' : 'blue'}
+          >{feed.id === defaultFeedId ? '默认源' : '设为默认'}</Text>
         </Button>
         <Button
           buttonStyle='plain'
           disabled={!feed.unreadCount || Boolean(busyFeedId)}
           action={() => { void markFeedRead(feed) }}
         >
-          <Text font='subheadline'>{busyFeedId === feed.id ? '处理中' : feed.unreadCount ? '全部已读' : '已读'}</Text>
+          <Text
+            font='subheadline'
+            foregroundStyle={busyFeedId === feed.id || !feed.unreadCount ? 'secondaryLabel' : 'green'}
+          >{busyFeedId === feed.id ? '处理中' : feed.unreadCount ? '全部已读' : '已读'}</Text>
         </Button>
       </HStack>)}
     </Section>
