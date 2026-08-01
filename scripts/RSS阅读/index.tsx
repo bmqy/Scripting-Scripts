@@ -940,6 +940,9 @@ function FeedManagementPage({
       {feeds.map((feed: FeedOverview) => <HStack
         key={feed.id}
         alignment='center'
+        spacing={8}
+        contentShape='rect'
+        onTapGesture={() => setSelectedFeed(feed)}
         trailingSwipeActions={{
           allowsFullSwipe: false,
           actions: [
@@ -958,18 +961,12 @@ function FeedManagementPage({
           ],
         }}
       >
-        <HStack
-          alignment='center'
-          spacing={8}
-          contentShape='rect'
-          onTapGesture={() => setSelectedFeed(feed)}
-        >
-          <VStack alignment='leading' spacing={3}>
-            <Text>{feed.name}</Text>
-            <Text font='caption' foregroundStyle='secondaryLabel'>{feed.unreadCount} 篇未读 · 查看文章</Text>
-          </VStack>
-          <Image systemName='chevron.right' foregroundStyle='secondaryLabel' />
-        </HStack>
+        <VStack alignment='leading' spacing={3}>
+          <Text>{feed.name}</Text>
+          <Text font='caption' foregroundStyle='secondaryLabel'>{feed.unreadCount} 篇未读 · 查看文章</Text>
+        </VStack>
+        <Spacer />
+        <Image systemName='chevron.right' foregroundStyle='secondaryLabel' />
       </HStack>)}
     </Section>
   </List>
