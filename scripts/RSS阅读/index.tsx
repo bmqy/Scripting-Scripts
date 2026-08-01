@@ -509,15 +509,19 @@ function FeedManagementPage({
   const [busyFeedId, setBusyFeedId] = useState<string | null>(null)
   const [selectedFeed, setSelectedFeed] = useState<FeedOverview | null>(null)
   const [toastMessage, setToastMessage] = useState('')
-  const [message, setMessage] = useState('正在加载 RSS 源...')
+  const [isLoadingFeeds, setIsLoadingFeeds] = useState(true)
+  const [message, setMessage] = useState('')
 
   const refresh = async (forceRefresh = false) => {
+    setIsLoadingFeeds(true)
     setMessage(forceRefresh ? '正在刷新 RSS 源...' : '正在加载 RSS 源...')
     try {
       setFeeds(await loadFeedOverview(settings, forceRefresh))
       setMessage('')
     } catch (error) {
       setMessage(error instanceof Error ? error.message : '无法加载 RSS 源列表。')
+    } finally {
+      setIsLoadingFeeds(false)
     }
   }
 
@@ -588,9 +592,9 @@ function FeedManagementPage({
   >
     <Section>
       <Button title='刷新源列表' disabled={Boolean(busyFeedId)} action={() => { void refresh(true) }} />
-      {message ? <Text font='footnote' foregroundStyle='secondaryLabel'>{message}</Text> : null}
+      {message && !isLoadingFeeds ? <Text font='footnote' foregroundStyle='secondaryLabel'>{message}</Text> : null}
     </Section>
-    <Section header={<Text>订阅源</Text>}>
+    <Section header={<Text>{isLoadingFeeds ? '正在加载 RSS 源...' : '订阅源'}</Text>}>
       {feeds.length === 0 && !message ? <Text foregroundStyle='secondaryLabel'>暂无 RSS 源。</Text> : null}
       {feeds.map((feed: FeedOverview) => <HStack key={feed.id} alignment='center'>
         <HStack
