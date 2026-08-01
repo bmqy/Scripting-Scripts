@@ -226,6 +226,7 @@ function SettingsPage() {
   const [feedMessage, setFeedMessage] = useState('')
   const [accountMessage, setAccountMessage] = useState('')
   const [showAccountHelp, setShowAccountHelp] = useState(false)
+  const [widgetSavedToast, setWidgetSavedToast] = useState(false)
   const [widgetMessage, setWidgetMessage] = useState('')
   const [isSavingAccount, setIsSavingAccount] = useState(false)
 
@@ -330,7 +331,8 @@ function SettingsPage() {
 
     setAuthenticatedSettings(settings)
     Widget.reloadAll()
-    setWidgetMessage('组件配置已保存，小组件会在下一次刷新时生效。')
+    setWidgetMessage('')
+    setWidgetSavedToast(true)
   }
 
   return <NavigationStack>
@@ -338,19 +340,24 @@ function SettingsPage() {
       scrollContentBackground="hidden"
       background="clear"
       toast={{
-        isPresented: showAccountHelp,
-        onChanged: setShowAccountHelp,
-        duration: 5,
-        position: 'center',
+        isPresented: showAccountHelp || widgetSavedToast,
+        onChanged: (isPresented) => {
+          if (!isPresented) {
+            setShowAccountHelp(false)
+            setWidgetSavedToast(false)
+          }
+        },
+        duration: widgetSavedToast ? 2 : 5,
+        position: widgetSavedToast ? 'bottom' : 'center',
         backgroundColor: '#1F2937',
         cornerRadius: 12,
         shadowRadius: 8,
-        content: (
+        content: showAccountHelp ? (
           <VStack alignment="leading" spacing={6}>
             <Text foregroundStyle="white">地址应是 Google Reader 兼容 API 的根地址。</Text>
             <Text foregroundStyle="white">FreshRSS 请填写个人资料中单独设置的 API 密码，不是网页登录密码。</Text>
           </VStack>
-        ),
+        ) : <Text foregroundStyle="white">组件配置已保存，小组件会在下一次刷新时生效。</Text>,
       }}
     >
       <HStack
