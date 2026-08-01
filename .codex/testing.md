@@ -119,3 +119,13 @@
 - 类型检查：仓库仍缺少 `dts/scripting.d.ts`，未执行成功的 `npx tsc --noEmit` 原因与本次修改无关。
 - 设备验证：未连接 Scripting App/iOS 预览环境，菜单展开、真实 Reader 分类返回和滚动效果仍需在设备上回归。
 - 构建产物：已还原本地生成的 `dist/RSS阅读.scripting`，未纳入提交。
+
+## 2026-08-01 RSS 未读数实时刷新验证
+
+- 执行者：Codex。
+- 冒烟验证：`npm run build` 通过，RSS 阅读脚本成功打包。
+- 静态验证：`git diff --check` 通过。
+- 类型检查：`npx tsc --noEmit --pretty false` 仍因仓库缺少 `dts/scripting.d.ts` 及其引发的 JSX 类型级联错误失败。
+- 逻辑核对：标记请求开始立即扣减计数；请求失败恢复计数；成功后只同步文章已读状态，避免重复扣减。
+- 设备验证：未连接 Scripting App/iOS 预览环境，仍需实际滚动文章确认离屏回调和网络失败回滚的视觉效果。
+- 构建产物：已还原本地生成的 `dist/RSS阅读.scripting`，未纳入提交。

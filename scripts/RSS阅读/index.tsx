@@ -494,7 +494,7 @@ function ArticleListPage({
 }: {
   settings: ReaderSettings
   feed: FeedOverview
-  onUnreadCountChanged: (feedId: string, count: number) => void
+  onUnreadCountChanged: (feedId: string, delta: number) => void
 }) {
   const [pages, setPages] = useState<ArticlePage[]>([])
   const [pageIndex, setPageIndex] = useState(0)
@@ -512,9 +512,12 @@ function ArticleListPage({
     const candidates = Array.from(new Set(articleIds.filter(id => !markedReadIds.includes(id) && !pendingReadIds.includes(id))))
     if (candidates.length === 0) return
 
+    const optimisticCount = candidates.length
     setPendingReadIds((previous: string[]) => Array.from(new Set([...previous, ...candidates])))
+    setUnreadCount((previous: number) => Math.max(0, previous - optimisticCount))
+    onUnreadCountChanged(feed.id, optimisticCount)
     try {
-      const count = await markItemsAsRead(settings, candidates)
+      await markItemsAsRead(settings, candidates)
       setMarkedReadIds((previous: string[]) => Array.from(new Set([...previous, ...candidates])))
       setPages((previous: ArticlePage[]) => previous.map(page => ({
         ...page,
@@ -522,9 +525,9 @@ function ArticleListPage({
           ? { ...article, isRead: true }
           : article),
       })))
-      setUnreadCount((previous: number) => Math.max(0, previous - count))
-      onUnreadCountChanged(feed.id, count)
     } catch (error) {
+      setUnreadCount((previous: number) => previous + optimisticCount)
+      onUnreadCountChanged(feed.id, -optimisticCount)
       setMessage(error instanceof Error ? error.message : '标记文章已读失败。')
     } finally {
       setPendingReadIds((previous: string[]) => previous.filter(id => !candidates.includes(id)))
@@ -722,9 +725,9 @@ function FeedManagementPage({
     setToastMessage(`已将“${feed.name}”设为小组件默认源。`)
   }
 
-  const onUnreadCountChanged = (feedId: string, count: number) => {
+  const onUnreadCountChanged = (feedId: string, delta: number) => {
     setFeeds((previous: FeedOverview[]) => previous.map(item => item.id === feedId
-      ? { ...item, unreadCount: Math.max(0, item.unreadCount - count) }
+      ? { ...item, unreadCount: Math.max(0, item.unreadCount - delta) }
       : item))
   }
   const markFeedRead = async (feed: FeedOverview) => {

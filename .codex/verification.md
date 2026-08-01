@@ -101,3 +101,11 @@
 - 代码路径检查：`ArticleFilter` 覆盖未读、已读、全部；`toArticle` 读取 read category；筛选切换会重置分页；已读筛选遇到无已读文章时会继续请求 continuation，避免首屏全是未读时误报空状态。
 - 未执行项：无法在本地模拟 Scripting App 的真实导航菜单和 Reader API 数据；需在 iOS 18+ Scripting App 中验证菜单交互、已读标识和离屏自动标记已读。
 - 风险判断：构建与静态检查通过，剩余风险限于运行时 API/服务端返回数据的设备回归。
+
+## 2026-08-01 RSS 未读数实时刷新验证
+
+- `npm run build`：通过。
+- `git diff --check`：通过。
+- `npx tsc --noEmit --pretty false`：失败，原因是仓库当前没有 `dts/scripting.d.ts`；同时出现既有 Scripting JSX 类型级联错误。
+- 代码路径检查：离屏回调、下一页按钮和手动标记入口均复用同一乐观计数逻辑；成功不会二次扣减，失败会恢复。
+- 风险判断：构建验证通过，剩余风险限于 Scripting App 实际状态更新节奏和 Reader 网络失败场景的设备回归。

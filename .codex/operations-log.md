@@ -119,3 +119,11 @@
 - 增加“未读/已读/全部”筛选菜单，默认筛选未读；切换筛选时重置当前分页和可见性状态。
 - 未读筛选继续使用 Reader `xt=read` 查询；已读筛选在客户端从连续分页中筛出已读文章；全部筛选读取原始文章列表。
 - 复用官方 `toolbar.topBarTrailing` 与 `Menu` 组件模式，参考：https://scriptingapp.github.io/guide/Views/Toolbars/、https://scriptingapp.github.io/guide/Views/Menu/index_example。
+
+## 2026-08-01 RSS 未读数实时刷新修正
+
+- 执行者：Codex。
+- 执行前已执行 `git pull --ff-only origin dev`，同步远端自动构建提交。
+- 修正 `scripts/RSS阅读/index.tsx`：标记文章已读请求发起时立即乐观扣减详情页标题和源列表未读数，`edit-tag` 失败时回滚。
+- 父子页面未读数回调改为 delta 语义，支持成功扣减和失败恢复；不再等待翻页触发重新渲染。
+- 官方可见性回调文档确认 `onScrollTargetVisibilityChange` 在滚动中同步回调，继续用于识别滚出屏幕的文章：https://scriptingapp.github.io/TestFlight/zh/guide/Views/Scroll%20views/。
