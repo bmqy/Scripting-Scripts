@@ -567,6 +567,13 @@ function FeedManagementPage({
   return <List
     navigationTitle='RSS 源管理'
     navigationBarTitleDisplayMode='inline'
+    toolbar={{
+      topBarTrailing: <Button
+        title='刷新'
+        disabled={isLoadingFeeds || Boolean(busyFeedId)}
+        action={() => { void refresh(true) }}
+      />,
+    }}
     navigationDestination={{
       isPresented: selectedFeed != null,
       onChanged: (isPresented) => {
@@ -590,10 +597,7 @@ function FeedManagementPage({
       message: toastMessage,
     }}
   >
-    <Section>
-      <Button title='刷新源列表' disabled={Boolean(busyFeedId)} action={() => { void refresh(true) }} />
-      {message && !isLoadingFeeds ? <Text font='footnote' foregroundStyle='secondaryLabel'>{message}</Text> : null}
-    </Section>
+    {message && !isLoadingFeeds ? <Section><Text font='footnote' foregroundStyle='secondaryLabel'>{message}</Text></Section> : null}
     <Section header={<Text>{isLoadingFeeds ? '正在加载 RSS 源...' : '订阅源'}</Text>}>
       {feeds.length === 0 && !message ? <Text foregroundStyle='secondaryLabel'>暂无 RSS 源。</Text> : null}
       {feeds.map((feed: FeedOverview) => <HStack key={feed.id} alignment='center'>
