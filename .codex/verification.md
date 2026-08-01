@@ -126,3 +126,11 @@
 - 状态视觉：文章标题和“已读/未读”标签均由 `article.isRead` 驱动；标记成功后已有页面状态会同步变灰。
 - 源切换：无 continuation 且底部 sentinel 离开可见集合时调用 `onNextFeed`，最后一个源不再继续切换。
 - 未执行项：真实 Scripting App/Reader 服务的 UI 与网络回归。
+
+## 2026-08-01 RSS 触底加载与文章卡片布局验证
+
+- `npm run build`：通过。
+- `git diff --check`：通过。
+- 滚动加载：保持底部 sentinel 监听，并新增 `scrollPosition` leading target 监听；最后文章 target 或 sentinel 接近底部时请求下一页。
+- 布局检查：源名称与时间不再同一行；时间位于摘要之后；状态仅通过标题颜色区分。
+- 未执行项：真实 Scripting App/Reader API 的设备回归。

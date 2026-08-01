@@ -146,3 +146,12 @@
 - 将加载触发从动态最后一篇文章 target 改为固定底部 target，并用 `useEffect` 处理底部目标在追加数据后仍保持可见的情况。
 - 已读文章标题改为次要颜色并显示“已读”，未读文章保持蓝色并显示“未读”，便于区分状态。
 - 依据官方 `useEffect` 与 ScrollView 可见性文档实现状态驱动的底部加载：https://scriptingapp.github.io/TestFlight/guide/Quick%20Start、https://scriptingapp.github.io/llms.txt。
+
+## 2026-08-01 RSS 触底加载与文章卡片布局修正
+
+- 执行者：Codex。
+- 编辑前执行 `git pull --ff-only origin dev`，同步远端自动构建提交。
+- 在底部 sentinel 可见性之外增加官方 `scrollPosition` 领先目标监听；当最后一条文章或底部目标成为 leading target 时触发 continuation 加载，避免仅依赖底部可见回调。
+- 卡片布局调整为源名称单独一行、标题单独一行、摘要内容、时间置于摘要底部。
+- 删除文章卡片中的“已读/未读”文字，仅使用已读标题次要颜色、未读标题蓝色区分状态。
+- 依据官方 ScrollView 文档核对 `scrollPosition` 的 state/onChanged 绑定及 `scrollTargetLayout`/`key` 要求：https://scriptingapp.github.io/TestFlight/guide/Views/Scroll%20views/。

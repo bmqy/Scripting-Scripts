@@ -511,6 +511,7 @@ function ArticleListPage({
   const [markedReadIds, setMarkedReadIds] = useState<string[]>([])
   const [pendingReadIds, setPendingReadIds] = useState<string[]>([])
   const [hasReachedEnd, setHasReachedEnd] = useState(false)
+  const [leadingTargetId, setLeadingTargetId] = useState<string | null>(null)
 
   const articleTargetId = (article: ReaderArticle, pageNumber: number, index: number) => (
     'article-' + pageNumber + '-' + (article.id || index)
@@ -577,16 +578,18 @@ function ArticleListPage({
   }, [])
 
   const lastPage = pages[pages.length - 1]
+  const lastArticle = lastPage?.items[lastPage.items.length - 1]
+  const lastArticleTargetId = lastArticle && lastPage
+    ? articleTargetId(lastArticle, pages.length - 1, lastPage.items.length - 1)
+    : ''
 
   useEffect(() => {
-    if (
-      !visibleTargetIds.includes(ARTICLE_LIST_END_TARGET_ID)
-      || isLoading
-      || message
-      || !lastPage?.continuation
-    ) return
+    const isNearEnd = visibleTargetIds.includes(ARTICLE_LIST_END_TARGET_ID)
+      || leadingTargetId === ARTICLE_LIST_END_TARGET_ID
+      || leadingTargetId === lastArticleTargetId
+    if (!isNearEnd || isLoading || message || !lastPage?.continuation) return
     void loadPage(pages.length, lastPage.continuation)
-  }, [visibleTargetIds, pages, isLoading, message])
+  }, [visibleTargetIds, leadingTargetId, lastArticleTargetId, pages, isLoading, message])
 
   const retryLoad = () => {
     if (lastPage?.continuation && pages.length > 0) {
@@ -636,6 +639,10 @@ function ArticleListPage({
   return <ScrollView
     navigationTitle={navigationTitleText(feed.name, unreadCount)}
     navigationBarTitleDisplayMode='inline'
+    scrollPosition={{
+      value: leadingTargetId,
+      onChanged: value => setLeadingTargetId(typeof value === 'string' ? value : null),
+    }}
     toolbar={{
       topBarTrailing: <Menu title={ARTICLE_FILTER_LABELS[articleFilter]}>
         <Button title='未读' action={() => selectFilter('unread')} />
@@ -666,17 +673,15 @@ function ArticleListPage({
           background='secondarySystemGroupedBackground'
           frame={{ maxWidth: 'infinity', alignment: 'leading' }}
         >
+          <Text font='caption' foregroundStyle='secondaryLabel'>{article.source}</Text>
           <Text
             font='headline'
             lineLimit={2}
             truncationMode='tail'
             foregroundStyle={article.isRead ? 'secondaryLabel' : 'systemBlue'}
           >{article.title}</Text>
-          <HStack alignment='center' spacing={4}>
-            <Text font='caption' foregroundStyle='secondaryLabel'>{article.source} · {formatArticleDate(article.publishedAt)}</Text>
-            <Text font='caption' foregroundStyle={article.isRead ? 'secondaryLabel' : 'systemBlue'}>{article.isRead ? '已读' : '未读'}</Text>
-          </HStack>
           {article.excerpt ? <Text font='subheadline' foregroundStyle='secondaryLabel' lineLimit={3} truncationMode='tail'>{article.excerpt}</Text> : null}
+          <Text font='caption' foregroundStyle='secondaryLabel'>{formatArticleDate(article.publishedAt)}</Text>
         </VStack>
 
         const targetId = articleTargetId(article, pageNumber, index)
