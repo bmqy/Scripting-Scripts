@@ -155,3 +155,12 @@
 - 卡片布局调整为源名称单独一行、标题单独一行、摘要内容、时间置于摘要底部。
 - 删除文章卡片中的“已读/未读”文字，仅使用已读标题次要颜色、未读标题蓝色区分状态。
 - 依据官方 ScrollView 文档核对 `scrollPosition` 的 state/onChanged 绑定及 `scrollTargetLayout`/`key` 要求：https://scriptingapp.github.io/TestFlight/guide/Views/Scroll%20views/。
+
+## 2026-08-01 RSS 触底加载再次修正与时间右对齐
+
+- 执行者：Codex。
+- 编辑前执行 `git pull --ff-only origin dev`，同步远端自动构建提交。
+- 针对底部已显示 continuation 但未发起请求的问题，将自动加载条件扩大为最后 4 条文章 target、leading target 或底部 target 任一接近底部即加载。
+- 底部 continuation 提示改为可点击的加载按钮，作为滚动回调未触发时的兜底入口；末尾文章离屏也纳入源切换条件。
+- 时间改为摘要后独立一行，并通过 Spacer 右对齐；卡片不显示已读/未读状态文字。
+- 依据官方 ScrollView 文档核对 scrollPosition、可见 target 和 key 的组合方式：https://scriptingapp.github.io/TestFlight/guide/Views/Scroll%20views/。

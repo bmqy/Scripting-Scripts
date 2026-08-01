@@ -159,3 +159,13 @@
 - TypeScript 诊断：本机 `npx tsc` 仍受 Volta 无法创建 `C:\Users\88268\AppData\Local\Volta` 目录影响，未能启动；项目还缺少 `dts/scripting.d.ts`。
 - 设备验证：未连接 Scripting App/iOS 预览环境，需实际确认滚动到最后一条时的 continuation 请求。
 - 构建产物：已还原本地生成的 `dist/RSS阅读.scripting`，未纳入提交。
+
+## 2026-08-01 RSS 触底加载再次修正与时间右对齐验证
+
+- 执行者：Codex。
+- 冒烟验证：`npm run build` 通过，RSS 阅读脚本成功打包。
+- 静态验证：`git diff --check` 通过。
+- 逻辑核对：最后四条文章、leading target、底部 target 均可触发 continuation；底部有可点击加载按钮；时间使用 Spacer 右对齐；卡片状态文字已移除。
+- TypeScript 诊断：本机 `npx tsc` 仍受 Volta 无法创建 `C:\Users\88268\AppData\Local\Volta` 目录影响，未能启动；项目还缺少 `dts/scripting.d.ts`。
+- 设备验证：未连接 Scripting App/iOS 预览环境，需实际确认自动触底请求和按钮兜底。
+- 构建产物：已还原本地生成的 `dist/RSS阅读.scripting`，未纳入提交。

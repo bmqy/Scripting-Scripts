@@ -584,9 +584,13 @@ function ArticleListPage({
     : ''
 
   useEffect(() => {
-    const isNearEnd = visibleTargetIds.includes(ARTICLE_LIST_END_TARGET_ID)
+    const tailTargetIds = pages.flatMap((page: ArticlePage, pageNumber: number) => page.items
+      .map((article: ReaderArticle, index: number) => articleTargetId(article, pageNumber, index)))
+      .slice(-4)
+    const isNearEnd = visibleTargetIds.some(id => tailTargetIds.includes(id))
+      || (leadingTargetId != null && tailTargetIds.includes(leadingTargetId))
+      || visibleTargetIds.includes(ARTICLE_LIST_END_TARGET_ID)
       || leadingTargetId === ARTICLE_LIST_END_TARGET_ID
-      || leadingTargetId === lastArticleTargetId
     if (!isNearEnd || isLoading || message || !lastPage?.continuation) return
     void loadPage(pages.length, lastPage.continuation)
   }, [visibleTargetIds, leadingTargetId, lastArticleTargetId, pages, isLoading, message])
@@ -612,7 +616,9 @@ function ArticleListPage({
     setVisibleTargetIds(ids)
     if (leavingArticleIds.length > 0) void markArticlesRead(leavingArticleIds)
 
-    if (leavingTargetIds.includes(ARTICLE_LIST_END_TARGET_ID) && !lastPage?.continuation && !hasReachedEnd) {
+    const isLastArticleLeaving = lastArticleTargetId && leavingTargetIds.includes(lastArticleTargetId)
+    const isEndTargetLeaving = leavingTargetIds.includes(ARTICLE_LIST_END_TARGET_ID) || isLastArticleLeaving
+    if (isEndTargetLeaving && !lastPage?.continuation && !hasReachedEnd) {
       setHasReachedEnd(true)
       if (hasNextFeed) onNextFeed()
     }
@@ -681,7 +687,10 @@ function ArticleListPage({
             foregroundStyle={article.isRead ? 'secondaryLabel' : 'systemBlue'}
           >{article.title}</Text>
           {article.excerpt ? <Text font='subheadline' foregroundStyle='secondaryLabel' lineLimit={3} truncationMode='tail'>{article.excerpt}</Text> : null}
-          <Text font='caption' foregroundStyle='secondaryLabel'>{formatArticleDate(article.publishedAt)}</Text>
+          <HStack alignment='center'>
+            <Spacer />
+            <Text font='caption' foregroundStyle='secondaryLabel'>{formatArticleDate(article.publishedAt)}</Text>
+          </HStack>
         </VStack>
 
         const targetId = articleTargetId(article, pageNumber, index)
@@ -694,18 +703,18 @@ function ArticleListPage({
         alignment='leading'
         padding={{ top: 10, leading: 16, bottom: 18, trailing: 16 }}
       >
-        <Text foregroundStyle='secondaryLabel'>
-          {isLoading
-            ? '正在加载下一页...'
-            : lastPage?.continuation
-              ? '继续上滑加载更多...'
-              : hasNextFeed
-                ? '继续上滑切换到下一个源...'
-                : hasReachedEnd
-                  ? '已经是最后一个源。'
-                  : '已到当前源末尾，继续上滑...'
+        {lastPage?.continuation ? <Button
+          title={isLoading ? '正在加载下一页...' : '继续上滑加载更多...'}
+          disabled={isLoading}
+          action={() => { if (lastPage.continuation) void loadPage(pages.length, lastPage.continuation) }}
+        /> : <Text foregroundStyle='secondaryLabel'>
+          {hasNextFeed
+            ? '继续上滑切换到下一个源...'
+            : hasReachedEnd
+              ? '已经是最后一个源。'
+              : '已到当前源末尾，继续上滑...'
           }
-        </Text>
+        </Text>}
       </VStack> : null}
     </LazyVStack>
   </ScrollView>

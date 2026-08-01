@@ -134,3 +134,12 @@
 - 滚动加载：保持底部 sentinel 监听，并新增 `scrollPosition` leading target 监听；最后文章 target 或 sentinel 接近底部时请求下一页。
 - 布局检查：源名称与时间不再同一行；时间位于摘要之后；状态仅通过标题颜色区分。
 - 未执行项：真实 Scripting App/Reader API 的设备回归。
+
+## 2026-08-01 RSS 触底加载再次修正与时间右对齐验证
+
+- `npm run build`：通过。
+- `git diff --check`：通过。
+- 触底策略：可见文章尾部集合、scrollPosition leading target、底部 target 和按钮四条路径均复用 continuation 加载。
+- 布局检查：时间位于摘要之后并右对齐，文章卡片不再出现“已读/未读”文字。
+- 源切换：底部 target 或最后文章 target 离开可见集合且没有 continuation 时进入下一源。
+- 未执行项：真实 Scripting App/Reader 服务设备回归。
