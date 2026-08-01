@@ -164,3 +164,13 @@
 - 底部 continuation 提示改为可点击的加载按钮，作为滚动回调未触发时的兜底入口；末尾文章离屏也纳入源切换条件。
 - 时间改为摘要后独立一行，并通过 Spacer 右对齐；卡片不显示已读/未读状态文字。
 - 依据官方 ScrollView 文档核对 scrollPosition、可见 target 和 key 的组合方式：https://scriptingapp.github.io/TestFlight/guide/Views/Scroll%20views/。
+
+## 2026-08-01 RSS 分页回滚与下一个源按钮
+
+- 执行者：Codex。
+- 编辑前已执行 git pull --ff-only origin dev，基于远端最新代码修改。
+- 将 RSS 文章列表从连续滚动/触底加载改回单页分页：只渲染当前页，底部提供“上一页 / 第 N 页 / 下一页”。
+- 当前页没有 continuation 且存在后续源时显示“下一个源”按钮；没有后续源时显示“已经是最后一个源。”。
+- 保留未读筛选默认值、已读样式区分、离屏/翻页时的已读标记、未读数量乐观刷新、源名独立一行和时间右对齐布局。
+- 删除连续滚动专用的末尾 target 和 scrollPosition 状态，避免旧触底路径继续参与行为。
+- 执行 npm run build 通过，并恢复本地生成的 dist/RSS阅读.scripting，未纳入提交。

@@ -169,3 +169,12 @@
 - TypeScript 诊断：本机 `npx tsc` 仍受 Volta 无法创建 `C:\Users\88268\AppData\Local\Volta` 目录影响，未能启动；项目还缺少 `dts/scripting.d.ts`。
 - 设备验证：未连接 Scripting App/iOS 预览环境，需实际确认自动触底请求和按钮兜底。
 - 构建产物：已还原本地生成的 `dist/RSS阅读.scripting`，未纳入提交。
+
+## 2026-08-01 RSS 分页回滚验证
+
+- 执行者：Codex。
+- 构建验证：npm run build 通过，RSS 阅读脚本成功打包。
+- 静态检查：git diff --check 通过。
+- 源码检查：确认文章列表只渲染 currentPage，分页按钮根据 continuation 和是否存在下一个源切换行为；确认未读/已读/全部筛选仍保留。
+- 设备验证：当前未连接 Scripting App/iOS 预览环境，未进行真机点击和视觉回归；需在设备上确认分页按钮、下一个源切换及未读数量更新。
+- 构建产物：已恢复本地生成的 dist/RSS阅读.scripting，未提交。
