@@ -621,7 +621,7 @@ function FeedManagementPage({
         >
           <Text
             font='subheadline'
-            foregroundStyle={feed.id === defaultFeedId || Boolean(busyFeedId) ? 'secondaryLabel' : 'rgba(56, 189, 248, 1)'}
+            foregroundStyle={feed.id === defaultFeedId || Boolean(busyFeedId) ? 'secondaryLabel' : 'blue'}
           >{feed.id === defaultFeedId ? '默认源' : '设为默认'}</Text>
         </Button>
         <Button
