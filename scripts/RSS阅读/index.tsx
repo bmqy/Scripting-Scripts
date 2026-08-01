@@ -619,10 +619,7 @@ function FeedManagementPage({
           disabled={feed.id === defaultFeedId || Boolean(busyFeedId)}
           action={() => selectDefault(feed)}
         >
-          <Text
-            font='subheadline'
-            foregroundStyle={feed.id === defaultFeedId || Boolean(busyFeedId) ? 'secondaryLabel' : 'blue'}
-          >{feed.id === defaultFeedId ? '默认源' : '设为默认'}</Text>
+          <Text font='subheadline'>{feed.id === defaultFeedId ? '默认源' : '设为默认'}</Text>
         </Button>
         <Button
           buttonStyle='plain'
