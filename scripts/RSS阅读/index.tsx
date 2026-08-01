@@ -3,7 +3,10 @@ import {
     Form,
     HStack,
     Image,
+    Link,
+    List,
     Navigation,
+    NavigationLink,
     NavigationStack,
     Picker,
     Script,
@@ -55,6 +58,45 @@ type SubscriptionResponse = {
   subscriptions?: Array<{ id?: string; title?: string }>
 }
 
+type UnreadCountsResponse = {
+  max?: number
+  unreadcounts?: Array<{ id?: string; count?: number }>
+}
+
+type StreamEntry = {
+  id?: string
+  title?: string
+  crawlTimeMsec?: string
+  published?: number
+  alternate?: Array<{ href?: string }>
+  origin?: { title?: string }
+  summary?: { content?: string }
+  content?: { content?: string }
+}
+
+type StreamResponse = {
+  items?: StreamEntry[]
+  continuation?: string
+}
+
+type ItemIdsResponse = {
+  itemRefs?: Array<{ id?: string }>
+  continuation?: string
+}
+
+type ReaderArticle = {
+  id?: string
+  url?: string
+  title: string
+  source: string
+  excerpt: string
+  publishedAt: number
+}
+
+type FeedOverview = FeedOption & {
+  unreadCount: number
+}
+
 type FeedListCache = {
   accountKey: string
   feeds: FeedOption[]
@@ -69,6 +111,9 @@ type StorageStore = {
 const FEED_LIST_CACHE_KEY = 'rss-reader-feed-list-cache'
 const FEED_LIST_CACHE_MIN_MINUTES = 60
 const FEED_LIST_CACHE_REFRESH_MULTIPLIER = 6
+const READ_STATE_ID = 'user/-/state/com.google/read'
+const ARTICLE_PAGE_SIZE = 20
+const ITEM_ID_PAGE_SIZE = 1000
 
 function scriptingStorage() {
   return (globalThis as unknown as { Storage?: StorageStore }).Storage
@@ -143,34 +188,47 @@ async function login(settings: ReaderSettings, forceRefresh = false) {
   return auth
 }
 
-async function fetchWithAuth(settings: ReaderSettings, endpoint: string, debugLabel: string) {
+type ReaderRequestInit = {
+  method?: string
+  headers?: Record<string, string>
+  body?: string
+}
+
+async function fetchWithAuth(
+  settings: ReaderSettings,
+  endpoint: string,
+  debugLabel: string,
+  init: ReaderRequestInit = {},
+) {
   let auth = await login(settings)
-  let response = await fetch(endpoint, {
+  const request = (token: string) => fetch(endpoint, {
+    ...init,
     headers: {
-      Authorization: `GoogleLogin auth=${auth}`,
+      ...init.headers,
+      Authorization: `GoogleLogin auth=${token}`,
       'User-Agent': 'Scripting-RSS-Reader/1.0',
     },
     timeout: 15,
     debugLabel,
   })
+  let response = await request(auth)
 
   if (!isUnauthorized(response.status)) return response
 
   clearCachedAuth(settings)
   auth = await login(settings, true)
-  response = await fetch(endpoint, {
-    headers: {
-      Authorization: `GoogleLogin auth=${auth}`,
-      'User-Agent': 'Scripting-RSS-Reader/1.0',
-    },
-    timeout: 15,
-    debugLabel,
-  })
+  response = await request(auth)
   return response
 }
 
-async function fetchJSON<T>(settings: ReaderSettings, endpoint: string, debugLabel: string, errorPrefix: string) {
-  const response = await fetchWithAuth(settings, endpoint, debugLabel)
+async function fetchJSON<T>(
+  settings: ReaderSettings,
+  endpoint: string,
+  debugLabel: string,
+  errorPrefix: string,
+  init: ReaderRequestInit = {},
+) {
+  const response = await fetchWithAuth(settings, endpoint, debugLabel, init)
   if (!response.ok) throw new Error(apiError(errorPrefix, response.status))
   return await response.json() as T
 }
@@ -211,6 +269,326 @@ async function loadSubscriptions(settings: ReaderSettings, forceRefresh = false)
 
   return await loadFreshSubscriptions(settings)
 }
+function countForFeed(response: UnreadCountsResponse, feedId: string) {
+  if (feedId === READING_LIST_ID && typeof response.max === 'number' && Number.isFinite(response.max)) {
+    return Math.max(0, response.max)
+  }
+
+  return Math.max(0, response.unreadcounts?.find(item => item.id === feedId)?.count || 0)
+}
+
+async function loadFeedOverview(settings: ReaderSettings, forceRefresh = false): Promise<FeedOverview[]> {
+  const [feeds, unreadCounts] = await Promise.all([
+    loadSubscriptions(settings, forceRefresh),
+    fetchJSON<UnreadCountsResponse>(
+      settings,
+      `${settings.endpoint}/reader/api/0/unread-count?output=json`,
+      'RSS Reader Feed Unread Counts',
+      '读取源未读数',
+    ),
+  ])
+
+  return [
+    {
+      id: READING_LIST_ID,
+      name: DEFAULT_FEED_NAME,
+      unreadCount: countForFeed(unreadCounts, READING_LIST_ID),
+    },
+    ...feeds.map(feed => ({
+      ...feed,
+      unreadCount: countForFeed(unreadCounts, feed.id),
+    })),
+  ]
+}
+
+function stripHtml(value?: string) {
+  return (value || '')
+    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&quot;/g, String.fromCharCode(34))
+    .replace(/&#39;|&#x27;/g, String.fromCharCode(39))
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+function streamPath(streamId: string) {
+  return streamId.split('/').map(part => encodeURIComponent(part)).join('/')
+}
+
+function articleUrl(entry: StreamEntry) {
+  const href = entry.alternate?.find(item => typeof item.href === 'string' && item.href.trim())?.href?.trim()
+  if (!href) return undefined
+
+  try {
+    const url = new URL(href)
+    return url.protocol === 'http:' || url.protocol === 'https:' ? href : undefined
+  } catch {
+    return undefined
+  }
+}
+
+function articlePublishedAt(entry: StreamEntry) {
+  const crawled = Number(entry.crawlTimeMsec)
+  if (Number.isFinite(crawled) && crawled > 0) return crawled
+  const published = Number(entry.published)
+  return Number.isFinite(published) && published > 0 ? published * 1000 : Date.now()
+}
+
+function toArticle(entry: StreamEntry): ReaderArticle {
+  return {
+    id: entry.id,
+    url: articleUrl(entry),
+    title: stripHtml(entry.title) || '未命名文章',
+    source: stripHtml(entry.origin?.title) || '未知来源',
+    excerpt: stripHtml(entry.summary?.content || entry.content?.content),
+    publishedAt: articlePublishedAt(entry),
+  }
+}
+
+type ArticlePage = {
+  items: ReaderArticle[]
+  continuation?: string
+}
+
+async function loadArticlePage(settings: ReaderSettings, feedId: string, continuation = ''): Promise<ArticlePage> {
+  const continuationQuery = continuation ? `&c=${encodeURIComponent(continuation)}` : ''
+  const data = await fetchJSON<StreamResponse>(
+    settings,
+    `${settings.endpoint}/reader/api/0/stream/contents/${streamPath(feedId)}?output=json&n=${ARTICLE_PAGE_SIZE}&ck=${Math.floor(Date.now() / 1000)}${continuationQuery}`,
+    'RSS Reader Article List',
+    '读取文章列表',
+  )
+
+  return {
+    items: (data.items || []).map(toArticle),
+    continuation: typeof data.continuation === 'string' && data.continuation.trim()
+      ? data.continuation.trim()
+      : undefined,
+  }
+}
+
+async function loadUnreadItemIds(settings: ReaderSettings, feedId: string) {
+  const ids: string[] = []
+  const seenContinuations = new Set<string>()
+  let continuation = ''
+
+  while (true) {
+    const continuationQuery = continuation ? `&c=${encodeURIComponent(continuation)}` : ''
+    const data = await fetchJSON<ItemIdsResponse>(
+      settings,
+      `${settings.endpoint}/reader/api/0/stream/items/ids?output=json&s=${encodeURIComponent(feedId)}&xt=${encodeURIComponent(READ_STATE_ID)}&n=${ITEM_ID_PAGE_SIZE}${continuationQuery}`,
+      'RSS Reader Unread Item IDs',
+      '读取未读文章',
+    )
+    for (const item of data.itemRefs || []) {
+      if (typeof item.id === 'string' && item.id.trim()) ids.push(item.id.trim())
+    }
+
+    const nextContinuation = typeof data.continuation === 'string' ? data.continuation.trim() : ''
+    if (!nextContinuation || seenContinuations.has(nextContinuation)) break
+    seenContinuations.add(nextContinuation)
+    continuation = nextContinuation
+  }
+
+  return ids
+}
+
+async function markAllUnreadAsRead(settings: ReaderSettings, feedId: string) {
+  const ids = await loadUnreadItemIds(settings, feedId)
+  for (let index = 0; index < ids.length; index += ITEM_ID_PAGE_SIZE) {
+    const body = ids
+      .slice(index, index + ITEM_ID_PAGE_SIZE)
+      .map(id => `i=${encodeURIComponent(id)}`)
+      .concat(`a=${encodeURIComponent(READ_STATE_ID)}`, 'async=true')
+      .join('&')
+    const response = await fetchWithAuth(
+      settings,
+      `${settings.endpoint}/reader/api/0/edit-tag`,
+      'RSS Reader Mark All Unread Read',
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body,
+      },
+    )
+    if (!response.ok) throw new Error(apiError('标记文章已读', response.status))
+  }
+
+  return ids.length
+}
+
+function formatArticleDate(timestamp: number) {
+  const date = new Date(timestamp)
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
+}
+
+function ArticleListPage({ settings, feed }: { settings: ReaderSettings; feed: FeedOption }) {
+  const [pages, setPages] = useState<ArticlePage[]>([])
+  const [pageIndex, setPageIndex] = useState(0)
+  const [isLoading, setIsLoading] = useState(false)
+  const [message, setMessage] = useState('')
+
+  const loadPage = async (index: number, continuation = '') => {
+    if (isLoading) return
+    setIsLoading(true)
+    setMessage('')
+    try {
+      const page = await loadArticlePage(settings, feed.id, continuation)
+      setPages((previous: ArticlePage[]) => {
+        const next = previous.slice(0, index)
+        next[index] = page
+        return next
+      })
+      setPageIndex(index)
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : '无法读取文章列表。')
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    void loadPage(0)
+  }, [])
+
+  const currentPage = pages[pageIndex]
+  const goNext = () => {
+    if (pageIndex + 1 < pages.length) {
+      setPageIndex(pageIndex + 1)
+      return
+    }
+    if (currentPage?.continuation) void loadPage(pageIndex + 1, currentPage.continuation)
+  }
+
+  return <List navigationTitle={feed.name} navigationBarTitleDisplayMode='inline'>
+    {message ? <Section>
+      <Text foregroundStyle='secondaryLabel'>{message}</Text>
+      <Button title='重试' disabled={isLoading} action={() => { void loadPage(0) }} />
+    </Section> : null}
+    {isLoading && !currentPage ? <Section><Text>正在加载文章...</Text></Section> : null}
+    {!isLoading && currentPage && currentPage.items.length === 0 ? (
+      <Section><Text foregroundStyle='secondaryLabel'>这个源暂无文章。</Text></Section>
+    ) : null}
+    {currentPage?.items.map((article: ReaderArticle, index: number) => {
+      const content = <VStack alignment='leading' spacing={4}>
+        <Text font='headline'>{article.title}</Text>
+        <Text font='caption' foregroundStyle='secondaryLabel'>{article.source} · {formatArticleDate(article.publishedAt)}</Text>
+        {article.excerpt ? <Text font='subheadline' foregroundStyle='secondaryLabel'>{article.excerpt}</Text> : null}
+      </VStack>
+
+      return <Section key={article.id || `${pageIndex}-${index}`}>
+        {article.url ? <Link url={article.url}>{content}</Link> : content}
+      </Section>
+    })}
+    {currentPage ? <Section>
+      <HStack alignment='center'>
+        <Button title='上一页' disabled={isLoading || pageIndex === 0} action={() => setPageIndex(pageIndex - 1)} />
+        <Spacer />
+        <Text foregroundStyle='secondaryLabel'>第 {pageIndex + 1} 页</Text>
+        <Spacer />
+        <Button title='下一页' disabled={isLoading || (!currentPage.continuation && pageIndex + 1 >= pages.length)} action={goNext} />
+      </HStack>
+    </Section> : null}
+  </List>
+}
+
+function FeedManagementPage({
+  settings,
+  onDefaultChanged,
+}: {
+  settings: ReaderSettings
+  onDefaultChanged: (settings: ReaderSettings) => void
+}) {
+  const [feeds, setFeeds] = useState<FeedOverview[]>([])
+  const [defaultFeedId, setDefaultFeedId] = useState(settings.feedId)
+  const [busyFeedId, setBusyFeedId] = useState<string | null>(null)
+  const [message, setMessage] = useState('正在加载 RSS 源...')
+
+  const refresh = async (forceRefresh = false) => {
+    setMessage(forceRefresh ? '正在刷新 RSS 源...' : '正在加载 RSS 源...')
+    try {
+      setFeeds(await loadFeedOverview(settings, forceRefresh))
+      setMessage('')
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : '无法加载 RSS 源列表。')
+    }
+  }
+
+  useEffect(() => {
+    void refresh()
+  }, [])
+
+  const selectDefault = (feed: FeedOverview) => {
+    const nextSettings: ReaderSettings = {
+      ...settings,
+      feedId: feed.id,
+      feedName: feed.name,
+    }
+    if (!saveSettings(nextSettings)) {
+      setMessage('无法保存默认 RSS 源，请检查 Scripting 的本地存储。')
+      return
+    }
+
+    setDefaultFeedId(feed.id)
+    onDefaultChanged(nextSettings)
+    Widget.reloadAll()
+    setMessage(`已将“${feed.name}”设为小组件默认源。`)
+  }
+
+  const markFeedRead = async (feed: FeedOverview) => {
+    if (busyFeedId) return
+    setBusyFeedId(feed.id)
+    setMessage(`正在标记“${feed.name}”的未读文章...`)
+    try {
+      const count = await markAllUnreadAsRead(settings, feed.id)
+      setFeeds((previous: FeedOverview[]) => previous.map((item: FeedOverview) => item.id === feed.id ? { ...item, unreadCount: 0 } : item))
+      Widget.reloadAll()
+      setMessage(count ? `已将“${feed.name}”的 ${count} 篇文章标记为已读。` : `“${feed.name}”没有未读文章。`)
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : '标记未读文章失败。')
+    } finally {
+      setBusyFeedId(null)
+    }
+  }
+
+  return <List
+    navigationTitle='RSS 源管理'
+    navigationBarTitleDisplayMode='inline'
+  >
+    <Section>
+      <Button title='刷新源列表' disabled={Boolean(busyFeedId)} action={() => { void refresh(true) }} />
+      {message ? <Text font='footnote' foregroundStyle='secondaryLabel'>{message}</Text> : null}
+    </Section>
+    <Section header={<Text>订阅源</Text>}>
+      {feeds.length === 0 && !message ? <Text foregroundStyle='secondaryLabel'>暂无 RSS 源。</Text> : null}
+      {feeds.map((feed: FeedOverview) => <HStack key={feed.id} alignment='center'>
+        <NavigationLink destination={<ArticleListPage settings={settings} feed={feed} />}>
+          <VStack alignment='leading' spacing={3}>
+            <Text>{feed.name}</Text>
+            <Text font='caption' foregroundStyle='secondaryLabel'>{feed.unreadCount} 篇未读 · 查看文章</Text>
+          </VStack>
+        </NavigationLink>
+        <Spacer />
+        <Button
+          title={feed.id === defaultFeedId ? '默认源' : '设为默认'}
+          disabled={feed.id === defaultFeedId || Boolean(busyFeedId)}
+          action={() => selectDefault(feed)}
+        />
+        <Button
+          title={busyFeedId === feed.id ? '处理中' : feed.unreadCount ? '全部已读' : '已读'}
+          disabled={!feed.unreadCount || Boolean(busyFeedId)}
+          action={() => { void markFeedRead(feed) }}
+        />
+      </HStack>)}
+    </Section>
+  </List>
+}
+
 function SettingsPage() {
   const current = loadSettings()
   const [endpointInput, setEndpointInput] = useState(current?.endpoint || '')
@@ -428,6 +806,18 @@ function SettingsPage() {
           <Text tag={READING_LIST_ID}>{DEFAULT_FEED_NAME}</Text>
           {feeds.map(feed => <Text tag={feed.id}>{feed.name}</Text>)}
         </Picker>
+        <NavigationLink destination={
+          <FeedManagementPage
+            settings={authenticatedSettings}
+            onDefaultChanged={(nextSettings) => {
+              setAuthenticatedSettings(nextSettings)
+              setFeedId(nextSettings.feedId)
+              setFeedName(nextSettings.feedName)
+            }}
+          />
+        }>
+          <Text>RSS 源管理</Text>
+        </NavigationLink>
         {feedMessage ? <Text font="footnote" foregroundStyle="secondaryLabel">{feedMessage}</Text> : null}
         <HStack alignment="center">
           <Text>外观模式</Text>
