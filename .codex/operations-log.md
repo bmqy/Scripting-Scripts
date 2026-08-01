@@ -110,3 +110,12 @@
 - �û�����������ʾ������Ļ��Ե��
 - ��������ʾ�ͼ�����ʾͳһ������ 16 ��ˮƽ�ڱ߾�� VStack �С�
 - npm run build �ɹ���dist �����ѻָ���
+
+## 2026-08-01 RSS 文章已读标识与筛选菜单
+
+- 执行者：Codex。
+- 在编辑前已执行 `git pull --ff-only origin dev`，当前修改基于最新远端分支。
+- 按用户反馈增加文章 `isRead` 状态：读取 Reader stream 条目的 read category，并在“已读/全部”筛选下显示“已读/未读”标识。
+- 增加“未读/已读/全部”筛选菜单，默认筛选未读；切换筛选时重置当前分页和可见性状态。
+- 未读筛选继续使用 Reader `xt=read` 查询；已读筛选在客户端从连续分页中筛出已读文章；全部筛选读取原始文章列表。
+- 复用官方 `toolbar.topBarTrailing` 与 `Menu` 组件模式，参考：https://scriptingapp.github.io/guide/Views/Toolbars/、https://scriptingapp.github.io/guide/Views/Menu/index_example。
