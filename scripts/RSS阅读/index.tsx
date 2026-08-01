@@ -476,9 +476,9 @@ function ArticleListPage({ settings, feed }: { settings: ReaderSettings; feed: F
     ) : null}
     {currentPage?.items.map((article: ReaderArticle, index: number) => {
       const content = <VStack alignment='leading' spacing={4}>
-        <Text font='headline'>{article.title}</Text>
+        <Text font='headline' lineLimit={2} truncationMode='tail'>{article.title}</Text>
         <Text font='caption' foregroundStyle='secondaryLabel'>{article.source} · {formatArticleDate(article.publishedAt)}</Text>
-        {article.excerpt ? <Text font='subheadline' foregroundStyle='secondaryLabel'>{article.excerpt}</Text> : null}
+        {article.excerpt ? <Text font='subheadline' foregroundStyle='secondaryLabel' lineLimit={3} truncationMode='tail'>{article.excerpt}</Text> : null}
       </VStack>
 
       return <Section key={article.id || `${pageIndex}-${index}`}>
@@ -620,7 +620,10 @@ function FeedManagementPage({
           disabled={feed.id === defaultFeedId || Boolean(busyFeedId)}
           action={() => selectDefault(feed)}
         >
-          <Text font='subheadline'>{feed.id === defaultFeedId ? '默认源' : '设为默认'}</Text>
+          <Text
+            font='subheadline'
+            foregroundStyle={feed.id === defaultFeedId || Boolean(busyFeedId) ? 'secondaryLabel' : 'systemBlue'}
+          >{feed.id === defaultFeedId ? '默认源' : '设为默认'}</Text>
         </Button>
         <Button
           buttonStyle='plain'
