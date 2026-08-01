@@ -507,6 +507,8 @@ function FeedManagementPage({
   const [feeds, setFeeds] = useState<FeedOverview[]>([])
   const [defaultFeedId, setDefaultFeedId] = useState(settings.feedId)
   const [busyFeedId, setBusyFeedId] = useState<string | null>(null)
+  const [selectedFeed, setSelectedFeed] = useState<FeedOverview | null>(null)
+  const [toastMessage, setToastMessage] = useState('')
   const [message, setMessage] = useState('正在加载 RSS 源...')
 
   const refresh = async (forceRefresh = false) => {
@@ -537,7 +539,8 @@ function FeedManagementPage({
     setDefaultFeedId(feed.id)
     onDefaultChanged(nextSettings)
     Widget.reloadAll()
-    setMessage(`已将“${feed.name}”设为小组件默认源。`)
+    setMessage('')
+    setToastMessage(`已将“${feed.name}”设为小组件默认源。`)
   }
 
   const markFeedRead = async (feed: FeedOverview) => {
@@ -548,7 +551,8 @@ function FeedManagementPage({
       const count = await markAllUnreadAsRead(settings, feed.id)
       setFeeds((previous: FeedOverview[]) => previous.map((item: FeedOverview) => item.id === feed.id ? { ...item, unreadCount: 0 } : item))
       Widget.reloadAll()
-      setMessage(count ? `已将“${feed.name}”的 ${count} 篇文章标记为已读。` : `“${feed.name}”没有未读文章。`)
+      setMessage('')
+      setToastMessage(count ? `已将“${feed.name}”的 ${count} 篇文章标记为已读。` : `“${feed.name}”没有未读文章。`)
     } catch (error) {
       setMessage(error instanceof Error ? error.message : '标记未读文章失败。')
     } finally {
@@ -559,6 +563,28 @@ function FeedManagementPage({
   return <List
     navigationTitle='RSS 源管理'
     navigationBarTitleDisplayMode='inline'
+    navigationDestination={{
+      isPresented: selectedFeed != null,
+      onChanged: (isPresented) => {
+        if (!isPresented) setSelectedFeed(null)
+      },
+      content: selectedFeed
+        ? <ArticleListPage settings={settings} feed={selectedFeed} />
+        : <Text>请选择 RSS 源</Text>,
+    }}
+    toast={{
+      isPresented: Boolean(toastMessage),
+      onChanged: (isPresented) => {
+        if (!isPresented) setToastMessage('')
+      },
+      duration: 2,
+      position: 'bottom',
+      backgroundColor: '#1F2937',
+      textColor: 'white',
+      cornerRadius: 12,
+      shadowRadius: 8,
+      message: toastMessage,
+    }}
   >
     <Section>
       <Button title='刷新源列表' disabled={Boolean(busyFeedId)} action={() => { void refresh(true) }} />
@@ -567,12 +593,18 @@ function FeedManagementPage({
     <Section header={<Text>订阅源</Text>}>
       {feeds.length === 0 && !message ? <Text foregroundStyle='secondaryLabel'>暂无 RSS 源。</Text> : null}
       {feeds.map((feed: FeedOverview) => <HStack key={feed.id} alignment='center'>
-        <NavigationLink destination={<ArticleListPage settings={settings} feed={feed} />}>
+        <HStack
+          alignment='center'
+          spacing={8}
+          contentShape='rect'
+          onTapGesture={() => setSelectedFeed(feed)}
+        >
           <VStack alignment='leading' spacing={3}>
             <Text>{feed.name}</Text>
             <Text font='caption' foregroundStyle='secondaryLabel'>{feed.unreadCount} 篇未读 · 查看文章</Text>
           </VStack>
-        </NavigationLink>
+          <Image systemName='chevron.right' foregroundStyle='secondaryLabel' />
+        </HStack>
         <Spacer />
         <Button
           title={feed.id === defaultFeedId ? '默认源' : '设为默认'}
