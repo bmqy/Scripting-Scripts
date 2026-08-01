@@ -600,8 +600,6 @@ function SettingsPage() {
   const [theme, setTheme] = useState<ColorTheme>(current?.theme || 'system')
   const [feedId, setFeedId] = useState(current?.feedId || READING_LIST_ID)
   const [feedName, setFeedName] = useState(current?.feedName || DEFAULT_FEED_NAME)
-  const [feeds, setFeeds] = useState<FeedOption[]>([])
-  const [feedMessage, setFeedMessage] = useState('')
   const [accountToastMessage, setAccountToastMessage] = useState('')
   const [showAccountHelp, setShowAccountHelp] = useState(false)
   const [widgetSavedToast, setWidgetSavedToast] = useState(false)
@@ -622,20 +620,6 @@ function SettingsPage() {
       && authenticatedSettings.username === username.trim()
       && authenticatedSettings.password === password
   )
-
-  const refreshFeeds = async (settings: ReaderSettings, forceRefresh = false) => {
-    setFeedMessage(forceRefresh ? '正在刷新订阅源...' : '正在加载订阅源...')
-    try {
-      setFeeds(await loadSubscriptions(settings, forceRefresh))
-      setFeedMessage('')
-    } catch (error) {
-      setFeedMessage(error instanceof Error ? error.message : '无法加载订阅源列表。')
-    }
-  }
-
-  useEffect(() => {
-    if (current) void refreshFeeds(current)
-  }, [])
 
   const saveAccount = async () => {
     if (isSavingAccount) return
@@ -677,7 +661,6 @@ function SettingsPage() {
 
       setAuthenticatedSettings(settings)
       Widget.reloadAll()
-      void refreshFeeds(settings, true)
       setAccountToastMessage('账号登录成功，已保存账号配置。现在可以调整组件配置。')
     } catch (error) {
       setAccountToastMessage(error instanceof Error ? error.message : '接口测试失败，请检查 API 地址、用户名和 API 密码。')
@@ -791,21 +774,6 @@ function SettingsPage() {
         />
       </Section>
       {isAccountConfigured ? <Section header={<Text>组件配置</Text>}>
-        <Picker
-          title="RSS 源"
-          value={feedId}
-          onChanged={(value) => {
-            const selected = feeds.find(feed => feed.id === value)
-            const nextName = selected?.name || DEFAULT_FEED_NAME
-            setFeedId(value)
-            setFeedName(nextName)
-            saveWidget({ feedId: value, feedName: nextName })
-          }}
-          pickerStyle="menu"
-        >
-          <Text tag={READING_LIST_ID}>{DEFAULT_FEED_NAME}</Text>
-          {feeds.map(feed => <Text tag={feed.id}>{feed.name}</Text>)}
-        </Picker>
         <NavigationLink destination={
           <FeedManagementPage
             settings={authenticatedSettings}
@@ -816,9 +784,18 @@ function SettingsPage() {
             }}
           />
         }>
-          <Text>RSS 源管理</Text>
+          <HStack alignment="center">
+            <Text>RSS 源管理</Text>
+            <Spacer />
+            <Text
+              foregroundStyle="secondaryLabel"
+              lineLimit={1}
+              truncationMode="tail"
+              frame={{ width: 160 }}
+              multilineTextAlignment="trailing"
+            >{feedName}</Text>
+          </HStack>
         </NavigationLink>
-        {feedMessage ? <Text font="footnote" foregroundStyle="secondaryLabel">{feedMessage}</Text> : null}
         <HStack alignment="center">
           <Text>外观模式</Text>
           <Spacer />
