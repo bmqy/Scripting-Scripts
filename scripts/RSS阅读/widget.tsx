@@ -400,14 +400,9 @@ function Header({
 
 function EmptyState({ data, palette, compact = false }: { data: ReaderData; palette: Palette; compact?: boolean }) {
   return (
-    <VStack alignment="leading" spacing={compact ? 4 : 8}>
-      <Text modifiers={modifiers().font(compact ? 'caption' : 'title3').fontWeight('semibold').foregroundStyle(palette.primaryText).lineLimit(1)}>
-        {data.error ? '暂时无法更新' : '没有未读文章'}
-      </Text>
-      <Text modifiers={modifiers().font(compact ? 'caption2' : 'callout').foregroundStyle(palette.secondaryText).lineLimit(compact ? 3 : 4)}>
-        {data.error || '订阅源已全部读完。'}
-      </Text>
-    </VStack>
+    <Text modifiers={modifiers().font(compact ? 'caption' : 'title3').fontWeight('semibold').foregroundStyle(palette.primaryText).lineLimit(1)}>
+      {data.error ? '暂时无法更新' : '没有未读文章'}
+    </Text>
   )
 }
 
@@ -480,6 +475,7 @@ function SmallWidget({ data, timeDisplay, palette }: { data: ReaderData; timeDis
           {articles.map(article => <ArticleRow article={article} palette={palette} density="small" showThumbnail={false} />)}
         </VStack>
       ) : <EmptyState data={data} palette={palette} compact />}
+      <Spacer minLength={2} />
     </VStack>
   )
 }
@@ -501,6 +497,7 @@ function MediumWidget({ data, timeDisplay, palette }: { data: ReaderData; timeDi
           {articles.map(article => <ArticleRow article={article} palette={palette} density="medium" />)}
         </VStack>
       ) : <EmptyState data={data} palette={palette} />}
+      <Spacer minLength={2} />
     </VStack>
   )
 }

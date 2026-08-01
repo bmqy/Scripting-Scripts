@@ -58,3 +58,12 @@
 - 结果：通过；scripts/RSS阅读/widget.tsx 成功复制并打包为 dist/RSS阅读.scripting。
 - 代码检查：git diff --check 通过；已恢复本地构建生成的 dist/RSS阅读.scripting，避免将构建物作为源码变更保留。
 - 未执行项：真实 iOS/Scripting App 点击行为无法在本地 Node.js 环境模拟，需要在 Scripting App 真机或预览中点按文章行确认跳转。
+
+## 2026-08-01 RSS 阅读小中号顶部对齐与空状态简化
+
+- 变更文件：`scripts/RSS阅读/widget.tsx`。
+- 代码核对：SmallWidget、MediumWidget 均在主体后加入与 LargeWidget 相同的 `Spacer minLength={2}`，用于把主体推到顶部。
+- 代码核对：EmptyState 仅保留一条单行文本；无未读时显示“没有未读文章”。
+- 可执行验证：`npm run build` 通过；`git diff --check` 通过。
+- 类型检查限制：本地缺少 `scripting` 类型声明，`npx tsc --noEmit` 失败；需在 Scripting App/同步类型环境中补充验证。
+- 手工验证：需在 Scripting App 预览中分别检查 `systemSmall`、`systemMedium`、`systemLarge` 的顶部基线和空状态显示。

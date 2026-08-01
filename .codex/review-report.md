@@ -80,3 +80,13 @@
 - 兼容性：通过。链接字段为可选；缓存中的旧文章没有 URL 时仍使用原布局。
 - 风险：真实 Scripting App/iOS 点击行为未在当前 Windows 环境实机验证。
 - 结论：通过，建议在 Scripting App 预览或真机中完成一次点击回归。
+
+## 2026-08-01 RSS 阅读小中号顶部对齐与空状态简化审查
+
+- 审查者：Codex
+- 技术评分：96/100
+- 需求匹配：通过。小号、中号复用大号的底部 Spacer 布局模式，空状态从两行缩减为一行。
+- 技术检查：仅修改 `scripts/RSS阅读/widget.tsx`，未新增 API、依赖或数据逻辑。
+- 验证结果：`npm run build` 和 `git diff --check` 通过；类型检查受缺少 `scripting` 类型声明影响未通过。
+- 风险：本地无法渲染 Scripting Widget，最终三种尺寸的视觉顶部基线仍需在 Scripting App/iOS 预览中确认。
+- 结论：通过，建议完成一次三种 Widget family 的预览回归。

@@ -64,3 +64,19 @@
 - 读取 scripting-app-development 技能、项目参考文档和官方 Scripting 文档，确认 Link 组件支持小组件中的可点击 URL。
 - 检查 scripts/RSS阅读/widget.tsx：复用 StreamEntry.alternate[].href，在 ReaderArticle 和 ArticleRow 中接入文章链接。
 - 已完成源码替换，待执行 npm run build、git diff 和构建产物状态检查。
+
+## 2026-08-01 RSS 阅读小中号顶部对齐与空状态简化
+
+- 执行 `git pull --ff-only origin dev`，结果：Fast-forward，同步远端构建产物。
+- 读取 `scripting-app-development` 技能、官方 Widget 文档和 `scripts/RSS阅读/widget.tsx`；确认小号、中号缺少大号已有的底部 `Spacer`。
+- 修改 `scripts/RSS阅读/widget.tsx`：为小号和中号补充 `Spacer minLength={2}`，并将空状态改为单行文本。
+- 执行 `npm run build` 通过；按仓库约定还原本地生成的 `dist/RSS阅读.scripting`。
+- `npx tsc --noEmit` 因仓库缺少 `scripting` 类型声明失败；`git diff --check` 通过。
+
+## 2026-08-01 RSS 阅读小中号顶部对齐与空状态简化
+
+- 执行 `git pull --ff-only origin dev`，结果：Fast-forward，同步远端构建产物。
+- 读取 `scripting-app-development` 技能、官方 Widget 文档和 `scripts/RSS阅读/widget.tsx`；确认小号、中号缺少大号已有的底部 `Spacer`。
+- 修改 `scripts/RSS阅读/widget.tsx`：为小号和中号补充 `Spacer minLength={2}`，并将空状态改为单行文本。
+- 执行 `npm run build` 通过；按仓库约定还原本地生成的 `dist/RSS阅读.scripting`。
+- `npx tsc --noEmit` 因仓库缺少 `scripting` 类型声明失败；`git diff --check` 通过。
