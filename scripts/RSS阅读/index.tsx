@@ -543,6 +543,12 @@ function ArticleListPage({
     currentPage?.items.find((item, index) => articleTargetId(item, index) === targetId)
   )
 
+  useEffect(() => {
+    const firstArticle = currentPage?.items[0]
+    if (!firstArticle) return
+    setLeadingTargetId(articleTargetId(firstArticle, 0))
+  }, [pageIndex, currentPage?.items[0]?.id])
+
   const markArticlesRead = async (articleIds: string[]) => {
     const candidates = Array.from(new Set(articleIds.filter(id => !markedReadIds.includes(id) && !pendingReadIds.includes(id))))
     if (candidates.length === 0) return

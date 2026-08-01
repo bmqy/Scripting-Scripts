@@ -197,3 +197,10 @@
 - 编辑前执行 git pull --ff-only origin dev。
 - 将无未读/无已读/无文章提示统一为居中对齐、caption 小字号和最大宽度居中容器。
 - npm run build 通过，构建产物已恢复。
+## 2026-08-02 RSS 分页切换回到顶部
+
+- 执行者：Codex。
+- 编辑前执行 git pull --ff-only origin dev。
+- 修复分页切换时仅将 scrollPosition 设为 null 导致新页继承底部滚动位置的问题。
+- 新页数据渲染后，将 scrollPosition 指向当前页第一条文章的稳定 key；普通滚动不会触发该 effect。
+- npm run build 和 git diff --check 通过，构建产物已恢复。

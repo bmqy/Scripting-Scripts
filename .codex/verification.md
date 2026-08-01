@@ -175,3 +175,9 @@
 - 字号：使用 caption，较原 body 字号更小。
 - 留白：保留 leading/trailing 16 的左右内边距。
 - 构建：npm run build 通过。
+## 2026-08-02 RSS 分页回顶部验证报告
+
+- 翻到下一页：新页渲染后定位第一条文章。
+- 翻回上一页：同样定位上一页第一条文章。
+- 普通滚动：不改变 pageIndex 或首条文章 ID，不会触发回顶部 effect。
+- 构建：npm run build 通过。
