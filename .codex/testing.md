@@ -129,3 +129,13 @@
 - 逻辑核对：标记请求开始立即扣减计数；请求失败恢复计数；成功后只同步文章已读状态，避免重复扣减。
 - 设备验证：未连接 Scripting App/iOS 预览环境，仍需实际滚动文章确认离屏回调和网络失败回滚的视觉效果。
 - 构建产物：已还原本地生成的 `dist/RSS阅读.scripting`，未纳入提交。
+
+## 2026-08-01 RSS 文章连续滚动分页与源切换验证
+
+- 执行者：Codex。
+- 冒烟验证：`npm run build` 通过，RSS 阅读脚本成功打包。
+- 静态验证：`git diff --check` 通过。
+- 代码核对：不再渲染上一页/下一页按钮；最后文章进入可视区域加载 continuation；最后一条滚出屏幕后进入下一源；跨页面查找离屏文章并标记已读。
+- TypeScript 诊断：`npx tsc --noEmit --pretty false` 受本机 Volta 无法创建 `C:\Users\88268\AppData\Local\Volta` 目录影响，未能启动诊断；项目此前也缺少 `dts/scripting.d.ts`。
+- 设备验证：未连接 Scripting App/iOS 预览环境，仍需实际验证连续滚动触底、源切换和离屏已读请求。
+- 构建产物：已还原本地生成的 `dist/RSS阅读.scripting`，未纳入提交。

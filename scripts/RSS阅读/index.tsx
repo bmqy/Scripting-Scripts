@@ -491,13 +491,16 @@ function ArticleListPage({
   settings,
   feed,
   onUnreadCountChanged,
+  onNextFeed,
+  hasNextFeed,
 }: {
   settings: ReaderSettings
   feed: FeedOverview
   onUnreadCountChanged: (feedId: string, delta: number) => void
+  onNextFeed: () => void
+  hasNextFeed: boolean
 }) {
   const [pages, setPages] = useState<ArticlePage[]>([])
-  const [pageIndex, setPageIndex] = useState(0)
   const [isLoading, setIsLoading] = useState(false)
   const [message, setMessage] = useState('')
   const [articleFilter, setArticleFilter] = useState<ArticleFilter>('unread')
@@ -505,8 +508,19 @@ function ArticleListPage({
   const [visibleTargetIds, setVisibleTargetIds] = useState<string[]>([])
   const [markedReadIds, setMarkedReadIds] = useState<string[]>([])
   const [pendingReadIds, setPendingReadIds] = useState<string[]>([])
+  const [hasReachedEnd, setHasReachedEnd] = useState(false)
 
-  const articleTargetId = (article: ReaderArticle, index: number) => 'article-' + pageIndex + '-' + (article.id || index)
+  const articleTargetId = (article: ReaderArticle, pageNumber: number, index: number) => (
+    'article-' + pageNumber + '-' + (article.id || index)
+  )
+
+  const findArticleByTargetId = (targetId: string) => {
+    for (let pageNumber = 0; pageNumber < pages.length; pageNumber++) {
+      const article = pages[pageNumber].items.find((item, index) => articleTargetId(item, pageNumber, index) === targetId)
+      if (article) return article
+    }
+    return undefined
+  }
 
   const markArticlesRead = async (articleIds: string[]) => {
     const candidates = Array.from(new Set(articleIds.filter(id => !markedReadIds.includes(id) && !pendingReadIds.includes(id))))
@@ -545,8 +559,10 @@ function ArticleListPage({
         next[index] = page
         return next
       })
-      setPageIndex(index)
-      setVisibleTargetIds([])
+      if (index === 0) {
+        setVisibleTargetIds([])
+        setHasReachedEnd(false)
+      }
     } catch (error) {
       setMessage(error instanceof Error ? error.message : '无法读取文章列表。')
     } finally {
@@ -558,55 +574,57 @@ function ArticleListPage({
     void loadPage(0, '', 'unread')
   }, [])
 
-  const currentPage = pages[pageIndex]
-  const markCurrentPageAsRead = () => {
-    if (!currentPage || articleFilter === 'read') return
-    const ids = currentPage.items
-      .filter(article => !article.isRead)
-      .map(article => article.id)
-      .filter((id): id is string => Boolean(id))
-    if (ids.length > 0) void markArticlesRead(ids)
-    setVisibleTargetIds([])
+  const lastPage = pages[pages.length - 1]
+  const lastArticle = lastPage?.items[lastPage.items.length - 1]
+  const lastArticleTargetId = lastArticle && lastPage
+    ? articleTargetId(lastArticle, pages.length - 1, lastPage.items.length - 1)
+    : ''
+
+  const loadNextPage = () => {
+    if (isLoading || !lastPage?.continuation) return
+    void loadPage(pages.length, lastPage.continuation)
   }
 
-  const goNext = () => {
-    markCurrentPageAsRead()
-    if (pageIndex + 1 < pages.length) {
-      setPageIndex(pageIndex + 1)
+  const retryLoad = () => {
+    if (lastPage?.continuation && pages.length > 0) {
+      void loadPage(pages.length, lastPage.continuation)
       return
     }
-    if (currentPage?.continuation) void loadPage(pageIndex + 1, currentPage.continuation)
-  }
-
-  const goPrevious = () => {
-    markCurrentPageAsRead()
-    setPageIndex(pageIndex - 1)
+    void loadPage(0, '', articleFilter)
   }
 
   const handleVisibleIdsChanged = (ids: string[]) => {
-    const leavingArticles = visibleTargetIds
-      .filter(id => !ids.includes(id))
-      .map(targetId => currentPage?.items.find((article, index) => articleTargetId(article, index) === targetId))
-      .filter((article): article is ReaderArticle => Boolean(article))
+    const leavingTargetIds = visibleTargetIds.filter(id => !ids.includes(id))
     const leavingArticleIds = articleFilter === 'read'
       ? []
-      : leavingArticles
-        .filter(article => !article.isRead)
+      : leavingTargetIds
+        .map(findArticleByTargetId)
+        .filter((article): article is ReaderArticle => Boolean(article && !article.isRead))
         .map(article => article.id)
         .filter((id): id is string => Boolean(id))
 
     setVisibleTargetIds(ids)
     if (leavingArticleIds.length > 0) void markArticlesRead(leavingArticleIds)
+
+    if (lastArticleTargetId && ids.includes(lastArticleTargetId) && lastPage?.continuation) {
+      loadNextPage()
+      return
+    }
+
+    if (lastArticleTargetId && leavingTargetIds.includes(lastArticleTargetId) && !lastPage?.continuation && !hasReachedEnd) {
+      setHasReachedEnd(true)
+      if (hasNextFeed) onNextFeed()
+    }
   }
 
   const selectFilter = (nextFilter: ArticleFilter) => {
     if (nextFilter === articleFilter || isLoading || pendingReadIds.length > 0) return
     setArticleFilter(nextFilter)
     setPages([])
-    setPageIndex(0)
     setVisibleTargetIds([])
     setMarkedReadIds([])
     setPendingReadIds([])
+    setHasReachedEnd(false)
     setMessage('')
     void loadPage(0, '', nextFilter)
   }
@@ -636,13 +654,13 @@ function ArticleListPage({
     <LazyVStack alignment='leading' spacing={10} scrollTargetLayout>
       {message ? <Section><VStack alignment='leading' padding={{ leading: 16, trailing: 16 }}>
         <Text foregroundStyle='secondaryLabel'>{message}</Text>
-        <Button title='重试' disabled={isLoading} action={() => { void loadPage(0) }} />
+        <Button title='重试' disabled={isLoading} action={retryLoad} />
       </VStack></Section> : null}
-      {isLoading && !currentPage ? <Section><VStack alignment='leading' padding={{ leading: 16, trailing: 16 }}><Text foregroundStyle='secondaryLabel'>正在加载文章...</Text></VStack></Section> : null}
-      {!isLoading && currentPage && currentPage.items.length === 0 ? (
+      {isLoading && pages.length === 0 ? <Section><VStack alignment='leading' padding={{ leading: 16, trailing: 16 }}><Text foregroundStyle='secondaryLabel'>正在加载文章...</Text></VStack></Section> : null}
+      {!isLoading && pages.length === 1 && pages[0].items.length === 0 ? (
         <Section><VStack alignment='leading' padding={{ leading: 16, trailing: 16 }}><Text foregroundStyle='secondaryLabel'>{emptyMessage}</Text></VStack></Section>
       ) : null}
-      {currentPage?.items.map((article: ReaderArticle, index: number) => {
+      {pages.flatMap((page: ArticlePage, pageNumber: number) => page.items.map((article: ReaderArticle, index: number) => {
         const content = <VStack
           alignment='leading'
           spacing={4}
@@ -658,20 +676,13 @@ function ArticleListPage({
           {article.excerpt ? <Text font='subheadline' foregroundStyle='secondaryLabel' lineLimit={3} truncationMode='tail'>{article.excerpt}</Text> : null}
         </VStack>
 
-        const targetId = articleTargetId(article, index)
+        const targetId = articleTargetId(article, pageNumber, index)
         return <VStack key={targetId} alignment='leading'>
           {article.url ? <Link url={article.url}>{content}</Link> : content}
         </VStack>
-      })}
-      {currentPage ? <Section>
-        <HStack alignment='center' padding={{ leading: 16, trailing: 16 }}>
-          <Button title='上一页' disabled={isLoading || pageIndex === 0} action={goPrevious} />
-          <Spacer />
-          <Text foregroundStyle='secondaryLabel'>第 {pageIndex + 1} 页</Text>
-          <Spacer />
-          <Button title='下一页' disabled={isLoading || (!currentPage.continuation && pageIndex + 1 >= pages.length)} action={goNext} />
-        </HStack>
-      </Section> : null}
+      }))}
+      {isLoading && pages.length > 0 ? <Section><VStack alignment='leading' padding={{ leading: 16, trailing: 16 }}><Text foregroundStyle='secondaryLabel'>正在加载下一页...</Text></VStack></Section> : null}
+      {!isLoading && hasReachedEnd && !hasNextFeed ? <Section><VStack alignment='leading' padding={{ leading: 16, trailing: 16 }}><Text foregroundStyle='secondaryLabel'>已经是最后一个源。</Text></VStack></Section> : null}
     </LazyVStack>
   </ScrollView>
 }
@@ -725,6 +736,12 @@ function FeedManagementPage({
     setToastMessage(`已将“${feed.name}”设为小组件默认源。`)
   }
 
+  const selectNextFeed = (feedId: string) => {
+    const currentIndex = feeds.findIndex(item => item.id === feedId)
+    const nextFeed = currentIndex >= 0 ? feeds[currentIndex + 1] : undefined
+    if (nextFeed) setSelectedFeed(nextFeed)
+  }
+
   const onUnreadCountChanged = (feedId: string, delta: number) => {
     setFeeds((previous: FeedOverview[]) => previous.map(item => item.id === feedId
       ? { ...item, unreadCount: Math.max(0, item.unreadCount - delta) }
@@ -763,7 +780,14 @@ function FeedManagementPage({
         if (!isPresented) setSelectedFeed(null)
       },
       content: selectedFeed
-        ? <ArticleListPage key={selectedFeed.id} settings={settings} feed={selectedFeed} onUnreadCountChanged={onUnreadCountChanged} />
+        ? <ArticleListPage
+          key={selectedFeed.id}
+          settings={settings}
+          feed={selectedFeed}
+          onUnreadCountChanged={onUnreadCountChanged}
+          onNextFeed={() => selectNextFeed(selectedFeed.id)}
+          hasNextFeed={feeds.findIndex(item => item.id === selectedFeed.id) < feeds.length - 1}
+        />
         : <Text>请选择 RSS 源</Text>,
     }}
     toast={{

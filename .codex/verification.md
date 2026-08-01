@@ -109,3 +109,11 @@
 - `npx tsc --noEmit --pretty false`：失败，原因是仓库当前没有 `dts/scripting.d.ts`；同时出现既有 Scripting JSX 类型级联错误。
 - 代码路径检查：离屏回调、下一页按钮和手动标记入口均复用同一乐观计数逻辑；成功不会二次扣减，失败会恢复。
 - 风险判断：构建验证通过，剩余风险限于 Scripting App 实际状态更新节奏和 Reader 网络失败场景的设备回归。
+
+## 2026-08-01 RSS 文章连续滚动分页与源切换验证
+
+- `npm run build`：通过。
+- `git diff --check`：通过。
+- 结构检查：文章 target ID 包含页面序号和文章 ID，跨页渲染后保持稳定；可见性回调会从全部已加载页面解析离屏文章。
+- 分页检查：有 continuation 时自动追加下一页；无 continuation 且最后文章离屏时调用下一个源回调；无下一个源时显示结束提示。
+- 未执行项：未在真实 Scripting App/Reader 服务中验证滚动回调和 API 标记请求。

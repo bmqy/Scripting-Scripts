@@ -127,3 +127,12 @@
 - 修正 `scripts/RSS阅读/index.tsx`：标记文章已读请求发起时立即乐观扣减详情页标题和源列表未读数，`edit-tag` 失败时回滚。
 - 父子页面未读数回调改为 delta 语义，支持成功扣减和失败恢复；不再等待翻页触发重新渲染。
 - 官方可见性回调文档确认 `onScrollTargetVisibilityChange` 在滚动中同步回调，继续用于识别滚出屏幕的文章：https://scriptingapp.github.io/TestFlight/zh/guide/Views/Scroll%20views/。
+
+## 2026-08-01 RSS 文章连续滚动分页与源切换
+
+- 执行者：Codex。
+- 编辑前执行 `git pull --ff-only origin dev`，基于远端最新自动构建提交修改。
+- 将 RSS 文章列表由页码按钮改为连续滚动：最后一条进入可视区域时自动加载 continuation 下一页，并连续渲染已加载页面。
+- 当前源的最后一页最后一条文章滚出屏幕后，若存在下一个源则自动切换到下一个源；最后一个源显示结束提示。
+- 可见性识别改为跨所有已加载页面按稳定 target ID 查找文章，滚出屏幕的未读文章统一调用标记已读逻辑。
+- 依据官方滚动可见性文档确认 `scrollTargetLayout`、子节点 `key` 和 `onScrollTargetVisibilityChange` 的组合方式：https://scriptingapp.github.io/TestFlight/zh/guide/Views/Scroll%20views/。
