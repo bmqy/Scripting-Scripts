@@ -95,3 +95,8 @@
 - 修改 scripts/RSS阅读/index.tsx：增加未读筛选、批量标记已读、离屏可见性处理、详情标题计数和上级列表计数同步。
 - npm run build 强制重跑成功；构建产物已恢复，不纳入本次源码变更。
 - npx tsc --noEmit --pretty false 因缺少 dts/scripting.d.ts 失败，错误主要为运行时模块和 JSX 类型缺失，已记录在验证文件。
+
+## 2026-08-01 RSS 长标题布局修正
+- 用户反馈导航标题过长导致未读数被截断。
+- 修改 scripts/RSS阅读/index.tsx：源名称最多显示 10 个字符，超出使用省略号，未读数始终以括号后缀显示。
+- 按仓库流程同步 origin/dev；npm run build 成功，dist 产物已恢复。

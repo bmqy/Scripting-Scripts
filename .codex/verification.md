@@ -80,3 +80,8 @@
 - 运行时 API：已按官方文档核对 ScrollView、LazyVStack、scrollTargetLayout、onScrollTargetVisibilityChange；官方说明该可见性 API 为 iOS 18+，iOS 17 会跳过该修饰器。
 - 未完成验证：未连接真实 Scripting App/设备，无法证明 iOS 宿主实际回调和 Reader 服务端 edit-tag 结果。
 - 风险：若服务端请求失败，页面显示错误消息；文章只在成功调用 edit-tag 后减少计数。
+
+## 2026-08-01 长标题布局结论
+- 已确保导航标题格式为“截断后的源名 (未读数)”，不再显示“篇未读”。
+- 未引入新的 Scripting API；构建验证通过。
+- 剩余验证：在用户截图对应设备上确认省略号和括号计数均可见。

@@ -434,6 +434,16 @@ function formatArticleDate(timestamp: number) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
 }
 
+const NAVIGATION_SOURCE_NAME_LIMIT = 10
+
+function navigationTitleText(sourceName: string, unreadCount: number) {
+  const characters = Array.from(sourceName.trim() || DEFAULT_FEED_NAME)
+  const visibleName = characters.length > NAVIGATION_SOURCE_NAME_LIMIT
+    ? characters.slice(0, NAVIGATION_SOURCE_NAME_LIMIT).join('') + '…'
+    : characters.join('')
+  return visibleName + ' (' + Math.max(0, unreadCount) + ')'
+}
+
 function ArticleListPage({
   settings,
   feed,
@@ -527,7 +537,7 @@ function ArticleListPage({
   }
 
   return <ScrollView
-    navigationTitle={feed.name + ' · ' + unreadCount + ' 篇未读'}
+    navigationTitle={navigationTitleText(feed.name, unreadCount)}
     navigationBarTitleDisplayMode='inline'
     onScrollTargetVisibilityChange={{
       idType: 'string',

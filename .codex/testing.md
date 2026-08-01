@@ -93,3 +93,9 @@
 - 静态检查：git diff --check 通过。
 - TypeScript：npx tsc --noEmit --pretty false 未通过，原因是仓库当前缺少 dts/scripting.d.ts，同时触发 JSX 工厂和连带隐式类型错误；不是本次构建流程使用的检查。
 - 设备端未执行：需要在 iOS 18+ 的 Scripting App 中打开 RSS 源管理，进入有未读文章的源，滚动使文章完全离屏，确认源标题计数和上级列表计数递减。
+
+## 2026-08-01 长标题布局验证
+- git diff --check 通过。
+- npm run build 成功。
+- 静态检查覆盖标题截断、空源名回退、未读数非负和括号后缀。
+- 仍需在真实 iOS 设备上确认不同屏幕宽度下导航标题的视觉效果。
