@@ -191,3 +191,9 @@
 - 将 ARTICLE_PAGE_SIZE 从 20 调整为 10，分页接口和分页显示均按每页 10 条工作。
 - 加载文章提示改为 caption 字体、居中对齐并保留左右留白。
 - npm run build 和 git diff --check 通过，构建产物已恢复。
+## 2026-08-02 RSS 空状态提示布局调整
+
+- 执行者：Codex。
+- 编辑前执行 git pull --ff-only origin dev。
+- 将无未读/无已读/无文章提示统一为居中对齐、caption 小字号和最大宽度居中容器。
+- npm run build 通过，构建产物已恢复。

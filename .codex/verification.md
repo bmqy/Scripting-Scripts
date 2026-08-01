@@ -169,3 +169,9 @@
 - 构建：npm run build 通过。
 - 差异：git diff --check 通过。
 - 未执行项：真实 iOS17/iOS18 设备交互回归，重点是 LazyVStack 回收触发 onDisappear 和 edit-tag 请求结果。
+## 2026-08-02 RSS 空状态提示验证报告
+
+- 无未读文章提示：居中显示。
+- 字号：使用 caption，较原 body 字号更小。
+- 留白：保留 leading/trailing 16 的左右内边距。
+- 构建：npm run build 通过。

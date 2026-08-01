@@ -196,3 +196,9 @@
 - 布局检查：加载文章提示使用 caption 字体和最大宽度居中容器。
 - 设备验证：未连接 Scripting App/iOS 设备，尚未实测 iOS17 onDisappear 是否在 LazyVStack 回收行时触发。
 - 本仓库没有独立 test/lint/typecheck 脚本；构建是项目规定的自动验证入口。
+## 2026-08-02 RSS 空状态提示验证
+
+- npm run build：通过。
+- git diff --check：通过。
+- 源码检查：空状态使用 alignment=center、maxWidth=infinity 和 caption 字体；加载提示样式保持一致。
+- 未连接 Scripting App/iOS 设备，未进行截图级视觉回归。

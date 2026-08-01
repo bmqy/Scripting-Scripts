@@ -746,8 +746,12 @@ function ArticleListPage({
         <Text font='caption' foregroundStyle='secondaryLabel'>正在加载文章...</Text>
       </VStack></Section> : null}
       {!isLoading && currentPage && currentPage.items.length === 0 ? (
-        <Section><VStack alignment='leading' padding={{ leading: 16, trailing: 16 }}>
-          <Text foregroundStyle='secondaryLabel'>{emptyMessage}</Text>
+        <Section><VStack
+          alignment='center'
+          padding={{ leading: 16, trailing: 16 }}
+          frame={{ maxWidth: 'infinity', alignment: 'center' }}
+        >
+          <Text font='caption' foregroundStyle='secondaryLabel'>{emptyMessage}</Text>
         </VStack></Section>
       ) : null}
       {currentPage?.items.map((article: ReaderArticle, index: number) => {
