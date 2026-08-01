@@ -532,12 +532,20 @@ function ArticleListPage({
   const [readQueue, setReadQueue] = useState<string[]>([])
   const [markedReadIds, setMarkedReadIds] = useState<string[]>([])
   const [pendingReadIds, setPendingReadIds] = useState<string[]>([])
+  const [hasUserScrolled, setHasUserScrolled] = useState(false)
+  const [processedEndTargetId, setProcessedEndTargetId] = useState<string | null>(null)
 
   const currentPage = pages[pageIndex]
 
-  const articleTargetId = (article: ReaderArticle, index: number) => (
-    'article-' + pageIndex + '-' + (article.id || index)
+  const articleTargetIdForPage = (targetPageIndex: number, article: ReaderArticle, index: number) => (
+    'article-' + targetPageIndex + '-' + (article.id || index)
   )
+
+  const articleTargetId = (article: ReaderArticle, index: number) => (
+    articleTargetIdForPage(pageIndex, article, index)
+  )
+
+  const articleListEndTargetId = (targetPageIndex = pageIndex) => 'article-list-end-' + targetPageIndex
 
   const findArticleByTargetId = (targetId: string) => (
     currentPage?.items.find((item, index) => articleTargetId(item, index) === targetId)
@@ -600,7 +608,9 @@ function ArticleListPage({
         return next
       })
       setPageIndex(index)
-      setLeadingTargetId(null)
+      setLeadingTargetId(page.items[0] ? articleTargetIdForPage(index, page.items[0], 0) : null)
+      setHasUserScrolled(false)
+      setProcessedEndTargetId(null)
       dispatchVisibility({ type: 'reset' })
     } catch (error) {
       setMessage(error instanceof Error ? error.message : '无法读取文章列表。')
@@ -613,9 +623,13 @@ function ArticleListPage({
     void loadPage(0, '', 'unread')
   }, [])
 
-  const markCurrentPageAsRead = () => {
-    setLeadingTargetId(null)
-    dispatchVisibility({ type: 'reset' })
+  const markCurrentPageAsRead = (resetScroll = true) => {
+    if (resetScroll) {
+      setLeadingTargetId(null)
+      setHasUserScrolled(false)
+      setProcessedEndTargetId(null)
+      dispatchVisibility({ type: 'reset' })
+    }
     if (!currentPage || articleFilter === 'read') return
     const articleIds = currentPage.items
       .filter(article => !article.isRead)
@@ -624,40 +638,37 @@ function ArticleListPage({
     if (articleIds.length > 0) queueReadArticles(articleIds)
   }
 
-  const markArticlesBeforeTarget = (targetId: string) => {
-    if (!currentPage || articleFilter === 'read') return
-    const leadingIndex = currentPage.items.findIndex((article, index) => articleTargetId(article, index) === targetId)
-    if (leadingIndex <= 0) return
-    const articleIds = currentPage.items
-      .slice(0, leadingIndex)
-      .filter(article => !article.isRead)
-      .map(article => article.id)
-      .filter((id): id is string => Boolean(id))
-    queueReadArticles(articleIds)
-  }
-
   const handleLeadingTargetChanged = (value: string | number | null) => {
     const targetId = typeof value === 'string' ? value : null
+    if (leadingTargetId && targetId && leadingTargetId !== targetId) {
+      setHasUserScrolled(true)
+    }
     setLeadingTargetId(targetId)
-    if (targetId) markArticlesBeforeTarget(targetId)
-  }
-
-  const markArticleWhenDisappear = (article: ReaderArticle) => {
-    if (articleFilter === 'read' || article.isRead || !article.id) return
-    queueReadArticles([article.id])
   }
 
   const goPreviousPage = () => {
     if (pageIndex === 0 || isLoading) return
-    markCurrentPageAsRead()
-    setPageIndex(previous => previous - 1)
+    markCurrentPageAsRead(false)
+    const nextPageIndex = pageIndex - 1
+    const nextPage = pages[nextPageIndex]
+    setPageIndex(nextPageIndex)
+    setLeadingTargetId(nextPage?.items[0] ? articleTargetIdForPage(nextPageIndex, nextPage.items[0], 0) : null)
+    setHasUserScrolled(false)
+    setProcessedEndTargetId(null)
+    dispatchVisibility({ type: 'reset' })
   }
 
   const goNextPage = () => {
     if (!currentPage || isLoading) return
-    markCurrentPageAsRead()
+    markCurrentPageAsRead(false)
     if (pageIndex + 1 < pages.length) {
-      setPageIndex(previous => previous + 1)
+      const nextPageIndex = pageIndex + 1
+      const nextPage = pages[nextPageIndex]
+      setPageIndex(nextPageIndex)
+      setLeadingTargetId(nextPage?.items[0] ? articleTargetIdForPage(nextPageIndex, nextPage.items[0], 0) : null)
+      setHasUserScrolled(false)
+      setProcessedEndTargetId(null)
+      dispatchVisibility({ type: 'reset' })
       return
     }
     if (currentPage.continuation) {
@@ -673,18 +684,32 @@ function ArticleListPage({
 
   useEffect(() => {
     const leavingTargetIds = visibilityState.leavingTargetIds
-    if (leavingTargetIds.length === 0) return
-    const leavingArticleIds = articleFilter === 'read'
+    const leavingArticleIds = !hasUserScrolled || articleFilter === 'read'
       ? []
       : leavingTargetIds
         .map(findArticleByTargetId)
         .filter((article): article is ReaderArticle => Boolean(article && !article.isRead))
         .map(article => article.id)
         .filter((id): id is string => Boolean(id))
+    const endTargetId = articleListEndTargetId()
+    const reachedEnd = hasUserScrolled
+      && articleFilter !== 'read'
+      && processedEndTargetId !== endTargetId
+      && visibilityState.visibleTargetIds.includes(endTargetId)
+    const endArticleIds = reachedEnd
+      ? visibilityState.visibleTargetIds
+        .map(findArticleByTargetId)
+        .filter((article): article is ReaderArticle => Boolean(article && !article.isRead))
+        .map(article => article.id)
+        .filter((id): id is string => Boolean(id))
+      : []
+
+    if (leavingTargetIds.length === 0 && !reachedEnd) return
 
     dispatchVisibility({ type: 'processed' })
-    queueReadArticles(leavingArticleIds)
-  }, [visibilityState, articleFilter])
+    if (reachedEnd) setProcessedEndTargetId(endTargetId)
+    queueReadArticles(Array.from(new Set([...leavingArticleIds, ...endArticleIds])))
+  }, [visibilityState, articleFilter, hasUserScrolled, processedEndTargetId])
 
   const handleVisibleIdsChanged = (ids: string[]) => {
     dispatchVisibility({ type: 'changed', ids })
@@ -696,6 +721,8 @@ function ArticleListPage({
     setPages([])
     setPageIndex(0)
     setLeadingTargetId(null)
+    setHasUserScrolled(false)
+    setProcessedEndTargetId(null)
     dispatchVisibility({ type: 'reset' })
     setMarkedReadIds([])
     setPendingReadIds([])
@@ -800,11 +827,14 @@ function ArticleListPage({
         return <VStack
           key={targetId}
           alignment='leading'
-          onDisappear={() => markArticleWhenDisappear(article)}
         >
           {article.url ? <Link url={article.url}>{content}</Link> : content}
         </VStack>
       })}
+      {currentPage && currentPage.items.length > 0 ? <VStack
+        key={articleListEndTargetId()}
+        frame={{ height: 1 }}
+      /> : null}
       {currentPage ? <Section>
         <VStack alignment='leading' padding={{ top: 10, leading: 16, bottom: 18, trailing: 16 }}>
           <HStack alignment='center'>
