@@ -546,11 +546,11 @@ function ArticleListPage({
     }}
   >
     <LazyVStack alignment='leading' spacing={10} scrollTargetLayout>
-      {message ? <Section>
+      {message ? <Section><VStack alignment='leading' padding={{ leading: 16, trailing: 16 }}>
         <Text foregroundStyle='secondaryLabel'>{message}</Text>
         <Button title='重试' disabled={isLoading} action={() => { void loadPage(0) }} />
-      </Section> : null}
-      {isLoading && !currentPage ? <Section><Text foregroundStyle='secondaryLabel'>正在加载文章...</Text></Section> : null}
+      </VStack></Section> : null}
+      {isLoading && !currentPage ? <Section><VStack alignment='leading' padding={{ leading: 16, trailing: 16 }}><Text foregroundStyle='secondaryLabel'>正在加载文章...</Text></VStack></Section> : null}
       {!isLoading && currentPage && currentPage.items.length === 0 ? (
         <Section><VStack alignment='leading' padding={{ leading: 16, trailing: 16 }}><Text foregroundStyle='secondaryLabel'>这个源暂无未读文章。</Text></VStack></Section>
       ) : null}

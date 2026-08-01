@@ -105,3 +105,8 @@
 - 用户反馈空状态提示和分页控件贴屏幕边缘。
 - 为空状态 VStack 和分页 HStack 增加 16 点 leading/trailing padding，与文章卡片保持一致。
 - npm run build 成功，dist 产物已恢复。
+
+## 2026-08-01 RSS 加载提示留白修正
+- 用户反馈加载提示仍贴屏幕边缘。
+- 将错误提示和加载提示统一包裹在 16 点水平内边距的 VStack 中。
+- npm run build 成功，dist 产物已恢复。
