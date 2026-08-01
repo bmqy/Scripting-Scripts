@@ -611,16 +611,19 @@ function FeedManagementPage({
         </HStack>
         <Spacer />
         <Button
-          title={feed.id === defaultFeedId ? '默认源' : '设为默认'}
           buttonStyle='plain'
           disabled={feed.id === defaultFeedId || Boolean(busyFeedId)}
           action={() => selectDefault(feed)}
-        />
+        >
+          <Text font='subheadline'>{feed.id === defaultFeedId ? '默认源' : '设为默认'}</Text>
+        </Button>
         <Button
-          title={busyFeedId === feed.id ? '处理中' : feed.unreadCount ? '全部已读' : '已读'}
+          buttonStyle='plain'
           disabled={!feed.unreadCount || Boolean(busyFeedId)}
           action={() => { void markFeedRead(feed) }}
-        />
+        >
+          <Text font='subheadline'>{busyFeedId === feed.id ? '处理中' : feed.unreadCount ? '全部已读' : '已读'}</Text>
+        </Button>
       </HStack>)}
     </Section>
   </List>
