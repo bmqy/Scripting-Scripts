@@ -187,3 +187,12 @@
 - TypeScript 诊断：npx tsc --noEmit 未通过，原因是仓库缺少 scripting 模块声明，产生连带 JSX/隐式 any 错误；该问题属于现有本地诊断环境限制，npm run build 未受影响。
 - 设备验证：未连接 Scripting App/iOS 预览环境，尚未完成真机 iOS 17 和 iOS 18 的滚动回归。
 - 构建产物：dist/RSS阅读.scripting 和 dist/限号.scripting 已恢复，未提交。
+## 2026-08-01 RSS iOS17 已读兜底验证
+
+- 构建验证：npm run build 通过。
+- 静态格式验证：git diff --check 通过。
+- 分页检查：ARTICLE_PAGE_SIZE=10，文章接口请求和 continuation 页边界共用该值。
+- iOS17 检查：文章行使用 onDisappear 加入统一已读队列；iOS18 可见性回调继续保留，重复事件由队列去重。
+- 布局检查：加载文章提示使用 caption 字体和最大宽度居中容器。
+- 设备验证：未连接 Scripting App/iOS 设备，尚未实测 iOS17 onDisappear 是否在 LazyVStack 回收行时触发。
+- 本仓库没有独立 test/lint/typecheck 脚本；构建是项目规定的自动验证入口。

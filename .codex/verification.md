@@ -161,3 +161,11 @@
 - 页面边界：分页、筛选切换和新页加载都会重置旧可见集合，避免把旧页面事件映射到新页面。
 - 构建和差异检查：npm run build、git diff --check 均通过。
 - 未执行项：没有真实 Scripting App/iOS 环境，无法验证两个系统版本的实际回调行为和服务器端 edit-tag 结果。
+## 2026-08-01 RSS iOS17 已读兜底验证报告
+
+- 离屏标记：文章卡片 onDisappear、iOS18 可见性集合和分页离开整页三条路径共用已读队列。
+- 分页：服务端请求 n=10，页面显示当前 continuation 的 10 条文章。
+- 加载提示：文本字号改为 caption，外层 VStack 使用 maxWidth=infinity 且 alignment=center。
+- 构建：npm run build 通过。
+- 差异：git diff --check 通过。
+- 未执行项：真实 iOS17/iOS18 设备交互回归，重点是 LazyVStack 回收触发 onDisappear 和 edit-tag 请求结果。

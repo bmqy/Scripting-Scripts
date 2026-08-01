@@ -183,3 +183,11 @@
 - 增加 scrollPosition 兼容路径：当首个可见文章向后移动时，把其之前已经离屏的文章加入已读队列，作为 iOS 17 的回退方案。
 - 翻页、筛选和加载新页面时清理旧页面的可见性状态和首个可见项，避免新旧页面文章 ID 串联。
 - npm run build 通过，构建产物已恢复，未纳入提交。
+## 2026-08-01 RSS iOS17 已读兜底、分页条数和加载提示调整
+
+- 执行者：Codex。
+- 编辑前执行 git pull --ff-only origin dev。
+- 保留 iOS18+ onScrollTargetVisibilityChange 主路径，给每个文章卡片增加官方生命周期 onDisappear 回调，iOS17 通过 LazyVStack 行离开视图时加入已读队列。
+- 将 ARTICLE_PAGE_SIZE 从 20 调整为 10，分页接口和分页显示均按每页 10 条工作。
+- 加载文章提示改为 caption 字体、居中对齐并保留左右留白。
+- npm run build 和 git diff --check 通过，构建产物已恢复。

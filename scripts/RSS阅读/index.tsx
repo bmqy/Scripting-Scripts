@@ -119,7 +119,7 @@ const FEED_LIST_CACHE_KEY = 'rss-reader-feed-list-cache'
 const FEED_LIST_CACHE_MIN_MINUTES = 60
 const FEED_LIST_CACHE_REFRESH_MULTIPLIER = 6
 const READ_STATE_ID = 'user/-/state/com.google/read'
-const ARTICLE_PAGE_SIZE = 20
+const ARTICLE_PAGE_SIZE = 10
 const ITEM_ID_PAGE_SIZE = 1000
 
 function scriptingStorage() {
@@ -636,6 +636,11 @@ function ArticleListPage({
     if (targetId) markArticlesBeforeTarget(targetId)
   }
 
+  const markArticleWhenDisappear = (article: ReaderArticle) => {
+    if (articleFilter === 'read' || article.isRead || !article.id) return
+    queueReadArticles([article.id])
+  }
+
   const goPreviousPage = () => {
     if (pageIndex === 0 || isLoading) return
     markCurrentPageAsRead()
@@ -733,8 +738,12 @@ function ArticleListPage({
         <Text foregroundStyle='secondaryLabel'>{message}</Text>
         <Button title='重试' disabled={isLoading} action={retryLoad} />
       </VStack></Section> : null}
-      {isLoading && !currentPage ? <Section><VStack alignment='leading' padding={{ leading: 16, trailing: 16 }}>
-        <Text foregroundStyle='secondaryLabel'>正在加载文章...</Text>
+      {isLoading && !currentPage ? <Section><VStack
+        alignment='center'
+        padding={{ leading: 16, trailing: 16 }}
+        frame={{ maxWidth: 'infinity', alignment: 'center' }}
+      >
+        <Text font='caption' foregroundStyle='secondaryLabel'>正在加载文章...</Text>
       </VStack></Section> : null}
       {!isLoading && currentPage && currentPage.items.length === 0 ? (
         <Section><VStack alignment='leading' padding={{ leading: 16, trailing: 16 }}>
@@ -764,7 +773,11 @@ function ArticleListPage({
         </VStack>
 
         const targetId = articleTargetId(article, index)
-        return <VStack key={targetId} alignment='leading'>
+        return <VStack
+          key={targetId}
+          alignment='leading'
+          onDisappear={() => markArticleWhenDisappear(article)}
+        >
           {article.url ? <Link url={article.url}>{content}</Link> : content}
         </VStack>
       })}
