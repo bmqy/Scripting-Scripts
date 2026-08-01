@@ -400,7 +400,7 @@ function Header({
 
 function EmptyState({ data, palette, compact = false }: { data: ReaderData; palette: Palette; compact?: boolean }) {
   return (
-    <Text modifiers={modifiers().font(compact ? 'caption' : 'title3').fontWeight('semibold').foregroundStyle(palette.primaryText).lineLimit(1)}>
+    <Text modifiers={modifiers().font(compact ? 'caption2' : 'callout').foregroundStyle(palette.secondaryText).lineLimit(1)}>
       {data.error ? '暂时无法更新' : '没有未读文章'}
     </Text>
   )

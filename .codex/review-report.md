@@ -90,3 +90,11 @@
 - 验证结果：`npm run build` 和 `git diff --check` 通过；类型检查受缺少 `scripting` 类型声明影响未通过。
 - 风险：本地无法渲染 Scripting Widget，最终三种尺寸的视觉顶部基线仍需在 Scripting App/iOS 预览中确认。
 - 结论：通过，建议完成一次三种 Widget family 的预览回归。
+
+## 2026-08-01 RSS 阅读空状态次要文字样式审查
+
+- 审查者：Codex
+- 结论：通过。
+- 需求匹配：空状态不再使用标题样式，改用次要文字样式且保持单行。
+- 技术检查：仅调整既有 `Text` 修饰符，未改变布局、数据和 API。
+- 验证结果：`npm run build` 和 `git diff --check` 通过。

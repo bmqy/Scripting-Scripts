@@ -71,6 +71,13 @@
 - 类型检查：`npx tsc --noEmit` 未通过，原因是仓库未提供 `scripting` 模块类型声明，且现有 JSX 全局类型解析失败。
 - 产物处理：已还原 `dist/RSS阅读.scripting`，工作区仅保留源码变更。
 
+## 2026-08-01 RSS 阅读空状态次要文字样式
+
+- 执行者：Codex
+- 冒烟验证：`npm run build` 通过。
+- 样式核对：空状态使用 `secondaryText`、`caption2/callout` 和普通字重，仍保持单行限制。
+- 静态检查：`git diff --check` 通过；构建产物已还原。
+
 ## 2026-08-01 RSS 阅读小中号顶部对齐与空状态简化
 
 - 执行者：Codex

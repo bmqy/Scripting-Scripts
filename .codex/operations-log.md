@@ -73,6 +73,11 @@
 - 执行 `npm run build` 通过；按仓库约定还原本地生成的 `dist/RSS阅读.scripting`。
 - `npx tsc --noEmit` 因仓库缺少 `scripting` 类型声明失败；`git diff --check` 通过。
 
+## 2026-08-01 RSS 阅读空状态次要文字样式
+
+- 根据用户反馈，将 `EmptyState` 的无未读提示改为次要文字颜色、普通字重和非标题字号。
+- 执行 `npm run build` 通过，已还原本地生成的 `dist/RSS阅读.scripting`；`git diff --check` 通过。
+
 ## 2026-08-01 RSS 阅读小中号顶部对齐与空状态简化
 
 - 执行 `git pull --ff-only origin dev`，结果：Fast-forward，同步远端构建产物。

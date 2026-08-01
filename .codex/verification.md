@@ -67,3 +67,9 @@
 - 可执行验证：`npm run build` 通过；`git diff --check` 通过。
 - 类型检查限制：本地缺少 `scripting` 类型声明，`npx tsc --noEmit` 失败；需在 Scripting App/同步类型环境中补充验证。
 - 手工验证：需在 Scripting App 预览中分别检查 `systemSmall`、`systemMedium`、`systemLarge` 的顶部基线和空状态显示。
+
+## 2026-08-01 RSS 阅读空状态次要文字样式
+
+- 代码核对：`EmptyState` 不再使用 `title3` 或 `semibold`，改用 `secondaryText` 和 `caption2/callout`。
+- 可执行验证：`npm run build`、`git diff --check` 均通过。
+- 手工验证：需在 Scripting App 预览中确认三种尺寸的实际字号和颜色符合预期。
