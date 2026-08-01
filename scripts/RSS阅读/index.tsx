@@ -470,7 +470,7 @@ function ArticleListPage({ settings, feed }: { settings: ReaderSettings; feed: F
       <Text foregroundStyle='secondaryLabel'>{message}</Text>
       <Button title='重试' disabled={isLoading} action={() => { void loadPage(0) }} />
     </Section> : null}
-    {isLoading && !currentPage ? <Section><Text>正在加载文章...</Text></Section> : null}
+    {isLoading && !currentPage ? <Section><Text foregroundStyle='secondaryLabel'>正在加载文章...</Text></Section> : null}
     {!isLoading && currentPage && currentPage.items.length === 0 ? (
       <Section><Text foregroundStyle='secondaryLabel'>这个源暂无文章。</Text></Section>
     ) : null}
@@ -580,7 +580,7 @@ function FeedManagementPage({
         if (!isPresented) setSelectedFeed(null)
       },
       content: selectedFeed
-        ? <ArticleListPage settings={settings} feed={selectedFeed} />
+        ? <ArticleListPage key={selectedFeed.id} settings={settings} feed={selectedFeed} />
         : <Text>请选择 RSS 源</Text>,
     }}
     toast={{
@@ -616,6 +616,7 @@ function FeedManagementPage({
         <Spacer />
         <Button
           buttonStyle='plain'
+          tint='systemBlue'
           disabled={feed.id === defaultFeedId || Boolean(busyFeedId)}
           action={() => selectDefault(feed)}
         >
