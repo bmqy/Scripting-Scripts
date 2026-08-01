@@ -768,14 +768,25 @@ function ArticleListPage({
           background='secondarySystemGroupedBackground'
           frame={{ maxWidth: 'infinity', alignment: 'leading' }}
         >
-          <Text font='caption' foregroundStyle='secondaryLabel'>{article.source}</Text>
+          <Text
+            font='caption'
+            foregroundStyle='secondaryLabel'
+            frame={{ maxWidth: 'infinity', alignment: 'leading' }}
+          >{article.source}</Text>
           <Text
             font='headline'
             lineLimit={2}
             truncationMode='tail'
             foregroundStyle={article.isRead ? 'secondaryLabel' : 'systemBlue'}
+            frame={{ maxWidth: 'infinity', alignment: 'leading' }}
           >{article.title}</Text>
-          {article.excerpt ? <Text font='subheadline' foregroundStyle='secondaryLabel' lineLimit={3} truncationMode='tail'>{article.excerpt}</Text> : null}
+          {article.excerpt ? <Text
+            font='subheadline'
+            foregroundStyle='secondaryLabel'
+            lineLimit={3}
+            truncationMode='tail'
+            frame={{ maxWidth: 'infinity', alignment: 'leading' }}
+          >{article.excerpt}</Text> : null}
           <HStack alignment='center'>
             <Spacer />
             <Text font='caption' foregroundStyle='secondaryLabel'>{formatArticleDate(article.publishedAt)}</Text>
