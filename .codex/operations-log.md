@@ -174,3 +174,12 @@
 - 保留未读筛选默认值、已读样式区分、离屏/翻页时的已读标记、未读数量乐观刷新、源名独立一行和时间右对齐布局。
 - 删除连续滚动专用的末尾 target 和 scrollPosition 状态，避免旧触底路径继续参与行为。
 - 执行 npm run build 通过，并恢复本地生成的 dist/RSS阅读.scripting，未纳入提交。
+## 2026-08-01 RSS 离屏已读 iOS 18/17 兼容修复
+
+- 执行者：Codex。
+- 编辑前执行 git pull --ff-only origin dev，同步远端自动构建提交。
+- 按官方 Scripting 文档保留 iOS 18+ 的 onScrollTargetVisibilityChange，并将可见集合差分改为 reducer 状态，避免快速回调因异步 state 更新漏掉离屏文章。
+- 增加统一已读队列，对离屏事件和首个可见项事件进行合并去重，避免重复 edit-tag 请求和重复扣减未读数。
+- 增加 scrollPosition 兼容路径：当首个可见文章向后移动时，把其之前已经离屏的文章加入已读队列，作为 iOS 17 的回退方案。
+- 翻页、筛选和加载新页面时清理旧页面的可见性状态和首个可见项，避免新旧页面文章 ID 串联。
+- npm run build 通过，构建产物已恢复，未纳入提交。

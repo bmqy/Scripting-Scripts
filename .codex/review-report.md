@@ -175,3 +175,11 @@
 - 综合结论：通过。
 - 遗留风险：当前没有连接 Scripting App/iOS 设备，按钮点击和真实滚动离屏标记仍需设备回归；代码层已保留可见性回调和翻页离开时的标记逻辑作为双重路径。
 - 留痕文件：scripts/RSS阅读/index.tsx、.codex/operations-log.md、.codex/testing.md、.codex/verification.md。
+## 2026-08-01 RSS 离屏已读兼容审查
+
+- 审查者：Codex。
+- 技术评分：95/100。使用官方支持的 useReducer、scrollPosition 和 onScrollTargetVisibilityChange；状态重置、请求队列和失败回滚均覆盖。
+- 需求评分：98/100。iOS 18+ 优先使用精确可见集合，iOS 17 具备不依赖 iOS 18 API 的前导项回退，分页和未读计数逻辑保持。
+- 综合结论：通过。
+- 遗留风险：iOS 17 回退只能根据首个可见项推断已经越过的文章，不具备 iOS 18 可见集合 API 的逐项精度；仍需真机验证 Scripting bridge 的 scrollPosition 行为。
+- 类型诊断风险：本地缺少 scripting.d.ts，npx tsc --noEmit 会产生环境相关错误；项目构建验证通过。

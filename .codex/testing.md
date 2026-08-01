@@ -178,3 +178,12 @@
 - 源码检查：确认文章列表只渲染 currentPage，分页按钮根据 continuation 和是否存在下一个源切换行为；确认未读/已读/全部筛选仍保留。
 - 设备验证：当前未连接 Scripting App/iOS 预览环境，未进行真机点击和视觉回归；需在设备上确认分页按钮、下一个源切换及未读数量更新。
 - 构建产物：已恢复本地生成的 dist/RSS阅读.scripting，未提交。
+## 2026-08-01 RSS 离屏已读兼容验证
+
+- 执行者：Codex。
+- 构建验证：npm run build 通过。
+- 静态格式验证：git diff --check 通过。
+- 逻辑检查：iOS 18+ 使用 onScrollTargetVisibilityChange；iOS 17 使用 scrollPosition 前导项变化作为兼容回退；两条路径共用已读队列并去重。
+- TypeScript 诊断：npx tsc --noEmit 未通过，原因是仓库缺少 scripting 模块声明，产生连带 JSX/隐式 any 错误；该问题属于现有本地诊断环境限制，npm run build 未受影响。
+- 设备验证：未连接 Scripting App/iOS 预览环境，尚未完成真机 iOS 17 和 iOS 18 的滚动回归。
+- 构建产物：dist/RSS阅读.scripting 和 dist/限号.scripting 已恢复，未提交。

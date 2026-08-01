@@ -21,6 +21,7 @@ import {
     VStack,
     Widget,
     useEffect,
+    useReducer,
     useState,
 } from 'scripting'
 import {
@@ -500,13 +501,35 @@ function ArticleListPage({
   onNextFeed: () => void
   hasNextFeed: boolean
 }) {
+  type VisibilityState = {
+    visibleTargetIds: string[]
+    leavingTargetIds: string[]
+  }
+  type VisibilityAction =
+    | { type: 'changed'; ids: string[] }
+    | { type: 'processed' }
+    | { type: 'reset' }
+  const visibilityReducer = (previous: VisibilityState, action: VisibilityAction): VisibilityState => {
+    if (action.type === 'reset') return { visibleTargetIds: [], leavingTargetIds: [] }
+    if (action.type === 'processed') return { ...previous, leavingTargetIds: [] }
+    return {
+      visibleTargetIds: action.ids,
+      leavingTargetIds: previous.visibleTargetIds.filter(id => !action.ids.includes(id)),
+    }
+  }
+
   const [pages, setPages] = useState<ArticlePage[]>([])
   const [pageIndex, setPageIndex] = useState(0)
   const [isLoading, setIsLoading] = useState(false)
   const [message, setMessage] = useState('')
   const [articleFilter, setArticleFilter] = useState<ArticleFilter>('unread')
   const [unreadCount, setUnreadCount] = useState(feed.unreadCount)
-  const [visibleTargetIds, setVisibleTargetIds] = useState<string[]>([])
+  const [visibilityState, dispatchVisibility] = useReducer(visibilityReducer, {
+    visibleTargetIds: [],
+    leavingTargetIds: [],
+  })
+  const [leadingTargetId, setLeadingTargetId] = useState<string | null>(null)
+  const [readQueue, setReadQueue] = useState<string[]>([])
   const [markedReadIds, setMarkedReadIds] = useState<string[]>([])
   const [pendingReadIds, setPendingReadIds] = useState<string[]>([])
 
@@ -546,6 +569,19 @@ function ArticleListPage({
     }
   }
 
+  const queueReadArticles = (articleIds: string[]) => {
+    const ids = articleIds.filter(id => Boolean(id))
+    if (ids.length === 0) return
+    setReadQueue((previous: string[]) => Array.from(new Set([...previous, ...ids])))
+  }
+
+  useEffect(() => {
+    if (readQueue.length === 0) return
+    const ids = readQueue
+    setReadQueue([])
+    void markArticlesRead(ids)
+  }, [readQueue])
+
   const loadPage = async (index: number, continuation = '', filter: ArticleFilter = articleFilter) => {
     if (isLoading) return
     setIsLoading(true)
@@ -558,7 +594,8 @@ function ArticleListPage({
         return next
       })
       setPageIndex(index)
-      setVisibleTargetIds([])
+      setLeadingTargetId(null)
+      dispatchVisibility({ type: 'reset' })
     } catch (error) {
       setMessage(error instanceof Error ? error.message : '无法读取文章列表。')
     } finally {
@@ -571,13 +608,32 @@ function ArticleListPage({
   }, [])
 
   const markCurrentPageAsRead = () => {
+    setLeadingTargetId(null)
+    dispatchVisibility({ type: 'reset' })
     if (!currentPage || articleFilter === 'read') return
     const articleIds = currentPage.items
       .filter(article => !article.isRead)
       .map(article => article.id)
       .filter((id): id is string => Boolean(id))
-    if (articleIds.length > 0) void markArticlesRead(articleIds)
-    setVisibleTargetIds([])
+    if (articleIds.length > 0) queueReadArticles(articleIds)
+  }
+
+  const markArticlesBeforeTarget = (targetId: string) => {
+    if (!currentPage || articleFilter === 'read') return
+    const leadingIndex = currentPage.items.findIndex((article, index) => articleTargetId(article, index) === targetId)
+    if (leadingIndex <= 0) return
+    const articleIds = currentPage.items
+      .slice(0, leadingIndex)
+      .filter(article => !article.isRead)
+      .map(article => article.id)
+      .filter((id): id is string => Boolean(id))
+    queueReadArticles(articleIds)
+  }
+
+  const handleLeadingTargetChanged = (value: string | number | null) => {
+    const targetId = typeof value === 'string' ? value : null
+    setLeadingTargetId(targetId)
+    if (targetId) markArticlesBeforeTarget(targetId)
   }
 
   const goPreviousPage = () => {
@@ -604,8 +660,9 @@ function ArticleListPage({
     onNextFeed()
   }
 
-  const handleVisibleIdsChanged = (ids: string[]) => {
-    const leavingTargetIds = visibleTargetIds.filter(id => !ids.includes(id))
+  useEffect(() => {
+    const leavingTargetIds = visibilityState.leavingTargetIds
+    if (leavingTargetIds.length === 0) return
     const leavingArticleIds = articleFilter === 'read'
       ? []
       : leavingTargetIds
@@ -614,8 +671,12 @@ function ArticleListPage({
         .map(article => article.id)
         .filter((id): id is string => Boolean(id))
 
-    setVisibleTargetIds(ids)
-    if (leavingArticleIds.length > 0) void markArticlesRead(leavingArticleIds)
+    dispatchVisibility({ type: 'processed' })
+    queueReadArticles(leavingArticleIds)
+  }, [visibilityState, articleFilter])
+
+  const handleVisibleIdsChanged = (ids: string[]) => {
+    dispatchVisibility({ type: 'changed', ids })
   }
 
   const selectFilter = (nextFilter: ArticleFilter) => {
@@ -623,7 +684,8 @@ function ArticleListPage({
     setArticleFilter(nextFilter)
     setPages([])
     setPageIndex(0)
-    setVisibleTargetIds([])
+    setLeadingTargetId(null)
+    dispatchVisibility({ type: 'reset' })
     setMarkedReadIds([])
     setPendingReadIds([])
     setMessage('')
@@ -649,6 +711,10 @@ function ArticleListPage({
   return <ScrollView
     navigationTitle={navigationTitleText(feed.name, unreadCount)}
     navigationBarTitleDisplayMode='inline'
+    scrollPosition={{
+      value: leadingTargetId,
+      onChanged: handleLeadingTargetChanged,
+    }}
     toolbar={{
       topBarTrailing: <Menu title={ARTICLE_FILTER_LABELS[articleFilter]}>
         <Button title='未读' action={() => selectFilter('unread')} />
