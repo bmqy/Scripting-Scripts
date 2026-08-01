@@ -771,6 +771,7 @@ function ArticleListPage({
           <Text
             font='caption'
             foregroundStyle='secondaryLabel'
+            multilineTextAlignment='leading'
             frame={{ maxWidth: 'infinity', alignment: 'leading' }}
           >{article.source}</Text>
           <Text
@@ -778,6 +779,7 @@ function ArticleListPage({
             lineLimit={2}
             truncationMode='tail'
             foregroundStyle={article.isRead ? 'secondaryLabel' : 'systemBlue'}
+            multilineTextAlignment='leading'
             frame={{ maxWidth: 'infinity', alignment: 'leading' }}
           >{article.title}</Text>
           {article.excerpt ? <Text
@@ -785,6 +787,7 @@ function ArticleListPage({
             foregroundStyle='secondaryLabel'
             lineLimit={3}
             truncationMode='tail'
+            multilineTextAlignment='leading'
             frame={{ maxWidth: 'infinity', alignment: 'leading' }}
           >{article.excerpt}</Text> : null}
           <HStack alignment='center'>
