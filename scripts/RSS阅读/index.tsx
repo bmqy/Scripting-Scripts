@@ -627,7 +627,7 @@ function FeedManagementPage({
         >
           <Text
             font='subheadline'
-            foregroundStyle={busyFeedId === feed.id || !feed.unreadCount ? 'secondaryLabel' : 'green'}
+            foregroundStyle={busyFeedId === feed.id || !feed.unreadCount ? 'secondaryLabel' : 'orange'}
           >{busyFeedId === feed.id ? '处理中' : feed.unreadCount ? '全部已读' : '已读'}</Text>
         </Button>
       </HStack>)}
