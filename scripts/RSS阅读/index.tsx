@@ -612,6 +612,7 @@ function FeedManagementPage({
         <Spacer />
         <Button
           title={feed.id === defaultFeedId ? '默认源' : '设为默认'}
+          buttonStyle='plain'
           disabled={feed.id === defaultFeedId || Boolean(busyFeedId)}
           action={() => selectDefault(feed)}
         />
