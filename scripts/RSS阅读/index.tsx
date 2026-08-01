@@ -930,9 +930,34 @@ function FeedManagementPage({
     }}
   >
     {message && !isLoadingFeeds ? <Section><Text font='footnote' foregroundStyle='secondaryLabel'>{message}</Text></Section> : null}
-    <Section header={<Text>{isLoadingFeeds ? '正在加载 RSS 源...' : '订阅源'}</Text>}>
+    <Section header={(
+      <HStack alignment='center'>
+        <Text>{isLoadingFeeds ? '正在加载 RSS 源...' : '订阅源'}</Text>
+        {!isLoadingFeeds && feeds.length > 0 ? <Text font='caption' foregroundStyle='secondaryLabel'>左滑显示更多操作</Text> : null}
+      </HStack>
+    )}>
       {feeds.length === 0 && !message ? <Text foregroundStyle='secondaryLabel'>暂无 RSS 源。</Text> : null}
-      {feeds.map((feed: FeedOverview) => <HStack key={feed.id} alignment='center'>
+      {feeds.map((feed: FeedOverview) => <HStack
+        key={feed.id}
+        alignment='center'
+        trailingSwipeActions={{
+          allowsFullSwipe: false,
+          actions: [
+            <Button
+              title={feed.id === defaultFeedId ? '默认源' : '设为默认'}
+              tint='systemBlue'
+              disabled={feed.id === defaultFeedId || Boolean(busyFeedId)}
+              action={() => selectDefault(feed)}
+            />,
+            <Button
+              title={busyFeedId === feed.id ? '处理中' : feed.unreadCount ? '全部已读' : '已读'}
+              tint='orange'
+              disabled={!feed.unreadCount || Boolean(busyFeedId)}
+              action={() => { void markFeedRead(feed) }}
+            />,
+          ],
+        }}
+      >
         <HStack
           alignment='center'
           spacing={8}
@@ -945,28 +970,6 @@ function FeedManagementPage({
           </VStack>
           <Image systemName='chevron.right' foregroundStyle='secondaryLabel' />
         </HStack>
-        <Spacer />
-        <Button
-          buttonStyle='plain'
-          tint='systemBlue'
-          disabled={feed.id === defaultFeedId || Boolean(busyFeedId)}
-          action={() => selectDefault(feed)}
-        >
-          <Text
-            font='subheadline'
-            foregroundStyle={feed.id === defaultFeedId || Boolean(busyFeedId) ? 'secondaryLabel' : 'systemBlue'}
-          >{feed.id === defaultFeedId ? '默认源' : '设为默认'}</Text>
-        </Button>
-        <Button
-          buttonStyle='plain'
-          disabled={!feed.unreadCount || Boolean(busyFeedId)}
-          action={() => { void markFeedRead(feed) }}
-        >
-          <Text
-            font='subheadline'
-            foregroundStyle={busyFeedId === feed.id || !feed.unreadCount ? 'secondaryLabel' : 'orange'}
-          >{busyFeedId === feed.id ? '处理中' : feed.unreadCount ? '全部已读' : '已读'}</Text>
-        </Button>
       </HStack>)}
     </Section>
   </List>
