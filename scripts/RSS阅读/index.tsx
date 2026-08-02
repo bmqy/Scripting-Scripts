@@ -10,6 +10,7 @@ import {
     Navigation,
     NavigationLink,
     NavigationStack,
+    OpenURLActionResult,
     Picker,
     Script,
     Section,
@@ -872,7 +873,12 @@ function ArticleListPage({
         return <VStack
           key={targetId}
           alignment='leading'
-          onTapGesture={() => markArticleWhenTapped(article)}
+          environments={{
+            openURL: (url: string) => {
+              if (article.url && url === article.url) markArticleWhenTapped(article)
+              return OpenURLActionResult.systemAction()
+            },
+          }}
           onDisappear={() => markArticleWhenDisappear(article)}
         >
           {article.url ? <Link url={article.url}>{content}</Link> : content}
