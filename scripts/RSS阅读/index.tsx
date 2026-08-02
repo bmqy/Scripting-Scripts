@@ -22,6 +22,7 @@ import {
     Widget,
     useEffect,
     useReducer,
+    useRef,
     useState,
 } from 'scripting'
 import {
@@ -534,6 +535,10 @@ function ArticleListPage({
   const [pendingReadIds, setPendingReadIds] = useState<string[]>([])
   const [hasUserScrolled, setHasUserScrolled] = useState(false)
   const [processedEndTargetId, setProcessedEndTargetId] = useState<string | null>(null)
+  const scrollStateRef = useRef({
+    hasUserScrolled: false,
+    suppressDisappear: false,
+  })
 
   const currentPage = pages[pageIndex]
 
@@ -555,6 +560,8 @@ function ArticleListPage({
     const firstArticle = currentPage?.items[0]
     if (!firstArticle) return
     setLeadingTargetId(articleTargetId(firstArticle, 0))
+    scrollStateRef.current.hasUserScrolled = false
+    scrollStateRef.current.suppressDisappear = false
   }, [pageIndex, currentPage?.items[0]?.id])
 
   const markArticlesRead = async (articleIds: string[]) => {
@@ -623,32 +630,30 @@ function ArticleListPage({
     void loadPage(0, '', 'unread')
   }, [])
 
-  const markCurrentPageAsRead = (resetScroll = true) => {
-    if (resetScroll) {
-      setLeadingTargetId(null)
-      setHasUserScrolled(false)
-      setProcessedEndTargetId(null)
-      dispatchVisibility({ type: 'reset' })
-    }
-    if (!currentPage || articleFilter === 'read') return
-    const articleIds = currentPage.items
-      .filter(article => !article.isRead)
-      .map(article => article.id)
-      .filter((id): id is string => Boolean(id))
-    if (articleIds.length > 0) queueReadArticles(articleIds)
-  }
-
   const handleLeadingTargetChanged = (value: string | number | null) => {
     const targetId = typeof value === 'string' ? value : null
     if (leadingTargetId && targetId && leadingTargetId !== targetId) {
+      scrollStateRef.current.hasUserScrolled = true
       setHasUserScrolled(true)
     }
     setLeadingTargetId(targetId)
   }
 
+  const markArticleWhenDisappear = (article: ReaderArticle) => {
+    if (
+      scrollStateRef.current.suppressDisappear
+      || !scrollStateRef.current.hasUserScrolled
+      || articleFilter === 'read'
+      || article.isRead
+      || !article.id
+    ) return
+    queueReadArticles([article.id])
+  }
+
   const goPreviousPage = () => {
     if (pageIndex === 0 || isLoading) return
-    markCurrentPageAsRead(false)
+    scrollStateRef.current.suppressDisappear = true
+    scrollStateRef.current.hasUserScrolled = false
     const nextPageIndex = pageIndex - 1
     const nextPage = pages[nextPageIndex]
     setPageIndex(nextPageIndex)
@@ -660,7 +665,8 @@ function ArticleListPage({
 
   const goNextPage = () => {
     if (!currentPage || isLoading) return
-    markCurrentPageAsRead(false)
+    scrollStateRef.current.suppressDisappear = true
+    scrollStateRef.current.hasUserScrolled = false
     if (pageIndex + 1 < pages.length) {
       const nextPageIndex = pageIndex + 1
       const nextPage = pages[nextPageIndex]
@@ -678,7 +684,8 @@ function ArticleListPage({
 
   const goNextFeed = () => {
     if (isLoading || !hasNextFeed) return
-    markCurrentPageAsRead()
+    scrollStateRef.current.suppressDisappear = true
+    scrollStateRef.current.hasUserScrolled = false
     onNextFeed()
   }
 
@@ -721,6 +728,8 @@ function ArticleListPage({
     setPages([])
     setPageIndex(0)
     setLeadingTargetId(null)
+    scrollStateRef.current.suppressDisappear = true
+    scrollStateRef.current.hasUserScrolled = false
     setHasUserScrolled(false)
     setProcessedEndTargetId(null)
     dispatchVisibility({ type: 'reset' })
@@ -827,6 +836,7 @@ function ArticleListPage({
         return <VStack
           key={targetId}
           alignment='leading'
+          onDisappear={() => markArticleWhenDisappear(article)}
         >
           {article.url ? <Link url={article.url}>{content}</Link> : content}
         </VStack>
