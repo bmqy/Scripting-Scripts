@@ -29,6 +29,7 @@ const COLOR_THEME_OPTIONS: ColorTheme[] = ['system', 'light', 'dark']
 
 export const READING_LIST_ID = 'user/-/state/com.google/reading-list'
 export const DEFAULT_FEED_NAME = '全部未读'
+export const WIDGET_CACHE_KEY = 'rss-reader-cache-v2'
 
 const SETTINGS_KEY = 'rss-reader-settings'
 const AUTH_CACHE_KEY = 'rss-reader-auth-cache'
@@ -41,6 +42,20 @@ type SettingsStore = {
 
 function scriptingStorage() {
   return (globalThis as unknown as { Storage?: SettingsStore }).Storage
+}
+
+export function clearWidgetCache() {
+  try {
+    const storage = scriptingStorage()
+    if (!storage) return
+    if (storage.remove) {
+      storage.remove(WIDGET_CACHE_KEY)
+      return
+    }
+    storage.set(WIDGET_CACHE_KEY, null)
+  } catch {
+    // 组件缓存清理失败不影响文章已读状态。
+  }
 }
 
 export function normalizeEndpoint(value: string) {

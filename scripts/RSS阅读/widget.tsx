@@ -18,6 +18,7 @@ import {
   loadSettings,
   readCachedAuth,
   READING_LIST_ID,
+  WIDGET_CACHE_KEY,
   writeCachedAuth,
   type ColorTheme,
   type ReaderSettings,
@@ -80,7 +81,7 @@ type StreamResponse = {
   items?: StreamEntry[]
 }
 
-const CACHE_KEY = 'rss-reader-cache-v2'
+const CACHE_KEY = WIDGET_CACHE_KEY
 const DISPLAY_ARTICLE_COUNT = 2
 const LARGE_DISPLAY_ARTICLE_COUNT = 7
 const WIDGET_NAME = 'RSS阅读'

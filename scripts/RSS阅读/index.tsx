@@ -27,6 +27,7 @@ import {
 } from 'scripting'
 import {
     clearCachedAuth,
+    clearWidgetCache,
     DEFAULT_FEED_NAME,
     loadSettings,
     normalizeEndpoint,
@@ -1435,6 +1436,7 @@ async function markArticleFromWidget(articleId: string) {
   if (!settings) return
   try {
     await markItemsAsRead(settings, [articleId])
+    clearWidgetCache()
     Widget.reloadAll()
   } catch (error) {
     console.error('主屏组件文章标记已读失败', error)
