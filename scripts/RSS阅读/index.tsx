@@ -977,7 +977,7 @@ function FeedManagementPage({
   }
 
   return <List
-    navigationTitle='RSS 源管理'
+    navigationTitle='RSS 源'
     navigationBarTitleDisplayMode='inline'
     toolbar={{
       topBarTrailing: <Button
