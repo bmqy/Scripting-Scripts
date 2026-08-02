@@ -1299,7 +1299,7 @@ function SettingsPage() {
             buttonStyle="plain"
             action={() => { void Widget.preview({ family: 'systemMedium' }) }}
           >
-            <Text foregroundStyle="tint">预览</Text>
+            <Text foregroundStyle="systemBlue">预览</Text>
           </Button>
         ) : null}
       </HStack>
