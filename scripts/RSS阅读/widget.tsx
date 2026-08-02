@@ -81,6 +81,7 @@ const CACHE_KEY = 'rss-reader-cache'
 const DISPLAY_ARTICLE_COUNT = 2
 const LARGE_DISPLAY_ARTICLE_COUNT = 7
 const WIDGET_NAME = 'RSS阅读'
+const READER_SCRIPT_NAME = 'RSS 阅读'
 const READER_ICON_SYSTEM_NAME = 'dot.radiowaves.left.and.right'
 const READER_ICON_BACKGROUND = '#38BDF8'
 
@@ -91,6 +92,12 @@ type PaletteKey = 'background' | 'primaryText' | 'headerName' | 'secondaryText' 
 type SolidPalette = Record<PaletteKey, ShapeStyle>
 type Palette = Record<PaletteKey, WidgetColor>
 
+function articleLinkUrl(url: string | undefined, useInAppBrowser: boolean) {
+  if (!url) return undefined
+  return useInAppBrowser
+    ? Script.createRunURLScheme(READER_SCRIPT_NAME, { articleUrl: url })
+    : url
+}
 const DARK_PALETTE: SolidPalette = {
   background: '#1C1C1E',
   primaryText: '#F7F7FA',
@@ -427,11 +434,13 @@ function ArticleRow({
   palette,
   density = 'large',
   showThumbnail = false,
+  useInAppBrowser = false,
 }: {
   article: ReaderArticle
   palette: Palette
   density?: ArticleDensity
   showThumbnail?: boolean
+  useInAppBrowser?: boolean
 }) {
   const compact = density === 'small'
   const tiny = density === 'small'
@@ -455,10 +464,11 @@ function ArticleRow({
     </HStack>
   )
 
-  return article.url ? <Link url={article.url}>{content}</Link> : content
+  const linkUrl = articleLinkUrl(article.url, useInAppBrowser)
+  return linkUrl ? <Link url={linkUrl}>{content}</Link> : content
 }
 
-function SmallWidget({ data, timeDisplay, palette }: { data: ReaderData; timeDisplay: TimeDisplay; palette: Palette }) {
+function SmallWidget({ data, timeDisplay, palette, widgetUseInAppBrowser }: { data: ReaderData; timeDisplay: TimeDisplay; palette: Palette; widgetUseInAppBrowser: boolean }) {
   const articles = data.articles.slice(0, DISPLAY_ARTICLE_COUNT)
   return (
     <VStack
@@ -472,7 +482,7 @@ function SmallWidget({ data, timeDisplay, palette }: { data: ReaderData; timeDis
       <Header data={data} timeDisplay={timeDisplay} palette={palette} compact showName={false} />
       {articles.length > 0 ? (
         <VStack alignment="leading" spacing={7} modifiers={modifiers().frame({ maxWidth: 'infinity', alignment: 'leading' })}>
-          {articles.map(article => <ArticleRow article={article} palette={palette} density="small" showThumbnail={false} />)}
+          {articles.map(article => <ArticleRow article={article} palette={palette} density="small" showThumbnail={false} useInAppBrowser={widgetUseInAppBrowser} />)}
         </VStack>
       ) : <EmptyState data={data} palette={palette} compact />}
       <Spacer minLength={2} />
@@ -480,7 +490,7 @@ function SmallWidget({ data, timeDisplay, palette }: { data: ReaderData; timeDis
   )
 }
 
-function MediumWidget({ data, timeDisplay, palette }: { data: ReaderData; timeDisplay: TimeDisplay; palette: Palette }) {
+function MediumWidget({ data, timeDisplay, palette, widgetUseInAppBrowser }: { data: ReaderData; timeDisplay: TimeDisplay; palette: Palette; widgetUseInAppBrowser: boolean }) {
   const articles = data.articles.slice(0, DISPLAY_ARTICLE_COUNT)
   return (
     <VStack
@@ -494,7 +504,7 @@ function MediumWidget({ data, timeDisplay, palette }: { data: ReaderData; timeDi
       <Header data={data} timeDisplay={timeDisplay} palette={palette} />
       {articles.length > 0 ? (
         <VStack alignment="leading" spacing={10} modifiers={modifiers().frame({ maxWidth: 'infinity', alignment: 'leading' })}>
-          {articles.map(article => <ArticleRow article={article} palette={palette} density="medium" />)}
+          {articles.map(article => <ArticleRow article={article} palette={palette} density="medium" useInAppBrowser={widgetUseInAppBrowser} />)}
         </VStack>
       ) : <EmptyState data={data} palette={palette} />}
       <Spacer minLength={2} />
@@ -502,7 +512,7 @@ function MediumWidget({ data, timeDisplay, palette }: { data: ReaderData; timeDi
   )
 }
 
-function LargeWidget({ data, timeDisplay, palette }: { data: ReaderData; timeDisplay: TimeDisplay; palette: Palette }) {
+function LargeWidget({ data, timeDisplay, palette, widgetUseInAppBrowser }: { data: ReaderData; timeDisplay: TimeDisplay; palette: Palette; widgetUseInAppBrowser: boolean }) {
   const articles = data.articles.slice(0, LARGE_DISPLAY_ARTICLE_COUNT)
   return (
     <VStack
@@ -517,24 +527,25 @@ function LargeWidget({ data, timeDisplay, palette }: { data: ReaderData; timeDis
       {data.error ? <Text modifiers={modifiers().font('caption2').foregroundStyle(palette.warning).lineLimit(1)}>显示缓存</Text> : null}
       {articles.length > 0 ? (
         <VStack alignment="leading" spacing={8} modifiers={modifiers().frame({ maxWidth: 'infinity', alignment: 'leading' })}>
-          {articles.map(article => <ArticleRow article={article} palette={palette} density="large" />)}
+          {articles.map(article => <ArticleRow article={article} palette={palette} density="large" useInAppBrowser={widgetUseInAppBrowser} />)}
         </VStack>
       ) : <EmptyState data={data} palette={palette} />}
       <Spacer minLength={2} />
     </VStack>
   )
 }
-function ReaderWidget({ data, timeDisplay, palette }: { data: ReaderData; timeDisplay: TimeDisplay; palette: Palette }) {
-  if (Widget.family === 'systemSmall') return <SmallWidget data={data} timeDisplay={timeDisplay} palette={palette} />
-  if (Widget.family === 'systemLarge' || Widget.family === 'systemExtraLarge') return <LargeWidget data={data} timeDisplay={timeDisplay} palette={palette} />
-  return <MediumWidget data={data} timeDisplay={timeDisplay} palette={palette} />
+function ReaderWidget({ data, timeDisplay, palette, widgetUseInAppBrowser }: { data: ReaderData; timeDisplay: TimeDisplay; palette: Palette; widgetUseInAppBrowser: boolean }) {
+  if (Widget.family === 'systemSmall') return <SmallWidget data={data} timeDisplay={timeDisplay} palette={palette} widgetUseInAppBrowser={widgetUseInAppBrowser} />
+  if (Widget.family === 'systemLarge' || Widget.family === 'systemExtraLarge') return <LargeWidget data={data} timeDisplay={timeDisplay} palette={palette} widgetUseInAppBrowser={widgetUseInAppBrowser} />
+  return <MediumWidget data={data} timeDisplay={timeDisplay} palette={palette} widgetUseInAppBrowser={widgetUseInAppBrowser} />
 }
 
 function present(data: ReaderData, settings: ReaderSettings | null) {
   const refreshIntervalMinutes = settings?.refreshIntervalMinutes || 30
   const timeDisplay = settings?.timeDisplay || 'absolute'
   const palette = resolvePalette(settings?.theme || 'system')
-  Widget.present(<ReaderWidget data={data} timeDisplay={timeDisplay} palette={palette} />, {
+  const widgetUseInAppBrowser = settings?.widgetUseInAppBrowser || false
+  Widget.present(<ReaderWidget data={data} timeDisplay={timeDisplay} palette={palette} widgetUseInAppBrowser={widgetUseInAppBrowser} />, {
     reloadPolicy: {
       policy: 'after',
       date: new Date(Date.now() + refreshIntervalMinutes * 60 * 1000),

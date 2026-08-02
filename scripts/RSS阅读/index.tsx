@@ -526,6 +526,17 @@ function formatArticleDate(timestamp: number) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
 }
 
+type InAppSafariRuntime = {
+  Safari?: {
+    present: (url: string, fullscreen?: boolean) => Promise<void>
+  }
+}
+
+async function presentInAppBrowser(url: string) {
+  const safari = (globalThis as unknown as InAppSafariRuntime).Safari
+  if (!safari?.present) throw new Error('当前 Scripting App 不支持内置浏览器。')
+  await safari.present(url, true)
+}
 const NAVIGATION_SOURCE_NAME_LIMIT = 10
 
 function navigationTitleText(sourceName: string, unreadCount: number) {
@@ -873,11 +884,7 @@ function ArticleListPage({
         const openArticle = async () => {
           if (!article.url) return
           try {
-            const safari = (globalThis as unknown as {
-              Safari?: { present: (url: string, fullscreen?: boolean) => Promise<void> }
-            }).Safari
-            if (!safari?.present) throw new Error('当前 Scripting App 不支持内置浏览器。')
-            const presentation = safari.present(article.url, true)
+            const presentation = presentInAppBrowser(article.url)
             markArticleWhenTapped(article)
             await presentation
           } catch {
@@ -1099,6 +1106,7 @@ function SettingsPage() {
   const [refreshIntervalMinutes, setRefreshIntervalMinutes] = useState<RefreshIntervalMinutes>(current?.refreshIntervalMinutes || 30)
   const [theme, setTheme] = useState<ColorTheme>(current?.theme || 'system')
   const [useInAppBrowser, setUseInAppBrowser] = useState(current?.useInAppBrowser || false)
+  const [widgetUseInAppBrowser, setWidgetUseInAppBrowser] = useState(current?.widgetUseInAppBrowser || false)
   const [feedId, setFeedId] = useState(current?.feedId || READING_LIST_ID)
   const [feedName, setFeedName] = useState(current?.feedName || DEFAULT_FEED_NAME)
   const [accountToastMessage, setAccountToastMessage] = useState('')
@@ -1148,6 +1156,7 @@ function SettingsPage() {
       refreshIntervalMinutes: authenticatedSettings?.refreshIntervalMinutes || refreshIntervalMinutes,
       theme: authenticatedSettings?.theme || theme,
       useInAppBrowser: authenticatedSettings?.useInAppBrowser ?? useInAppBrowser,
+      widgetUseInAppBrowser: authenticatedSettings?.widgetUseInAppBrowser ?? widgetUseInAppBrowser,
     }
     setIsSavingAccount(true)
     setAccountToastMessage('正在登录并测试 API 连接...')
@@ -1171,7 +1180,7 @@ function SettingsPage() {
     }
   }
 
-  const saveWidget = (overrides: Partial<Pick<ReaderSettings, 'feedId' | 'feedName' | 'timeDisplay' | 'refreshIntervalMinutes' | 'theme' | 'useInAppBrowser'>> = {}) => {
+  const saveWidget = (overrides: Partial<Pick<ReaderSettings, 'feedId' | 'feedName' | 'timeDisplay' | 'refreshIntervalMinutes' | 'theme' | 'useInAppBrowser' | 'widgetUseInAppBrowser'>> = {}) => {
     if (!isAccountConfigured || !authenticatedSettings) {
       setWidgetMessage('请先保存并登录账号配置。')
       return
@@ -1185,6 +1194,7 @@ function SettingsPage() {
       refreshIntervalMinutes: overrides.refreshIntervalMinutes ?? refreshIntervalMinutes,
       theme: overrides.theme ?? theme,
       useInAppBrowser: overrides.useInAppBrowser ?? useInAppBrowser,
+      widgetUseInAppBrowser: overrides.widgetUseInAppBrowser ?? widgetUseInAppBrowser,
     }
     setWidgetMessage('正在保存组件配置...')
     const saved = saveSettings(settings)
@@ -1300,7 +1310,7 @@ function SettingsPage() {
           </HStack>
         </NavigationLink>
         <HStack alignment="center">
-          <Text>文章链接</Text>
+          <Text>App 内文章链接</Text>
           <Spacer />
           <Picker
             title=""
@@ -1316,11 +1326,28 @@ function SettingsPage() {
             <Text tag="inApp">内置浏览器</Text>
           </Picker>
         </HStack>
+        <HStack alignment="center">
+          <Text>主屏组件文章链接</Text>
+          <Spacer />
+          <Picker
+            title=""
+            value={widgetUseInAppBrowser ? 'inApp' : 'system'}
+            onChanged={(value) => {
+              const next = value === 'inApp'
+              setWidgetUseInAppBrowser(next)
+              saveWidget({ widgetUseInAppBrowser: next })
+            }}
+            pickerStyle="segmented"
+          >
+            <Text tag="system">系统浏览器</Text>
+            <Text tag="inApp">内置浏览器</Text>
+          </Picker>
+        </HStack>
         <Text
           font="footnote"
           foregroundStyle="secondaryLabel"
           listRowSeparator="hidden"
-        >仅影响 App 内文章列表，主屏组件仍按系统方式打开链接。</Text>
+        >主屏组件使用内置浏览器时，会先打开 RSS 阅读脚本，再在 App 内展示文章。</Text>
         <HStack alignment="center">
           <Text>外观模式</Text>
           <Spacer />
@@ -1387,8 +1414,24 @@ function SettingsPage() {
   </NavigationStack>
 }
 
+function queryArticleUrl() {
+  const value = Script.queryParameters?.articleUrl
+  if (typeof value !== 'string' || !value.trim()) return ''
+  try {
+    const url = new URL(value)
+    return url.protocol === 'http:' || url.protocol === 'https:' ? value : ''
+  } catch {
+    return ''
+  }
+}
+
 async function run() {
   try {
+    const articleUrl = queryArticleUrl()
+    if (articleUrl) {
+      await presentInAppBrowser(articleUrl)
+      return
+    }
     await Navigation.present({ element: <SettingsPage /> })
   } finally {
     Script.exit()
