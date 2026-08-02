@@ -38,6 +38,7 @@ declare function fetch(input: string, init?: {
 }>
 
 type ReaderArticle = {
+  id?: string
   url?: string
   title: string
   source: string
@@ -65,6 +66,7 @@ type UnreadCountsResponse = {
 }
 
 type StreamEntry = {
+  id?: string
   title?: string
   crawlTimeMsec?: string
   published?: number
@@ -78,7 +80,7 @@ type StreamResponse = {
   items?: StreamEntry[]
 }
 
-const CACHE_KEY = 'rss-reader-cache'
+const CACHE_KEY = 'rss-reader-cache-v2'
 const DISPLAY_ARTICLE_COUNT = 2
 const LARGE_DISPLAY_ARTICLE_COUNT = 7
 const WIDGET_NAME = 'RSS阅读'
@@ -93,11 +95,13 @@ type PaletteKey = 'background' | 'primaryText' | 'headerName' | 'secondaryText' 
 type SolidPalette = Record<PaletteKey, ShapeStyle>
 type Palette = Record<PaletteKey, WidgetColor>
 
-function articleLinkUrl(url: string | undefined, useInAppBrowser: boolean) {
-  if (!url) return undefined
-  return useInAppBrowser
-    ? Script.createRunURLScheme(READER_SCRIPT_NAME, { articleUrl: url })
-    : url
+function articleLinkUrl(article: ReaderArticle, useInAppBrowser: boolean) {
+  if (!article.url) return undefined
+  if (!useInAppBrowser) return article.url
+
+  const queryParameters: Record<string, string> = { articleUrl: article.url }
+  if (article.id) queryParameters.articleId = article.id
+  return Script.createRunURLScheme(READER_SCRIPT_NAME, queryParameters)
 }
 const DARK_PALETTE: SolidPalette = {
   background: '#1C1C1E',
@@ -264,6 +268,7 @@ function publishedAt(entry: StreamEntry) {
 
 function toArticle(entry: StreamEntry): ReaderArticle {
   return {
+    id: typeof entry.id === 'string' && entry.id.trim() ? entry.id.trim() : undefined,
     url: articleUrl(entry),
     title: stripHtml(entry.title) || '未命名文章',
     source: stripHtml(entry.origin?.title) || '未知来源',
@@ -465,7 +470,7 @@ function ArticleRow({
     </HStack>
   )
 
-  const linkUrl = articleLinkUrl(article.url, useInAppBrowser)
+  const linkUrl = articleLinkUrl(article, useInAppBrowser)
   return linkUrl ? <Link url={linkUrl}>{content}</Link> : content
 }
 

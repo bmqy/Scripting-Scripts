@@ -532,10 +532,10 @@ type InAppSafariRuntime = {
   }
 }
 
-async function presentInAppBrowser(url: string) {
+function presentInAppBrowser(url: string) {
   const safari = (globalThis as unknown as InAppSafariRuntime).Safari
   if (!safari?.present) throw new Error('当前 Scripting App 不支持内置浏览器。')
-  await safari.present(url, true)
+  return safari.present(url, true)
 }
 const NAVIGATION_SOURCE_NAME_LIMIT = 10
 
@@ -1425,11 +1425,30 @@ function queryArticleUrl() {
   }
 }
 
+function queryArticleId() {
+  const value = Script.queryParameters?.articleId
+  return typeof value === 'string' && value.trim() ? value.trim() : ''
+}
+
+async function markArticleFromWidget(articleId: string) {
+  const settings = loadSettings()
+  if (!settings) return
+  try {
+    await markItemsAsRead(settings, [articleId])
+    Widget.reloadAll()
+  } catch (error) {
+    console.error('主屏组件文章标记已读失败', error)
+  }
+}
+
 async function run() {
   try {
     const articleUrl = queryArticleUrl()
     if (articleUrl) {
-      await presentInAppBrowser(articleUrl)
+      const presentation = presentInAppBrowser(articleUrl)
+      const articleId = queryArticleId()
+      if (articleId) void markArticleFromWidget(articleId)
+      await presentation
       return
     }
     await Navigation.present({ element: <SettingsPage /> })
