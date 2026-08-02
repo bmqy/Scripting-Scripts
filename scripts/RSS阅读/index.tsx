@@ -1310,7 +1310,7 @@ function SettingsPage() {
           </HStack>
         </NavigationLink>
         <HStack alignment="center">
-          <Text>App 内文章链接</Text>
+          <Text>app 链接</Text>
           <Spacer />
           <Picker
             title=""
@@ -1327,7 +1327,7 @@ function SettingsPage() {
           </Picker>
         </HStack>
         <HStack alignment="center">
-          <Text>主屏组件文章链接</Text>
+          <Text>组件链接</Text>
           <Spacer />
           <Picker
             title=""
