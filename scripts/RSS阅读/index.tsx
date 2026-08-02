@@ -1421,7 +1421,7 @@ function SettingsPage() {
           foregroundStyle="secondaryLabel"
           listRowSeparator="hidden"
         >主屏组件使用内置浏览器时，会先打开 RSS 阅读脚本，再在 App 内展示文章。</Text>
-        <HStack alignment="center">
+        <HStack alignment="center" listRowSeparator="visible">
           <Text>外观模式</Text>
           <Spacer />
           <Picker
