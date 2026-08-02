@@ -243,3 +243,16 @@ export function saveSettings(settings: ReaderSettings) {
     return null
   }
 }
+
+export function clearSettings() {
+  try {
+    const storage = scriptingStorage()
+    if (!storage) return false
+    if (storage.remove) storage.remove(SETTINGS_KEY)
+    else storage.set(SETTINGS_KEY, null)
+    return loadSettings() === null
+  } catch {
+    // 账号配置清理失败时由设置页继续显示当前状态，避免误报退出成功。
+    return false
+  }
+}

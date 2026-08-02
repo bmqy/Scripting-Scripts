@@ -27,6 +27,7 @@ import {
 } from 'scripting'
 import {
     clearCachedAuth,
+    clearSettings,
     clearWidgetCache,
     DEFAULT_FEED_NAME,
     loadSettings,
@@ -34,8 +35,10 @@ import {
     readerAccountKey,
     resolveSiteIconUrl,
     readCachedAuth,
+    readCachedSiteIconUrl,
     READING_LIST_ID,
     saveSettings,
+    writeCachedSiteIconUrl,
     writeCachedAuth,
     type ColorTheme,
     type ReaderSettings,
@@ -1104,6 +1107,7 @@ function SettingsPage() {
   const [endpointInput, setEndpointInput] = useState(current?.endpoint || '')
   const [username, setUsername] = useState(current?.username || '')
   const [password, setPassword] = useState(current?.password || '')
+  const [siteIconUrl, setSiteIconUrl] = useState(current ? readCachedSiteIconUrl(current) : '')
   const [authenticatedSettings, setAuthenticatedSettings] = useState<ReaderSettings | null>(current)
   const [timeDisplay, setTimeDisplay] = useState<TimeDisplay>(current?.timeDisplay || 'absolute')
   const [refreshIntervalMinutes, setRefreshIntervalMinutes] = useState<RefreshIntervalMinutes>(current?.refreshIntervalMinutes || 30)
@@ -1133,6 +1137,28 @@ function SettingsPage() {
       && authenticatedSettings.password === password
   )
 
+  const siteDomain = (endpoint: string) => {
+    try {
+      return new URL(endpoint).host
+    } catch {
+      return endpoint
+    }
+  }
+
+  useEffect(() => {
+    if (!authenticatedSettings || siteIconUrl) return
+
+    let isActive = true
+    void resolveSiteIconUrl(authenticatedSettings).then((resolved) => {
+      if (!isActive || !resolved) return
+      writeCachedSiteIconUrl(authenticatedSettings, resolved)
+      setSiteIconUrl(resolved)
+    })
+
+    return () => {
+      isActive = false
+    }
+  }, [authenticatedSettings?.endpoint, authenticatedSettings?.username, authenticatedSettings?.password, siteIconUrl])
   const saveAccount = async () => {
     if (isSavingAccount) return
 
@@ -1174,6 +1200,7 @@ function SettingsPage() {
       }
 
       setAuthenticatedSettings(settings)
+      setSiteIconUrl(readCachedSiteIconUrl(settings))
       Widget.reloadAll()
       setAccountToastMessage('账号登录成功，已保存账号配置。现在可以调整组件配置。')
     } catch (error) {
@@ -1210,6 +1237,26 @@ function SettingsPage() {
     Widget.reloadAll()
     setWidgetMessage('')
     setWidgetSavedToast(true)
+  }
+
+  const logoutAccount = () => {
+    if (isSavingAccount) return
+
+    if (authenticatedSettings) clearCachedAuth(authenticatedSettings)
+    const cleared = clearSettings()
+    if (!cleared) {
+      setAccountToastMessage('无法退出登录，请检查本地存储后重试。')
+      return
+    }
+    clearWidgetCache()
+    setAuthenticatedSettings(null)
+    setEndpointInput('')
+    setUsername('')
+    setPassword('')
+    setSiteIconUrl('')
+    setAccountToastMessage('已退出登录。')
+    setWidgetMessage('')
+    Widget.reloadAll()
   }
 
   return <NavigationStack>
@@ -1251,44 +1298,62 @@ function SettingsPage() {
           <Button title="预览" action={() => { void Widget.preview({ family: 'systemMedium' }) }} />
         ) : null}
       </HStack>
-      <Section header={(
-        <HStack alignment="center" spacing={4}>
-          <Text>账号配置</Text>
+      {isAccountConfigured && authenticatedSettings ? (
+        <Section header={<Text>账号配置</Text>}>
+          <HStack alignment="center" spacing={10}>
+            {siteIconUrl ? (
+              <Image
+                imageUrl={siteIconUrl}
+                resizable={true}
+                scaleToFit={true}
+                frame={{ width: 24, height: 24, alignment: 'center' }}
+              />
+            ) : <Image systemName="globe" foregroundStyle="secondaryLabel" />}
+            <Text lineLimit={1} minScaleFactor={0.8}>{siteDomain(authenticatedSettings.endpoint)}</Text>
+            <Spacer />
+            <Button title="退出" tint="red" action={logoutAccount} />
+          </HStack>
+        </Section>
+      ) : (
+        <Section header={(
+          <HStack alignment="center" spacing={4}>
+            <Text>账号配置</Text>
+            <Button
+              buttonStyle="plain"
+              controlSize="mini"
+              action={() => setShowAccountHelp(true)}
+            >
+              <Image systemName="questionmark.circle" foregroundStyle="secondaryLabel" />
+            </Button>
+          </HStack>
+        )}>
+          <TextField
+            title="API 地址"
+            value={endpointInput}
+            onChanged={setEndpointInput}
+            prompt="https://rss.example.com/api/greader.php"
+            autofocus={!current}
+          />
+          <TextField
+            title="用户名"
+            value={username}
+            onChanged={setUsername}
+            prompt="FreshRSS 用户名"
+          />
+          <SecureField
+            title="API 密码"
+            value={password}
+            onChanged={setPassword}
+            prompt="在 FreshRSS 个人资料中设置的 API 密码"
+          />
           <Button
-            buttonStyle="plain"
-            controlSize="mini"
-            action={() => setShowAccountHelp(true)}
-          >
-            <Image systemName="questionmark.circle" foregroundStyle="secondaryLabel" />
-          </Button>
-        </HStack>
-      )}>
-        <TextField
-          title="API 地址"
-          value={endpointInput}
-          onChanged={setEndpointInput}
-          prompt="https://rss.example.com/api/greader.php"
-          autofocus={!current}
-        />
-        <TextField
-          title="用户名"
-          value={username}
-          onChanged={setUsername}
-          prompt="FreshRSS 用户名"
-        />
-        <SecureField
-          title="API 密码"
-          value={password}
-          onChanged={setPassword}
-          prompt="在 FreshRSS 个人资料中设置的 API 密码"
-        />
-        <Button
-          title={isSavingAccount ? '正在登录...' : isAccountConfigured ? '已保存' : '登录'}
-          buttonStyle="borderedProminent"
-          disabled={isSavingAccount || isAccountConfigured}
-          action={() => { void saveAccount() }}
-        />
-      </Section>
+            title={isSavingAccount ? '正在登录...' : '登录'}
+            buttonStyle="borderedProminent"
+            disabled={isSavingAccount}
+            action={() => { void saveAccount() }}
+          />
+        </Section>
+      )}
       {isAccountConfigured ? <Section header={<Text>组件配置</Text>}>
         <NavigationLink destination={
           <FeedManagementPage
