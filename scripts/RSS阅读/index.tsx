@@ -644,6 +644,17 @@ function ArticleListPage({
     if (articleIds.length > 0) queueReadArticles(articleIds)
   }
 
+  const markPageAsReadImmediately = (page?: ArticlePage) => {
+    if (!page || articleFilter === 'read') return
+    const articleIds = page.items
+      .filter(article => !article.isRead)
+      .map(article => article.id)
+      .filter((id): id is string => Boolean(id))
+    if (articleIds.length === 0) return
+    discardQueuedReads()
+    void markArticlesRead(articleIds)
+  }
+
   const markCurrentPageAsRead = () => markPageAsRead(currentPage)
 
   const handleLeadingTargetChanged = (value: string | number | null) => {
@@ -699,6 +710,7 @@ function ArticleListPage({
 
   const goNextFeed = () => {
     if (isLoading || !hasNextFeed) return
+    markPageAsReadImmediately(currentPage)
     scrollStateRef.current.suppressDisappear = true
     scrollStateRef.current.hasUserScrolled = false
     onNextFeed()
@@ -964,6 +976,7 @@ function FeedManagementPage({
     <Section header={(
       <HStack alignment='center'>
         <Text>{isLoadingFeeds ? '正在加载 RSS 源...' : '订阅源'}</Text>
+        <Spacer />
         {!isLoadingFeeds && feeds.length > 0 ? <Text font='caption' foregroundStyle='secondaryLabel'>左滑显示更多操作</Text> : null}
       </HStack>
     )}>
