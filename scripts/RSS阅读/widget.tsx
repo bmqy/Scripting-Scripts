@@ -3,6 +3,7 @@ import {
     Image,
     Link,
     Spacer,
+    Script,
     Text,
     VStack,
     Widget,
