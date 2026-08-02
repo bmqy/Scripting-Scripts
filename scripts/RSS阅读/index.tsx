@@ -12,6 +12,7 @@ import {
     NavigationStack,
     OpenURLActionResult,
     Picker,
+    Safari,
     Script,
     Section,
     SecureField,
@@ -870,6 +871,13 @@ function ArticleListPage({
         </VStack>
 
         const targetId = articleTargetId(article, index)
+        const openArticle = () => {
+          if (!article.url) return
+          markArticleWhenTapped(article)
+          void Safari.present(article.url, true).catch(() => {
+            setMessage('无法打开文章详情。')
+          })
+        }
         return <VStack
           key={targetId}
           alignment='leading'
@@ -881,7 +889,9 @@ function ArticleListPage({
           }}
           onDisappear={() => markArticleWhenDisappear(article)}
         >
-          {article.url ? <Link url={article.url}>{content}</Link> : content}
+          {article.url && settings.useInAppBrowser ? (
+            <Button buttonStyle='plain' action={openArticle}>{content}</Button>
+          ) : article.url ? <Link url={article.url}>{content}</Link> : content}
         </VStack>
       })}
       {currentPage && currentPage.items.length > 0 ? <VStack
@@ -1082,6 +1092,7 @@ function SettingsPage() {
   const [timeDisplay, setTimeDisplay] = useState<TimeDisplay>(current?.timeDisplay || 'absolute')
   const [refreshIntervalMinutes, setRefreshIntervalMinutes] = useState<RefreshIntervalMinutes>(current?.refreshIntervalMinutes || 30)
   const [theme, setTheme] = useState<ColorTheme>(current?.theme || 'system')
+  const [useInAppBrowser, setUseInAppBrowser] = useState(current?.useInAppBrowser || false)
   const [feedId, setFeedId] = useState(current?.feedId || READING_LIST_ID)
   const [feedName, setFeedName] = useState(current?.feedName || DEFAULT_FEED_NAME)
   const [accountToastMessage, setAccountToastMessage] = useState('')
@@ -1130,6 +1141,7 @@ function SettingsPage() {
       timeDisplay: authenticatedSettings?.timeDisplay || timeDisplay,
       refreshIntervalMinutes: authenticatedSettings?.refreshIntervalMinutes || refreshIntervalMinutes,
       theme: authenticatedSettings?.theme || theme,
+      useInAppBrowser: authenticatedSettings?.useInAppBrowser ?? useInAppBrowser,
     }
     setIsSavingAccount(true)
     setAccountToastMessage('正在登录并测试 API 连接...')
@@ -1153,7 +1165,7 @@ function SettingsPage() {
     }
   }
 
-  const saveWidget = (overrides: Partial<Pick<ReaderSettings, 'feedId' | 'feedName' | 'timeDisplay' | 'refreshIntervalMinutes' | 'theme'>> = {}) => {
+  const saveWidget = (overrides: Partial<Pick<ReaderSettings, 'feedId' | 'feedName' | 'timeDisplay' | 'refreshIntervalMinutes' | 'theme' | 'useInAppBrowser'>> = {}) => {
     if (!isAccountConfigured || !authenticatedSettings) {
       setWidgetMessage('请先保存并登录账号配置。')
       return
@@ -1166,6 +1178,7 @@ function SettingsPage() {
       timeDisplay: overrides.timeDisplay ?? timeDisplay,
       refreshIntervalMinutes: overrides.refreshIntervalMinutes ?? refreshIntervalMinutes,
       theme: overrides.theme ?? theme,
+      useInAppBrowser: overrides.useInAppBrowser ?? useInAppBrowser,
     }
     setWidgetMessage('正在保存组件配置...')
     const saved = saveSettings(settings)
@@ -1280,6 +1293,28 @@ function SettingsPage() {
             >{feedName}</Text>
           </HStack>
         </NavigationLink>
+        <HStack alignment="center">
+          <Text>文章链接</Text>
+          <Spacer />
+          <Picker
+            title=""
+            value={useInAppBrowser ? 'inApp' : 'system'}
+            onChanged={(value) => {
+              const next = value === 'inApp'
+              setUseInAppBrowser(next)
+              saveWidget({ useInAppBrowser: next })
+            }}
+            pickerStyle="segmented"
+          >
+            <Text tag="system">系统浏览器</Text>
+            <Text tag="inApp">内置浏览器</Text>
+          </Picker>
+        </HStack>
+        <Text
+          font="footnote"
+          foregroundStyle="secondaryLabel"
+          listRowSeparator="hidden"
+        >仅影响 App 内文章列表，主屏组件仍按系统方式打开链接。</Text>
         <HStack alignment="center">
           <Text>外观模式</Text>
           <Spacer />

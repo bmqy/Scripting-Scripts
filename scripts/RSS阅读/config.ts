@@ -7,6 +7,7 @@ export type ReaderSettings = {
   timeDisplay: TimeDisplay
   refreshIntervalMinutes: RefreshIntervalMinutes
   theme: ColorTheme
+  useInAppBrowser: boolean
 }
 
 export type TimeDisplay = 'absolute' | 'relative'
@@ -136,6 +137,7 @@ function parseSettings(value: unknown): ReaderSettings | null {
       timeDisplay: timeDisplay(settings.timeDisplay),
       refreshIntervalMinutes: refreshIntervalMinutes(settings.refreshIntervalMinutes),
       theme: colorTheme(settings.theme),
+      useInAppBrowser: settings.useInAppBrowser === true,
     }
   } catch {
     return null
@@ -161,6 +163,7 @@ function matchesSettings(value: unknown, settings: ReaderSettings) {
     && saved.timeDisplay === settings.timeDisplay
     && saved.refreshIntervalMinutes === settings.refreshIntervalMinutes
     && saved.theme === settings.theme
+    && saved.useInAppBrowser === settings.useInAppBrowser
 }
 
 export function saveSettings(settings: ReaderSettings) {
