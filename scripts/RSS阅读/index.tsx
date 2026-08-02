@@ -12,7 +12,6 @@ import {
     NavigationStack,
     OpenURLActionResult,
     Picker,
-    Safari,
     Script,
     Section,
     SecureField,
@@ -871,12 +870,19 @@ function ArticleListPage({
         </VStack>
 
         const targetId = articleTargetId(article, index)
-        const openArticle = () => {
+        const openArticle = async () => {
           if (!article.url) return
-          markArticleWhenTapped(article)
-          void Safari.present(article.url, true).catch(() => {
-            setMessage('无法打开文章详情。')
-          })
+          try {
+            const safari = (globalThis as unknown as {
+              Safari?: { present: (url: string, fullscreen?: boolean) => Promise<void> }
+            }).Safari
+            if (!safari?.present) throw new Error('当前 Scripting App 不支持内置浏览器。')
+            const presentation = safari.present(article.url, true)
+            markArticleWhenTapped(article)
+            await presentation
+          } catch {
+            setMessage('无法打开文章详情，请检查 Scripting App 版本。')
+          }
         }
         return <VStack
           key={targetId}
