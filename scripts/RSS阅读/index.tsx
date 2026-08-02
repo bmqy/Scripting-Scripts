@@ -284,6 +284,16 @@ function countForFeed(response: UnreadCountsResponse, feedId: string) {
   return Math.max(0, response.unreadcounts?.find(item => item.id === feedId)?.count || 0)
 }
 
+async function loadUnreadCount(settings: ReaderSettings, feedId: string) {
+  const response = await fetchJSON<UnreadCountsResponse>(
+    settings,
+    `${settings.endpoint}/reader/api/0/unread-count?output=json`,
+    'RSS Reader Article Unread Count',
+    '读取文章未读数',
+  )
+  return countForFeed(response, feedId)
+}
+
 async function loadFeedOverview(settings: ReaderSettings, forceRefresh = false): Promise<FeedOverview[]> {
   const [feeds, unreadCounts] = await Promise.all([
     loadSubscriptions(settings, forceRefresh),
@@ -397,8 +407,7 @@ async function loadArticlePage(
 
     const nextContinuation = typeof data.continuation === 'string' ? data.continuation.trim() : ''
     if (
-      filter !== 'read'
-      || items.length >= ARTICLE_PAGE_SIZE
+      items.length >= ARTICLE_PAGE_SIZE
       || !nextContinuation
       || seenContinuations.has(nextContinuation)
     ) {
@@ -507,6 +516,7 @@ function ArticleListPage({
   const [message, setMessage] = useState('')
   const [articleFilter, setArticleFilter] = useState<ArticleFilter>('unread')
   const [unreadCount, setUnreadCount] = useState(feed.unreadCount)
+  const unreadCountRef = useRef(feed.unreadCount)
   const [leadingTargetId, setLeadingTargetId] = useState<string | null>(null)
   const [markedReadIds, setMarkedReadIds] = useState<string[]>([])
   const [pendingReadIds, setPendingReadIds] = useState<string[]>([])
@@ -535,14 +545,22 @@ function ArticleListPage({
     scrollStateRef.current.suppressDisappear = false
   }, [pageIndex, currentPage?.items[0]?.id])
 
+  const updateUnreadCount = (nextCount: number) => {
+    const next = Math.max(0, nextCount)
+    const previous = unreadCountRef.current
+    if (previous === next) return
+    unreadCountRef.current = next
+    setUnreadCount(next)
+    onUnreadCountChanged(feed.id, previous - next)
+  }
+
   const markArticlesRead = async (articleIds: string[]) => {
     const candidates = Array.from(new Set(articleIds.filter(id => !markedReadIds.includes(id) && !pendingReadIds.includes(id))))
     if (candidates.length === 0) return
 
     const optimisticCount = candidates.length
     setPendingReadIds((previous: string[]) => Array.from(new Set([...previous, ...candidates])))
-    setUnreadCount((previous: number) => Math.max(0, previous - optimisticCount))
-    onUnreadCountChanged(feed.id, optimisticCount)
+    updateUnreadCount(unreadCountRef.current - optimisticCount)
     try {
       await markItemsAsRead(settings, candidates)
       setMarkedReadIds((previous: string[]) => Array.from(new Set([...previous, ...candidates])))
@@ -552,9 +570,13 @@ function ArticleListPage({
           ? { ...article, isRead: true }
           : article),
       })))
+      try {
+        updateUnreadCount(await loadUnreadCount(settings, feed.id))
+      } catch {
+        // 标记成功但计数校准失败时，保留本地已扣减的计数。
+      }
     } catch (error) {
-      setUnreadCount((previous: number) => previous + optimisticCount)
-      onUnreadCountChanged(feed.id, -optimisticCount)
+      updateUnreadCount(unreadCountRef.current + optimisticCount)
       setMessage(error instanceof Error ? error.message : '标记文章已读失败。')
     } finally {
       setPendingReadIds((previous: string[]) => previous.filter(id => !candidates.includes(id)))
@@ -576,12 +598,18 @@ function ArticleListPage({
     readFlushTimerRef.current = setTimeout(flushReadQueue, 600)
   }
 
+  const discardQueuedReads = () => {
+    if (readFlushTimerRef.current !== null) clearTimeout(readFlushTimerRef.current)
+    readFlushTimerRef.current = null
+    readQueueRef.current = []
+  }
+
   useEffect(() => () => {
     if (readFlushTimerRef.current !== null) clearTimeout(readFlushTimerRef.current)
   }, [])
 
-  const loadPage = async (index: number, continuation = '', filter: ArticleFilter = articleFilter) => {
-    if (isLoading) return
+  const loadPage = async (index: number, continuation = '', filter: ArticleFilter = articleFilter): Promise<boolean> => {
+    if (isLoading) return false
     setIsLoading(true)
     setMessage('')
     try {
@@ -594,8 +622,10 @@ function ArticleListPage({
       setPageIndex(index)
       setLeadingTargetId(page.items[0] ? articleTargetIdForPage(index, page.items[0], 0) : null)
       scrollStateRef.current.hasUserScrolled = false
+      return true
     } catch (error) {
       setMessage(error instanceof Error ? error.message : '无法读取文章列表。')
+      return false
     } finally {
       setIsLoading(false)
     }
@@ -605,14 +635,16 @@ function ArticleListPage({
     void loadPage(0, '', 'unread')
   }, [])
 
-  const markCurrentPageAsRead = () => {
-    if (!currentPage || articleFilter === 'read') return
-    const articleIds = currentPage.items
+  const markPageAsRead = (page?: ArticlePage) => {
+    if (!page || articleFilter === 'read') return
+    const articleIds = page.items
       .filter(article => !article.isRead)
       .map(article => article.id)
       .filter((id): id is string => Boolean(id))
     if (articleIds.length > 0) queueReadArticles(articleIds)
   }
+
+  const markCurrentPageAsRead = () => markPageAsRead(currentPage)
 
   const handleLeadingTargetChanged = (value: string | number | null) => {
     const targetId = typeof value === 'string' ? value : null
@@ -641,24 +673,27 @@ function ArticleListPage({
     const nextPage = pages[nextPageIndex]
     setPageIndex(nextPageIndex)
     setLeadingTargetId(nextPage?.items[0] ? articleTargetIdForPage(nextPageIndex, nextPage.items[0], 0) : null)
-    resetScrollTracking()
   }
 
   const goNextPage = () => {
     if (!currentPage || isLoading) return
-    markCurrentPageAsRead()
+    const pageToMark = currentPage
     scrollStateRef.current.suppressDisappear = true
     scrollStateRef.current.hasUserScrolled = false
     if (pageIndex + 1 < pages.length) {
+      discardQueuedReads()
       const nextPageIndex = pageIndex + 1
       const nextPage = pages[nextPageIndex]
       setPageIndex(nextPageIndex)
       setLeadingTargetId(nextPage?.items[0] ? articleTargetIdForPage(nextPageIndex, nextPage.items[0], 0) : null)
-      resetScrollTracking()
+      markPageAsRead(pageToMark)
       return
     }
     if (currentPage.continuation) {
-      void loadPage(pageIndex + 1, currentPage.continuation)
+      discardQueuedReads()
+      void loadPage(pageIndex + 1, currentPage.continuation).then(isLoaded => {
+        if (isLoaded) markPageAsRead(pageToMark)
+      })
     }
   }
 
