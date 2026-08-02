@@ -127,6 +127,8 @@ const FEED_LIST_CACHE_REFRESH_MULTIPLIER = 6
 const READ_STATE_ID = 'user/-/state/com.google/read'
 const ARTICLE_PAGE_SIZE = 10
 const ITEM_ID_PAGE_SIZE = 1000
+const GITHUB_REPOSITORY_URL = 'https://github.com/bmqy/Scripting-Scripts'
+const SCRIPT_VERSION = '1.0.0'
 
 function scriptingStorage() {
   return (globalThis as unknown as { Storage?: StorageStore }).Storage
@@ -1483,6 +1485,20 @@ function SettingsPage() {
       </Section> : <Section>
         <Text font="footnote" foregroundStyle="secondaryLabel">请先登录并保存账号配置，登录成功后可继续调整组件配置。</Text>
       </Section>}
+      <HStack
+        alignment="center"
+        listRowInsets={{ top: 16, bottom: 8, leading: 0, trailing: 0 }}
+        listRowSeparator="hidden"
+      >
+        <Spacer />
+        <Link url={GITHUB_REPOSITORY_URL}>
+          <HStack alignment="center" spacing={4}>
+            <Image systemName="link" foregroundStyle="systemBlue" />
+            <Text foregroundStyle="systemBlue">GitHub</Text>
+          </HStack>
+        </Link>
+        <Text font="caption" foregroundStyle="secondaryLabel">v{SCRIPT_VERSION}</Text>
+      </HStack>
     </Form>
   </NavigationStack>
 }
