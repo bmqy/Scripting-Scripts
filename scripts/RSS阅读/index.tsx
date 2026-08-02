@@ -32,6 +32,7 @@ import {
     loadSettings,
     normalizeEndpoint,
     readerAccountKey,
+    resolveSiteIconUrl,
     readCachedAuth,
     READING_LIST_ID,
     saveSettings,
@@ -193,7 +194,8 @@ async function login(settings: ReaderSettings, forceRefresh = false) {
   const auth = parseAuth(body)
   if (!response.ok || !auth) throw new Error(apiError('登录 Google Reader API', response.status))
 
-  writeCachedAuth(settings, auth)
+  const siteIconUrl = await resolveSiteIconUrl(settings)
+  writeCachedAuth(settings, auth, siteIconUrl)
   return auth
 }
 

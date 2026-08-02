@@ -19,8 +19,15 @@ export type ReaderAuthCache = {
   accountKey: string
   auth: string
   updatedAt: number
+  siteIconUrl?: string
 }
 
+declare function fetch(input: string, init?: {
+  timeout?: number
+  debugLabel?: string
+}): Promise<{
+  ok: boolean
+}>
 const DEFAULT_TIME_DISPLAY: TimeDisplay = 'absolute'
 const DEFAULT_REFRESH_INTERVAL_MINUTES: RefreshIntervalMinutes = 30
 const DEFAULT_COLOR_THEME: ColorTheme = 'system'
@@ -91,13 +98,54 @@ export function readCachedAuth(settings: ReaderSettings) {
   }
 }
 
-export function writeCachedAuth(settings: ReaderSettings, auth: string) {
+export async function resolveSiteIconUrl(settings: ReaderSettings) {
   try {
-    scriptingStorage()?.set(AUTH_CACHE_KEY, {
+    const url = new URL('/favicon.ico', settings.endpoint)
+    if (url.protocol !== 'http:' && url.protocol !== 'https:') return undefined
+
+    const response = await fetch(url.toString(), {
+      timeout: 5,
+      debugLabel: 'RSS Reader Site Icon',
+    })
+    return response.ok ? url.toString() : undefined
+  } catch {
+    return undefined
+  }
+}
+
+export function readCachedSiteIconUrl(settings: ReaderSettings) {
+  try {
+    const value = scriptingStorage()?.get<ReaderAuthCache>(AUTH_CACHE_KEY) || null
+    const cache = value && typeof value === 'object' ? value as ReaderAuthCache : null
+    return cache?.accountKey === readerAccountKey(settings) && typeof cache.siteIconUrl === 'string'
+      ? cache.siteIconUrl
+      : ''
+  } catch {
+    return ''
+  }
+}
+
+export function writeCachedSiteIconUrl(settings: ReaderSettings, siteIconUrl: string) {
+  try {
+    const storage = scriptingStorage()
+    const value = storage?.get<ReaderAuthCache>(AUTH_CACHE_KEY) || null
+    const cache = value && typeof value === 'object' ? value as ReaderAuthCache : null
+    if (!storage || !cache || cache.accountKey !== readerAccountKey(settings)) return
+    storage.set(AUTH_CACHE_KEY, { ...cache, siteIconUrl })
+  } catch {
+    // 站点图标缓存失败不影响账号登录和组件展示。
+  }
+}
+
+export function writeCachedAuth(settings: ReaderSettings, auth: string, siteIconUrl?: string) {
+  try {
+    const cache: ReaderAuthCache = {
       accountKey: readerAccountKey(settings),
       auth,
       updatedAt: Date.now(),
-    })
+    }
+    if (siteIconUrl) cache.siteIconUrl = siteIconUrl
+    scriptingStorage()?.set(AUTH_CACHE_KEY, cache)
   } catch {
     // 认证缓存失败时继续使用本次登录结果。
   }

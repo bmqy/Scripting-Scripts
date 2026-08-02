@@ -17,9 +17,12 @@ import {
   DEFAULT_FEED_NAME,
   loadSettings,
   readCachedAuth,
+  readCachedSiteIconUrl,
   READING_LIST_ID,
+  resolveSiteIconUrl,
   WIDGET_CACHE_KEY,
   writeCachedAuth,
+  writeCachedSiteIconUrl,
   type ColorTheme,
   type ReaderSettings,
   type TimeDisplay,
@@ -105,28 +108,13 @@ function articleLinkUrl(article: ReaderArticle, useInAppBrowser: boolean) {
   return Script.createRunURLScheme(READER_SCRIPT_NAME, queryParameters)
 }
 
-function siteIconUrl(endpoint: string) {
-  try {
-    const url = new URL('/favicon.ico', endpoint)
-    return url.protocol === 'http:' || url.protocol === 'https:' ? url.toString() : undefined
-  } catch {
-    return undefined
-  }
-}
+async function siteIconUrlForWidget(settings: ReaderSettings) {
+  const cached = readCachedSiteIconUrl(settings)
+  if (cached) return cached
 
-async function availableSiteIconUrl(settings: ReaderSettings) {
-  const url = siteIconUrl(settings.endpoint)
-  if (!url) return undefined
-
-  try {
-    const response = await fetch(url, {
-      timeout: 5,
-      debugLabel: 'RSS Reader Site Icon',
-    })
-    return response.ok ? url : undefined
-  } catch {
-    return undefined
-  }
+  const resolved = await resolveSiteIconUrl(settings)
+  if (resolved) writeCachedSiteIconUrl(settings, resolved)
+  return resolved
 }
 
 const DARK_PALETTE: SolidPalette = {
@@ -260,7 +248,8 @@ async function login(settings: ReaderSettings, forceRefresh = false) {
   const auth = parseAuth(body)
   if (!response.ok || !auth) throw readerApiError('登录 Google Reader API', response.status)
 
-  writeCachedAuth(settings, auth)
+  const siteIconUrl = await resolveSiteIconUrl(settings)
+  writeCachedAuth(settings, auth, siteIconUrl)
   return auth
 }
 
@@ -595,7 +584,7 @@ async function present(data: ReaderData, settings: ReaderSettings | null) {
   const timeDisplay = settings?.timeDisplay || 'absolute'
   const palette = resolvePalette(settings?.theme || 'system')
   const widgetUseInAppBrowser = settings?.widgetUseInAppBrowser || false
-  const iconUrl = settings ? await availableSiteIconUrl(settings) : undefined
+  const iconUrl = settings ? await siteIconUrlForWidget(settings) : undefined
   Widget.present(<ReaderWidget data={data} timeDisplay={timeDisplay} palette={palette} widgetUseInAppBrowser={widgetUseInAppBrowser} siteIconUrl={iconUrl} />, {
     reloadPolicy: {
       policy: 'after',
