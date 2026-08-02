@@ -670,6 +670,10 @@ function ArticleListPage({
 
   useEffect(() => () => {
     if (readFlushTimerRef.current !== null) clearTimeout(readFlushTimerRef.current)
+    readFlushTimerRef.current = null
+    const queuedIds = readQueueRef.current
+    readQueueRef.current = []
+    if (queuedIds.length > 0) void markArticlesRead(queuedIds)
   }, [])
 
   const loadPage = async (index: number, continuation = '', filter: ArticleFilter = articleFilter): Promise<boolean> => {
@@ -953,6 +957,7 @@ function FeedManagementPage({
   const [defaultFeedId, setDefaultFeedId] = useState(settings.feedId)
   const [busyFeedId, setBusyFeedId] = useState<string | null>(null)
   const [selectedFeed, setSelectedFeed] = useState<FeedOverview | null>(null)
+  const [articleListSession, setArticleListSession] = useState(0)
   const [toastMessage, setToastMessage] = useState('')
   const [isLoadingFeeds, setIsLoadingFeeds] = useState(true)
   const [message, setMessage] = useState('')
@@ -1037,7 +1042,7 @@ function FeedManagementPage({
       },
       content: selectedFeed
         ? <ArticleListPage
-          key={selectedFeed.id}
+          key={selectedFeed.id + '-' + articleListSession}
           settings={settings}
           feed={selectedFeed}
           onUnreadCountChanged={onUnreadCountChanged}
@@ -1074,7 +1079,10 @@ function FeedManagementPage({
         alignment='center'
         spacing={8}
         contentShape='rect'
-        onTapGesture={() => setSelectedFeed(feed)}
+        onTapGesture={() => {
+          setArticleListSession((previous: number) => previous + 1)
+          setSelectedFeed(feed)
+        }}
         trailingSwipeActions={{
           allowsFullSwipe: false,
           actions: [
