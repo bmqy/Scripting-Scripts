@@ -1492,10 +1492,13 @@ function SettingsPage() {
       >
         <Spacer />
         <Link url={GITHUB_REPOSITORY_URL}>
-          <HStack alignment="center" spacing={4}>
-            <Image systemName="link" foregroundStyle="systemBlue" />
-            <Text foregroundStyle="systemBlue">GitHub</Text>
-          </HStack>
+          <Image
+            imageUrl="https://github.com/favicon.ico"
+            resizable={true}
+            scaleToFit={true}
+            placeholder={<Image systemName="link" foregroundStyle="systemBlue" />}
+            frame={{ width: 20, height: 20, alignment: 'center' }}
+          />
         </Link>
         <Text font="caption" foregroundStyle="secondaryLabel">v{SCRIPT_VERSION}</Text>
       </HStack>
