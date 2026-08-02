@@ -1295,7 +1295,12 @@ function SettingsPage() {
         <Text font="largeTitle" fontWeight="bold">RSS 阅读</Text>
         <Spacer />
         {isAccountConfigured ? (
-          <Button title="预览" action={() => { void Widget.preview({ family: 'systemMedium' }) }} />
+          <Button
+            buttonStyle="plain"
+            action={() => { void Widget.preview({ family: 'systemMedium' }) }}
+          >
+            <Text foregroundStyle="tint">预览</Text>
+          </Button>
         ) : null}
       </HStack>
       {isAccountConfigured && authenticatedSettings ? (
