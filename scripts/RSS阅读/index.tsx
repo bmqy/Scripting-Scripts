@@ -379,6 +379,57 @@ function articleFilterQuery(filter: ArticleFilter) {
     : ''
 }
 
+async function loadStreamContentsPage(
+  settings: ReaderSettings,
+  feedId: string,
+  filter: ArticleFilter,
+  continuation = '',
+) {
+  const continuationQuery = continuation ? '&c=' + encodeURIComponent(continuation) : ''
+  return await fetchJSON<StreamResponse>(
+    settings,
+    settings.endpoint + '/reader/api/0/stream/contents/' + streamPath(feedId)
+      + '?output=json&n=' + ARTICLE_PAGE_SIZE
+      + articleFilterQuery(filter)
+      + '&ck=' + Math.floor(Date.now() / 1000)
+      + continuationQuery,
+    'RSS Reader Article List',
+    '读取文章列表',
+  )
+}
+
+function articleItemsForFilter(data: StreamResponse, filter: ArticleFilter) {
+  const pageItems = (data.items || []).map(toArticle)
+  return filter === 'read' ? pageItems.filter(article => article.isRead) : pageItems
+}
+
+async function hasArticleAfterContinuation(
+  settings: ReaderSettings,
+  feedId: string,
+  filter: ArticleFilter,
+  continuation: string,
+  seenContinuations: Set<string>,
+) {
+  let cursor = continuation
+  const probeContinuations = new Set(seenContinuations)
+
+  while (cursor && !probeContinuations.has(cursor)) {
+    probeContinuations.add(cursor)
+    let data: StreamResponse
+    try {
+      data = await loadStreamContentsPage(settings, feedId, filter, cursor)
+    } catch {
+      return false
+    }
+
+    if (articleItemsForFilter(data, filter).length > 0) return true
+    const nextContinuation = typeof data.continuation === 'string' ? data.continuation.trim() : ''
+    cursor = nextContinuation
+  }
+
+  return false
+}
+
 async function loadArticlePage(
   settings: ReaderSettings,
   feedId: string,
@@ -391,19 +442,8 @@ async function loadArticlePage(
   if (cursor) seenContinuations.add(cursor)
 
   while (true) {
-    const continuationQuery = cursor ? '&c=' + encodeURIComponent(cursor) : ''
-    const data = await fetchJSON<StreamResponse>(
-      settings,
-      settings.endpoint + '/reader/api/0/stream/contents/' + streamPath(feedId)
-        + '?output=json&n=' + ARTICLE_PAGE_SIZE
-        + articleFilterQuery(filter)
-        + '&ck=' + Math.floor(Date.now() / 1000)
-        + continuationQuery,
-      'RSS Reader Article List',
-      '读取文章列表',
-    )
-    const pageItems = (data.items || []).map(toArticle)
-    items.push(...(filter === 'read' ? pageItems.filter(article => article.isRead) : pageItems))
+    const data = await loadStreamContentsPage(settings, feedId, filter, cursor)
+    items.push(...articleItemsForFilter(data, filter))
 
     const nextContinuation = typeof data.continuation === 'string' ? data.continuation.trim() : ''
     if (
@@ -411,9 +451,13 @@ async function loadArticlePage(
       || !nextContinuation
       || seenContinuations.has(nextContinuation)
     ) {
+      const hasMore = items.length >= ARTICLE_PAGE_SIZE
+        && Boolean(nextContinuation)
+        && !seenContinuations.has(nextContinuation)
+        && await hasArticleAfterContinuation(settings, feedId, filter, nextContinuation, seenContinuations)
       return {
         items,
-        continuation: nextContinuation || undefined,
+        continuation: hasMore ? nextContinuation : undefined,
       }
     }
 
