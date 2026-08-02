@@ -104,6 +104,31 @@ function articleLinkUrl(article: ReaderArticle, useInAppBrowser: boolean) {
   if (article.id) queryParameters.articleId = article.id
   return Script.createRunURLScheme(READER_SCRIPT_NAME, queryParameters)
 }
+
+function siteIconUrl(endpoint: string) {
+  try {
+    const url = new URL('/favicon.ico', endpoint)
+    return url.protocol === 'http:' || url.protocol === 'https:' ? url.toString() : undefined
+  } catch {
+    return undefined
+  }
+}
+
+async function availableSiteIconUrl(settings: ReaderSettings) {
+  const url = siteIconUrl(settings.endpoint)
+  if (!url) return undefined
+
+  try {
+    const response = await fetch(url, {
+      timeout: 5,
+      debugLabel: 'RSS Reader Site Icon',
+    })
+    return response.ok ? url : undefined
+  } catch {
+    return undefined
+  }
+}
+
 const DARK_PALETTE: SolidPalette = {
   background: '#1C1C1E',
   primaryText: '#F7F7FA',
@@ -379,26 +404,43 @@ function relativeTimeText(timestamp: number) {
   return `${Math.floor(hours / 24)} 天前`
 }
 
+function DefaultReaderIcon({ compact = false }: { compact?: boolean }) {
+  return (
+    <ZStack modifiers={modifiers().frame({ width: compact ? 20 : 24, height: compact ? 20 : 24, alignment: 'center' }).background(READER_ICON_BACKGROUND)}>
+      <Image systemName={READER_ICON_SYSTEM_NAME} font={compact ? 11 : 13} foregroundStyle="white" />
+    </ZStack>
+  )
+}
+
 function Header({
   data,
   timeDisplay,
   palette,
   compact = false,
   showName = true,
+  siteIconUrl: iconUrl,
 }: {
   data: ReaderData
   timeDisplay: TimeDisplay
   palette: Palette
   compact?: boolean
   showName?: boolean
+  siteIconUrl?: string
 }) {
   const refreshTimeFont = compact ? 9 : 11
+  const defaultIcon = <DefaultReaderIcon compact={compact} />
 
   return (
     <HStack alignment="center" spacing={compact ? 6 : 8} modifiers={modifiers().frame({ maxWidth: 'infinity', alignment: 'leading' })}>
-      <ZStack modifiers={modifiers().frame({ width: compact ? 20 : 24, height: compact ? 20 : 24, alignment: 'center' }).background(READER_ICON_BACKGROUND)}>
-        <Image systemName={READER_ICON_SYSTEM_NAME} font={compact ? 11 : 13} foregroundStyle="white" />
-      </ZStack>
+      {iconUrl ? (
+        <Image
+          imageUrl={iconUrl}
+          resizable={true}
+          scaleToFit={true}
+          placeholder={defaultIcon}
+          modifiers={modifiers().frame({ width: compact ? 20 : 24, height: compact ? 20 : 24, alignment: 'center' })}
+        />
+      ) : defaultIcon}
       {showName ? (
         <Text modifiers={modifiers().font(compact ? 'caption2' : 'subheadline').fontWeight('semibold').foregroundStyle(palette.headerName).lineLimit(1).minScaleFactor(0.76)}>
           {data.sourceName || WIDGET_NAME}
@@ -475,7 +517,7 @@ function ArticleRow({
   return linkUrl ? <Link url={linkUrl}>{content}</Link> : content
 }
 
-function SmallWidget({ data, timeDisplay, palette, widgetUseInAppBrowser }: { data: ReaderData; timeDisplay: TimeDisplay; palette: Palette; widgetUseInAppBrowser: boolean }) {
+function SmallWidget({ data, timeDisplay, palette, widgetUseInAppBrowser, siteIconUrl }: { data: ReaderData; timeDisplay: TimeDisplay; palette: Palette; widgetUseInAppBrowser: boolean; siteIconUrl?: string }) {
   const articles = data.articles.slice(0, DISPLAY_ARTICLE_COUNT)
   return (
     <VStack
@@ -486,7 +528,7 @@ function SmallWidget({ data, timeDisplay, palette, widgetUseInAppBrowser }: { da
         .frame({ maxWidth: 'infinity', maxHeight: 'infinity', alignment: 'leading' })
         .widgetBackground(palette.background)}
     >
-      <Header data={data} timeDisplay={timeDisplay} palette={palette} compact showName={false} />
+      <Header data={data} timeDisplay={timeDisplay} palette={palette} compact showName={false} siteIconUrl={siteIconUrl} />
       {articles.length > 0 ? (
         <VStack alignment="leading" spacing={7} modifiers={modifiers().frame({ maxWidth: 'infinity', alignment: 'leading' })}>
           {articles.map(article => <ArticleRow article={article} palette={palette} density="small" showThumbnail={false} useInAppBrowser={widgetUseInAppBrowser} />)}
@@ -497,7 +539,7 @@ function SmallWidget({ data, timeDisplay, palette, widgetUseInAppBrowser }: { da
   )
 }
 
-function MediumWidget({ data, timeDisplay, palette, widgetUseInAppBrowser }: { data: ReaderData; timeDisplay: TimeDisplay; palette: Palette; widgetUseInAppBrowser: boolean }) {
+function MediumWidget({ data, timeDisplay, palette, widgetUseInAppBrowser, siteIconUrl }: { data: ReaderData; timeDisplay: TimeDisplay; palette: Palette; widgetUseInAppBrowser: boolean; siteIconUrl?: string }) {
   const articles = data.articles.slice(0, DISPLAY_ARTICLE_COUNT)
   return (
     <VStack
@@ -508,7 +550,7 @@ function MediumWidget({ data, timeDisplay, palette, widgetUseInAppBrowser }: { d
         .frame({ maxWidth: 'infinity', maxHeight: 'infinity', alignment: 'leading' })
         .widgetBackground(palette.background)}
     >
-      <Header data={data} timeDisplay={timeDisplay} palette={palette} />
+      <Header data={data} timeDisplay={timeDisplay} palette={palette} siteIconUrl={siteIconUrl} />
       {articles.length > 0 ? (
         <VStack alignment="leading" spacing={10} modifiers={modifiers().frame({ maxWidth: 'infinity', alignment: 'leading' })}>
           {articles.map(article => <ArticleRow article={article} palette={palette} density="medium" useInAppBrowser={widgetUseInAppBrowser} />)}
@@ -519,7 +561,7 @@ function MediumWidget({ data, timeDisplay, palette, widgetUseInAppBrowser }: { d
   )
 }
 
-function LargeWidget({ data, timeDisplay, palette, widgetUseInAppBrowser }: { data: ReaderData; timeDisplay: TimeDisplay; palette: Palette; widgetUseInAppBrowser: boolean }) {
+function LargeWidget({ data, timeDisplay, palette, widgetUseInAppBrowser, siteIconUrl }: { data: ReaderData; timeDisplay: TimeDisplay; palette: Palette; widgetUseInAppBrowser: boolean; siteIconUrl?: string }) {
   const articles = data.articles.slice(0, LARGE_DISPLAY_ARTICLE_COUNT)
   return (
     <VStack
@@ -530,7 +572,7 @@ function LargeWidget({ data, timeDisplay, palette, widgetUseInAppBrowser }: { da
         .frame({ maxWidth: 'infinity', maxHeight: 'infinity', alignment: 'leading' })
         .widgetBackground(palette.background)}
     >
-      <Header data={data} timeDisplay={timeDisplay} palette={palette} />
+      <Header data={data} timeDisplay={timeDisplay} palette={palette} siteIconUrl={siteIconUrl} />
       {data.error ? <Text modifiers={modifiers().font('caption2').foregroundStyle(palette.warning).lineLimit(1)}>显示缓存</Text> : null}
       {articles.length > 0 ? (
         <VStack alignment="leading" spacing={8} modifiers={modifiers().frame({ maxWidth: 'infinity', alignment: 'leading' })}>
@@ -541,18 +583,20 @@ function LargeWidget({ data, timeDisplay, palette, widgetUseInAppBrowser }: { da
     </VStack>
   )
 }
-function ReaderWidget({ data, timeDisplay, palette, widgetUseInAppBrowser }: { data: ReaderData; timeDisplay: TimeDisplay; palette: Palette; widgetUseInAppBrowser: boolean }) {
-  if (Widget.family === 'systemSmall') return <SmallWidget data={data} timeDisplay={timeDisplay} palette={palette} widgetUseInAppBrowser={widgetUseInAppBrowser} />
-  if (Widget.family === 'systemLarge' || Widget.family === 'systemExtraLarge') return <LargeWidget data={data} timeDisplay={timeDisplay} palette={palette} widgetUseInAppBrowser={widgetUseInAppBrowser} />
-  return <MediumWidget data={data} timeDisplay={timeDisplay} palette={palette} widgetUseInAppBrowser={widgetUseInAppBrowser} />
+
+function ReaderWidget({ data, timeDisplay, palette, widgetUseInAppBrowser, siteIconUrl }: { data: ReaderData; timeDisplay: TimeDisplay; palette: Palette; widgetUseInAppBrowser: boolean; siteIconUrl?: string }) {
+  if (Widget.family === 'systemSmall') return <SmallWidget data={data} timeDisplay={timeDisplay} palette={palette} widgetUseInAppBrowser={widgetUseInAppBrowser} siteIconUrl={siteIconUrl} />
+  if (Widget.family === 'systemLarge' || Widget.family === 'systemExtraLarge') return <LargeWidget data={data} timeDisplay={timeDisplay} palette={palette} widgetUseInAppBrowser={widgetUseInAppBrowser} siteIconUrl={siteIconUrl} />
+  return <MediumWidget data={data} timeDisplay={timeDisplay} palette={palette} widgetUseInAppBrowser={widgetUseInAppBrowser} siteIconUrl={siteIconUrl} />
 }
 
-function present(data: ReaderData, settings: ReaderSettings | null) {
+async function present(data: ReaderData, settings: ReaderSettings | null) {
   const refreshIntervalMinutes = settings?.refreshIntervalMinutes || 30
   const timeDisplay = settings?.timeDisplay || 'absolute'
   const palette = resolvePalette(settings?.theme || 'system')
   const widgetUseInAppBrowser = settings?.widgetUseInAppBrowser || false
-  Widget.present(<ReaderWidget data={data} timeDisplay={timeDisplay} palette={palette} widgetUseInAppBrowser={widgetUseInAppBrowser} />, {
+  const iconUrl = settings ? await availableSiteIconUrl(settings) : undefined
+  Widget.present(<ReaderWidget data={data} timeDisplay={timeDisplay} palette={palette} widgetUseInAppBrowser={widgetUseInAppBrowser} siteIconUrl={iconUrl} />, {
     reloadPolicy: {
       policy: 'after',
       date: new Date(Date.now() + refreshIntervalMinutes * 60 * 1000),
