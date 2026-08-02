@@ -719,6 +719,12 @@ function ArticleListPage({
     queueReadArticles([article.id])
   }
 
+  const markArticleWhenTapped = (article: ReaderArticle) => {
+    if (articleFilter === 'read' || article.isRead || !article.id) return
+    discardQueuedReads()
+    void markArticlesRead([article.id])
+  }
+
   const goPreviousPage = () => {
     if (pageIndex === 0 || isLoading) return
     markCurrentPageAsRead()
@@ -866,6 +872,7 @@ function ArticleListPage({
         return <VStack
           key={targetId}
           alignment='leading'
+          onTapGesture={() => markArticleWhenTapped(article)}
           onDisappear={() => markArticleWhenDisappear(article)}
         >
           {article.url ? <Link url={article.url}>{content}</Link> : content}
