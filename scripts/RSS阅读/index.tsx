@@ -630,6 +630,15 @@ function ArticleListPage({
     void loadPage(0, '', 'unread')
   }, [])
 
+  const markCurrentPageAsRead = () => {
+    if (!currentPage || articleFilter === 'read') return
+    const articleIds = currentPage.items
+      .filter(article => !article.isRead)
+      .map(article => article.id)
+      .filter((id): id is string => Boolean(id))
+    if (articleIds.length > 0) queueReadArticles(articleIds)
+  }
+
   const handleLeadingTargetChanged = (value: string | number | null) => {
     const targetId = typeof value === 'string' ? value : null
     if (leadingTargetId && targetId && leadingTargetId !== targetId) {
@@ -652,6 +661,7 @@ function ArticleListPage({
 
   const goPreviousPage = () => {
     if (pageIndex === 0 || isLoading) return
+    markCurrentPageAsRead()
     scrollStateRef.current.suppressDisappear = true
     scrollStateRef.current.hasUserScrolled = false
     const nextPageIndex = pageIndex - 1
@@ -665,6 +675,7 @@ function ArticleListPage({
 
   const goNextPage = () => {
     if (!currentPage || isLoading) return
+    markCurrentPageAsRead()
     scrollStateRef.current.suppressDisappear = true
     scrollStateRef.current.hasUserScrolled = false
     if (pageIndex + 1 < pages.length) {
