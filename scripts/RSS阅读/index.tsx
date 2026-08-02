@@ -1008,18 +1008,34 @@ function FeedManagementPage({
       ? { ...item, unreadCount: Math.max(0, item.unreadCount - delta) }
       : item))
   }
+
+  const refreshUnreadCounts = async () => {
+    try {
+      setFeeds(await loadFeedOverview(settings))
+    } catch {
+      // 标记已读成功后，未读数校准失败时保留本地即时更新结果。
+    }
+  }
+
   const markFeedRead = async (feed: FeedOverview) => {
     if (busyFeedId) return
     setBusyFeedId(feed.id)
-    setMessage(`正在标记“${feed.name}”的未读文章...`)
+    setMessage('')
+    setToastMessage(`正在标记“${feed.name}”的未读文章...`)
     try {
       const count = await markAllUnreadAsRead(settings, feed.id)
-      setFeeds((previous: FeedOverview[]) => previous.map((item: FeedOverview) => item.id === feed.id ? { ...item, unreadCount: 0 } : item))
+      setFeeds((previous: FeedOverview[]) => previous.map((item: FeedOverview) => {
+        if (item.id === feed.id) return { ...item, unreadCount: 0 }
+        if (item.id === READING_LIST_ID) {
+          return { ...item, unreadCount: Math.max(0, item.unreadCount - count) }
+        }
+        return item
+      }))
       Widget.reloadAll()
-      setMessage('')
       setToastMessage(count ? `已将“${feed.name}”的 ${count} 篇文章标记为已读。` : `“${feed.name}”没有未读文章。`)
+      void refreshUnreadCounts()
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : '标记未读文章失败。')
+      setToastMessage(error instanceof Error ? error.message : '标记未读文章失败。')
     } finally {
       setBusyFeedId(null)
     }
