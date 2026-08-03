@@ -36,10 +36,33 @@ jobs:
       - name: Commit and push dist directory
         run: |
           git add dist/
-          git diff --cached --quiet --exit-code || (
-            git commit -m "Auto-update: Build scripts at $(Get-Date -Format o)" &&
-            git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git HEAD:dev
-          )
+          if (-not (git diff --cached --quiet --exit-code)) {
+            git commit -m "Auto-update: Build scripts at $(Get-Date -Format o)"
+            if ($LASTEXITCODE -ne 0) {
+              throw "Unable to commit generated dist files."
+            }
+
+            $pushSucceeded = $false
+            $maxAttempts = 5
+            for ($attempt = 1; $attempt -le $maxAttempts; $attempt++) {
+              Write-Host "Pushing generated dist commit (attempt $attempt/$maxAttempts)..."
+              git -c http.version=HTTP/1.1 push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git HEAD:dev
+              if ($LASTEXITCODE -eq 0) {
+                $pushSucceeded = $true
+                break
+              }
+
+              if ($attempt -lt $maxAttempts) {
+                $delaySeconds = [int][Math]::Pow(2, $attempt) * 5
+                Write-Warning "Push failed; retrying in $delaySeconds seconds."
+                Start-Sleep -Seconds $delaySeconds
+              }
+            }
+
+            if (-not $pushSucceeded) {
+              throw "Unable to push generated dist commit after $maxAttempts attempts."
+            }
+          }
         shell: pwsh
       
       - name: Upload artifacts
