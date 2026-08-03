@@ -951,10 +951,35 @@ function ArticleListPage({
       }}
   >
     <LazyVStack alignment='leading' spacing={10} scrollTargetLayout>
-      {message ? <Section><VStack alignment='leading' padding={{ leading: 16, trailing: 16 }}>
-        <Text foregroundStyle='secondaryLabel'>{message}</Text>
-        <Button title='重试' disabled={isLoading} action={retryLoad} />
-      </VStack></Section> : null}
+      {message ? <Section>
+        <VStack
+          alignment='leading'
+          spacing={12}
+          padding={{ top: 14, leading: 16, bottom: 14, trailing: 16 }}
+          background='secondarySystemGroupedBackground'
+          frame={{ maxWidth: 'infinity', alignment: 'leading' }}
+        >
+          <HStack alignment='top' spacing={10}>
+            <Image systemName='exclamationmark.triangle.fill' foregroundStyle='systemOrange' imageScale='large' />
+            <VStack alignment='leading' spacing={4} frame={{ maxWidth: 'infinity', alignment: 'leading' }}>
+              <Text font='headline' foregroundStyle='label'>暂时无法加载文章</Text>
+              <Text
+                font='subheadline'
+                foregroundStyle='secondaryLabel'
+                multilineTextAlignment='leading'
+                frame={{ maxWidth: 'infinity', alignment: 'leading' }}
+              >{message}</Text>
+            </VStack>
+          </HStack>
+          <Button
+            title='重试'
+            systemImage='arrow.clockwise'
+            buttonStyle='borderedProminent'
+            disabled={isLoading}
+            action={retryLoad}
+          />
+        </VStack>
+      </Section> : null}
       {isLoading && !currentPage ? <Section><VStack
         alignment='center'
         padding={{ leading: 16, trailing: 16 }}
