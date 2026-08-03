@@ -1253,7 +1253,7 @@ function SettingsPage() {
         if (!response.ok) throw new Error(`读取线上 OPML 文件失败（HTTP ${response.status}）。`)
         feeds = parseOpml(await response.text())
       } else if (feeds.length === 0) {
-        const paths = await DocumentPicker.pickFiles({ types: ['public.xml'], shouldShowFileExtensions: true })
+        const paths = await DocumentPicker.pickFiles({ shouldShowFileExtensions: true })
         if (!paths[0]) return
         try {
           source = paths[0].split('/').pop() || '本地 OPML 文件'
@@ -1506,9 +1506,9 @@ function SettingsPage() {
               title={opmlFeeds.length ? `已选择 ${opmlFeeds.length} 个订阅源` : '选择本地 OPML 文件'}
               action={() => {
                 void (async () => {
-                  const paths = await DocumentPicker.pickFiles({ types: ['public.xml'], shouldShowFileExtensions: true })
-                  if (!paths[0]) return
                   try {
+                    const paths = await DocumentPicker.pickFiles({ shouldShowFileExtensions: true })
+                    if (!paths[0]) return
                     const feeds = parseOpml(await FileManager.readAsString(paths[0]))
                     setOpmlFeeds(feeds)
                     setAccountToastMessage(feeds.length ? `已读取 ${feeds.length} 个订阅源，请点击导入并保存。` : 'OPML 文件中没有找到可用的 RSS 订阅源。')
