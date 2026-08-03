@@ -953,28 +953,37 @@ function ArticleListPage({
     <LazyVStack alignment='leading' spacing={10} scrollTargetLayout>
       {message ? <Section>
         <VStack
-          alignment='leading'
-          spacing={12}
-          padding={{ top: 14, leading: 16, bottom: 14, trailing: 16 }}
+          alignment='center'
+          spacing={16}
+          padding={{ top: 28, leading: 24, bottom: 28, trailing: 24 }}
           background='secondarySystemGroupedBackground'
-          frame={{ maxWidth: 'infinity', alignment: 'leading' }}
+          frame={{ maxWidth: 'infinity', minHeight: 260, alignment: 'center' }}
         >
-          <HStack alignment='top' spacing={10}>
-            <Image systemName='exclamationmark.triangle.fill' foregroundStyle='systemOrange' imageScale='large' />
-            <VStack alignment='leading' spacing={4} frame={{ maxWidth: 'infinity', alignment: 'leading' }}>
-              <Text font='headline' foregroundStyle='label'>暂时无法加载文章</Text>
-              <Text
-                font='subheadline'
-                foregroundStyle='secondaryLabel'
-                multilineTextAlignment='leading'
-                frame={{ maxWidth: 'infinity', alignment: 'leading' }}
-              >{message}</Text>
-            </VStack>
-          </HStack>
+          <Image
+            systemName='exclamationmark.triangle.fill'
+            foregroundStyle='systemOrange'
+            imageScale='large'
+          />
+          <VStack alignment='center' spacing={6} frame={{ maxWidth: 'infinity', alignment: 'center' }}>
+            <Text
+              font='headline'
+              foregroundStyle='label'
+              multilineTextAlignment='center'
+              frame={{ maxWidth: 'infinity', alignment: 'center' }}
+            >暂时无法加载文章</Text>
+            <Text
+              font='subheadline'
+              foregroundStyle='secondaryLabel'
+              multilineTextAlignment='center'
+              frame={{ maxWidth: 'infinity', alignment: 'center' }}
+            >{message}</Text>
+          </VStack>
           <Button
             title='重试'
             systemImage='arrow.clockwise'
             buttonStyle='borderedProminent'
+            buttonBorderShape='capsule'
+            controlSize='regular'
             disabled={isLoading}
             action={retryLoad}
           />
