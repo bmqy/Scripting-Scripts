@@ -51,7 +51,7 @@ const AUTH_CACHE_KEY = 'rss-reader-auth-cache'
 
 type SettingsStore = {
   get<T = unknown>(key: string): T | string | null | undefined
-  set(key: string, value: unknown): boolean
+  set(key: string, value: unknown): boolean | void
   remove?(key: string): void
 }
 
@@ -264,7 +264,8 @@ export function saveSettings(settings: ReaderSettings) {
   try {
     const storage = scriptingStorage()
     if (!storage) return null
-    if (!storage.set(SETTINGS_KEY, settings)) return null
+    const writeResult = storage.set(SETTINGS_KEY, settings)
+    if (writeResult === false) return null
     const saved = storage.get<ReaderSettings>(SETTINGS_KEY)
     return matchesSettings(saved, settings) ? 'storage' : null
   } catch {
