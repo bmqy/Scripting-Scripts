@@ -1,6 +1,5 @@
 import {
     Button,
-    DocumentPicker,
     FileManager,
     Form,
     HStack,
@@ -50,6 +49,18 @@ import {
     type TimeDisplay,
 } from './config'
 import { parseOpml, loadOpmlFeedArticles, type OpmlFeed } from './opml'
+type DocumentPickerApi = {
+  pickFiles(options?: { shouldShowFileExtensions?: boolean }): Promise<string[]>
+  stopAcessingSecurityScopedResources(): void
+}
+
+function getDocumentPicker(): DocumentPickerApi {
+  const picker = (globalThis as unknown as { DocumentPicker?: DocumentPickerApi }).DocumentPicker
+  if (!picker || typeof picker.pickFiles !== 'function') {
+    throw new Error('当前 Scripting App 不支持文档选择器，请升级 Scripting App 后重试。')
+  }
+  return picker
+}
 
 declare function fetch(input: string, init?: {
   method?: string
@@ -1253,13 +1264,13 @@ function SettingsPage() {
         if (!response.ok) throw new Error(`读取线上 OPML 文件失败（HTTP ${response.status}）。`)
         feeds = parseOpml(await response.text())
       } else if (feeds.length === 0) {
-        const paths = await DocumentPicker.pickFiles({ shouldShowFileExtensions: true })
+        const paths = await getDocumentPicker().pickFiles({ shouldShowFileExtensions: true })
         if (!paths[0]) return
         try {
           source = paths[0].split('/').pop() || '本地 OPML 文件'
           feeds = parseOpml(await FileManager.readAsString(paths[0]))
         } finally {
-          DocumentPicker.stopAcessingSecurityScopedResources()
+          getDocumentPicker().stopAcessingSecurityScopedResources()
         }
       } else {
         source = authenticatedSettings?.opmlSource || '本地 OPML 文件'
@@ -1507,7 +1518,7 @@ function SettingsPage() {
               action={() => {
                 void (async () => {
                   try {
-                    const paths = await DocumentPicker.pickFiles({ shouldShowFileExtensions: true })
+                    const paths = await getDocumentPicker().pickFiles({ shouldShowFileExtensions: true })
                     if (!paths[0]) return
                     const feeds = parseOpml(await FileManager.readAsString(paths[0]))
                     setOpmlFeeds(feeds)
@@ -1515,7 +1526,7 @@ function SettingsPage() {
                   } catch (error) {
                     setAccountToastMessage(error instanceof Error ? error.message : '本地 OPML 文件读取失败。')
                   } finally {
-                    DocumentPicker.stopAcessingSecurityScopedResources()
+                    getDocumentPicker().stopAcessingSecurityScopedResources()
                   }
                 })()
               }}
