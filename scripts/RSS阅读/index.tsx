@@ -1800,6 +1800,10 @@ function SettingsPage() {
             settings={authenticatedSettings}
             onDefaultChanged={(nextSettings) => {
               setAuthenticatedSettings(nextSettings)
+              setSourceMode(nextSettings.mode)
+              setOpmlSourceType(nextSettings.opmlSourceType)
+              setOpmlUrlInput(nextSettings.mode === 'opml' && nextSettings.opmlSourceType === 'url' ? nextSettings.opmlSource : '')
+              setOpmlFeeds(nextSettings.mode === 'opml' ? nextSettings.opmlFeeds : [])
               setFeedId(nextSettings.feedId)
               setFeedName(nextSettings.feedName)
             }}
