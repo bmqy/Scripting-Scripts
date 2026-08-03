@@ -16,6 +16,7 @@ import {
   clearCachedAuth,
   DEFAULT_FEED_NAME,
   loadSettings,
+  readerAccountKey,
   readCachedAuth,
   readCachedSiteIconUrl,
   READING_LIST_ID,
@@ -27,6 +28,7 @@ import {
   type ReaderSettings,
   type TimeDisplay,
 } from './config'
+import { loadOpmlFeedArticles } from './opml'
 
 declare function fetch(input: string, init?: {
   method?: string
@@ -160,7 +162,7 @@ const UNREAD_STREAM_ID = READING_LIST_ID
 const READ_STREAM_ID = 'user/-/state/com.google/read'
 
 function accountId(settings: ReaderSettings) {
-  return `${settings.endpoint}\n${settings.username}\n${settings.feedId}`
+  return `${readerAccountKey(settings)}\n${settings.feedId}`
 }
 
 function serverName(endpoint: string) {
@@ -322,7 +324,21 @@ async function loadFreshDataWithAuth(settings: ReaderSettings, auth: string): Pr
   }
 }
 
+async function loadFreshOpmlData(settings: ReaderSettings): Promise<ReaderData> {
+  const feed = settings.opmlFeeds.find(item => item.id === settings.feedId)
+  if (!feed) throw new Error('OPML 中找不到当前 RSS 源。')
+  return {
+    serverName: 'OPML',
+    sourceName: feed.name,
+    unreadCount: 0,
+    articles: await loadOpmlFeedArticles(feed, LARGE_DISPLAY_ARTICLE_COUNT),
+    updatedAt: Date.now(),
+  }
+}
+
 async function loadFreshData(settings: ReaderSettings): Promise<ReaderData> {
+  if (settings.mode === 'opml') return await loadFreshOpmlData(settings)
+
   const auth = await login(settings)
   try {
     return await loadFreshDataWithAuth(settings, auth)

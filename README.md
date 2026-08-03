@@ -26,10 +26,12 @@
 
 ### RSS 阅读小组件
 
-显示 Google Reader compatible API 中的未读文章数和最新未读文章，支持 FreshRSS 等自建 RSS 服务。
+显示 Google Reader compatible API 中的未读文章数和最新未读文章，支持 FreshRSS 等自建 RSS 服务，也支持从本地或线上 OPML 文件直接读取 RSS/Atom 订阅源。
 
 #### 功能特点
 - 使用 Google Reader 兼容的 `ClientLogin`、`unread-count` 和 `stream/contents` 接口
+- 可在设置页选择 API 账号或 OPML 订阅方式；OPML 支持从 Files App 选择本地文件，或填写线上 URL
+- OPML 模式直接读取订阅源最新文章，不提供 API 账号模式的未读数和标记已读功能
 - 账号凭据优先保存到 Scripting App 的 Keychain；若钥匙串暂时不可用，会保存到当前脚本的私有本地存储，并在设置页面明确提示
 - 小号显示未读总数和一篇最新文章；中号显示三篇；大号显示五篇及摘要
 - 可选择显示绝对时间或相对时间；默认为绝对时间
@@ -45,6 +47,10 @@
 4. 在脚本设置页的“组件配置”中选择要显示的 RSS 源；选择“全部未读”可恢复默认聚合视图。
 
 其他服务只要提供可拼接 `/accounts/ClientLogin` 和 `/reader/api/0/...` 路径的 Google Reader compatible API 根地址，也可以使用该组件。
+
+#### OPML 配置
+
+在脚本设置页的“订阅方式”中选择“OPML”，再选择“线上 URL”或“本地文件”。线上 URL 会在组件刷新时读取 OPML 并获取当前源文章；本地文件会在导入时解析并保存订阅源清单。OPML 文件需要包含带有 `xmlUrl` 属性的 `<outline>` 节点。
 
 
 

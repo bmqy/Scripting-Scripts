@@ -1,5 +1,7 @@
 import {
     Button,
+    DocumentPicker,
+    FileManager,
     Form,
     HStack,
     Image,
@@ -41,10 +43,13 @@ import {
     writeCachedSiteIconUrl,
     writeCachedAuth,
     type ColorTheme,
+    type OpmlSourceType,
+    type ReaderMode,
     type ReaderSettings,
     type RefreshIntervalMinutes,
     type TimeDisplay,
 } from './config'
+import { parseOpml, loadOpmlFeedArticles, type OpmlFeed } from './opml'
 
 declare function fetch(input: string, init?: {
   method?: string
@@ -128,7 +133,7 @@ const READ_STATE_ID = 'user/-/state/com.google/read'
 const ARTICLE_PAGE_SIZE = 10
 const ITEM_ID_PAGE_SIZE = 1000
 const GITHUB_REPOSITORY_URL = 'https://github.com/bmqy/Scripting-Scripts'
-const SCRIPT_VERSION = '1.0.0'
+const SCRIPT_VERSION = '1.1.0'
 
 function scriptingStorage() {
   return (globalThis as unknown as { Storage?: StorageStore }).Storage
@@ -263,6 +268,10 @@ async function testReaderApi(settings: ReaderSettings) {
 
 
 async function loadFreshSubscriptions(settings: ReaderSettings): Promise<FeedOption[]> {
+  if (settings.mode === 'opml') {
+    return settings.opmlFeeds.map(feed => ({ id: feed.id, name: feed.name }))
+  }
+
   const data = await fetchJSON<SubscriptionResponse>(
     settings,
     `${settings.endpoint}/reader/api/0/subscription/list?output=json`,
@@ -304,6 +313,11 @@ async function loadUnreadCount(settings: ReaderSettings, feedId: string) {
 }
 
 async function loadFeedOverview(settings: ReaderSettings, forceRefresh = false): Promise<FeedOverview[]> {
+  if (settings.mode === 'opml') {
+    const feeds = await loadSubscriptions(settings, forceRefresh)
+    return feeds.map(feed => ({ ...feed, unreadCount: 0 }))
+  }
+
   const [feeds, unreadCounts] = await Promise.all([
     loadSubscriptions(settings, forceRefresh),
     fetchJSON<UnreadCountsResponse>(
@@ -445,6 +459,15 @@ async function loadArticlePage(
   filter: ArticleFilter,
   continuation = '',
 ): Promise<ArticlePage> {
+  if (settings.mode === 'opml') {
+    const feed = settings.opmlFeeds.find(item => item.id === feedId)
+    if (!feed) throw new Error('OPML 中找不到当前 RSS 源。')
+    const articles = await loadOpmlFeedArticles(feed, ARTICLE_PAGE_SIZE)
+    return {
+      items: articles.map(article => ({ ...article, isRead: false })),
+    }
+  }
+
   const items: ReaderArticle[] = []
   const seenContinuations = new Set<string>()
   let cursor = continuation
@@ -475,6 +498,8 @@ async function loadArticlePage(
   }
 }
 async function loadUnreadItemIds(settings: ReaderSettings, feedId: string) {
+  if (settings.mode === 'opml') return []
+
   const ids: string[] = []
   const seenContinuations = new Set<string>()
   let continuation = ''
@@ -506,6 +531,8 @@ async function markAllUnreadAsRead(settings: ReaderSettings, feedId: string) {
 }
 
 async function markItemsAsRead(settings: ReaderSettings, ids: string[]) {
+  if (settings.mode === 'opml') return 0
+
   const uniqueIds = Array.from(new Set(ids.filter(id => typeof id === 'string' && id.trim()).map(id => id.trim())))
   for (let index = 0; index < uniqueIds.length; index += ITEM_ID_PAGE_SIZE) {
     const body = uniqueIds
@@ -574,11 +601,12 @@ function ArticleListPage({
   onNextFeed: () => void
   hasNextFeed: boolean
 }) {
+  const isOpml = settings.mode === 'opml'
   const [pages, setPages] = useState<ArticlePage[]>([])
   const [pageIndex, setPageIndex] = useState(0)
   const [isLoading, setIsLoading] = useState(false)
   const [message, setMessage] = useState('')
-  const [articleFilter, setArticleFilter] = useState<ArticleFilter>('unread')
+  const [articleFilter, setArticleFilter] = useState<ArticleFilter>(isOpml ? 'all' : 'unread')
   const [unreadCount, setUnreadCount] = useState(feed.unreadCount)
   const unreadCountRef = useRef(feed.unreadCount)
   const [leadingTargetId, setLeadingTargetId] = useState<string | null>(null)
@@ -619,6 +647,8 @@ function ArticleListPage({
   }
 
   const markArticlesRead = async (articleIds: string[]) => {
+    if (isOpml) return
+
     const candidates = Array.from(new Set(articleIds.filter(id => !markedReadIds.includes(id) && !pendingReadIds.includes(id))))
     if (candidates.length === 0) return
 
@@ -700,7 +730,7 @@ function ArticleListPage({
   }
 
   useEffect(() => {
-    void loadPage(0, '', 'unread')
+    void loadPage(0, '', isOpml ? 'all' : 'unread')
   }, [])
 
   const markPageAsRead = (page?: ArticlePage) => {
@@ -791,6 +821,7 @@ function ArticleListPage({
   }
 
   const selectFilter = (nextFilter: ArticleFilter) => {
+    if (isOpml && nextFilter !== 'all') return
     if (nextFilter === articleFilter || isLoading || pendingReadIds.length > 0) return
     setArticleFilter(nextFilter)
     setPages([])
@@ -812,7 +843,9 @@ function ArticleListPage({
     void loadPage(pageIndex, '', articleFilter)
   }
 
-  const emptyMessage = articleFilter === 'read'
+  const emptyMessage = isOpml
+    ? '这个源暂无文章。'
+    : articleFilter === 'read'
     ? '这个源暂无已读文章。'
     : articleFilter === 'all'
       ? '这个源暂无文章。'
@@ -827,13 +860,13 @@ function ArticleListPage({
       value: leadingTargetId,
       onChanged: handleLeadingTargetChanged,
     }}
-    toolbar={{
-      topBarTrailing: <Menu title={ARTICLE_FILTER_LABELS[articleFilter]}>
-        <Button title='未读' action={() => selectFilter('unread')} />
-        <Button title='已读' action={() => selectFilter('read')} />
-        <Button title='全部' action={() => selectFilter('all')} />
-      </Menu>,
-    }}
+      toolbar={{
+        topBarTrailing: isOpml ? null : <Menu title={ARTICLE_FILTER_LABELS[articleFilter]}>
+          <Button title='未读' action={() => selectFilter('unread')} />
+          <Button title='已读' action={() => selectFilter('read')} />
+          <Button title='全部' action={() => selectFilter('all')} />
+        </Menu>,
+      }}
   >
     <LazyVStack alignment='leading' spacing={10} scrollTargetLayout>
       {message ? <Section><VStack alignment='leading' padding={{ leading: 16, trailing: 16 }}>
@@ -1130,6 +1163,10 @@ function FeedManagementPage({
 
 function SettingsPage() {
   const current = loadSettings()
+  const [sourceMode, setSourceMode] = useState<ReaderMode>(current?.mode || 'reader')
+  const [opmlSourceType, setOpmlSourceType] = useState<OpmlSourceType>(current?.opmlSourceType || 'url')
+  const [opmlUrlInput, setOpmlUrlInput] = useState(current?.mode === 'opml' && current.opmlSourceType === 'url' ? current.opmlSource : '')
+  const [opmlFeeds, setOpmlFeeds] = useState<OpmlFeed[]>(current?.mode === 'opml' ? current.opmlFeeds : [])
   const [endpointInput, setEndpointInput] = useState(current?.endpoint || '')
   const [username, setUsername] = useState(current?.username || '')
   const [password, setPassword] = useState(current?.password || '')
@@ -1155,13 +1192,23 @@ function SettingsPage() {
     normalizedAccountEndpoint = ''
   }
 
-  const isAccountConfigured = Boolean(
-    authenticatedSettings
+  const isReaderConfigured = Boolean(
+    sourceMode === 'reader'
+      && authenticatedSettings
       && normalizedAccountEndpoint
       && authenticatedSettings.endpoint === normalizedAccountEndpoint
       && authenticatedSettings.username === username.trim()
       && authenticatedSettings.password === password
   )
+  const isOpmlConfigured = Boolean(
+    sourceMode === 'opml'
+      && authenticatedSettings?.mode === 'opml'
+      && authenticatedSettings.opmlSourceType === opmlSourceType
+      && (opmlSourceType === 'url' ? authenticatedSettings.opmlSource === opmlUrlInput.trim() : opmlFeeds.length > 0)
+      && authenticatedSettings.opmlFeeds.length === opmlFeeds.length
+      && authenticatedSettings.opmlFeeds.every((feed, index) => feed.xmlUrl === opmlFeeds[index]?.xmlUrl)
+  )
+  const isAccountConfigured = isReaderConfigured || isOpmlConfigured
 
   const siteDomain = (endpoint: string) => {
     try {
@@ -1185,6 +1232,75 @@ function SettingsPage() {
       isActive = false
     }
   }, [authenticatedSettings?.endpoint, authenticatedSettings?.username, authenticatedSettings?.password, siteIconUrl])
+
+  const saveOpml = async () => {
+    if (isSavingAccount) return
+
+    setIsSavingAccount(true)
+    let source = ''
+    let feeds = opmlFeeds
+    try {
+      if (opmlSourceType === 'url') {
+        const url = new URL(opmlUrlInput.trim())
+        if (url.protocol !== 'http:' && url.protocol !== 'https:') throw new Error('OPML 地址必须以 http:// 或 https:// 开头。')
+        source = url.toString()
+        setAccountToastMessage('正在读取线上 OPML 文件...')
+        const response = await fetch(source, {
+          headers: { 'User-Agent': 'Scripting-RSS-Reader/1.0' },
+          timeout: 20,
+          debugLabel: 'RSS Reader OPML URL',
+        })
+        if (!response.ok) throw new Error(`读取线上 OPML 文件失败（HTTP ${response.status}）。`)
+        feeds = parseOpml(await response.text())
+      } else if (feeds.length === 0) {
+        const paths = await DocumentPicker.pickFiles({ types: ['public.xml'], shouldShowFileExtensions: true })
+        if (!paths[0]) return
+        try {
+          source = paths[0].split('/').pop() || '本地 OPML 文件'
+          feeds = parseOpml(await FileManager.readAsString(paths[0]))
+        } finally {
+          DocumentPicker.stopAcessingSecurityScopedResources()
+        }
+      } else {
+        source = authenticatedSettings?.opmlSource || '本地 OPML 文件'
+      }
+
+      if (feeds.length === 0) throw new Error('OPML 文件中没有找到可用的 RSS 订阅源。')
+      const defaultFeed = feeds.find(feed => feed.id === authenticatedSettings?.feedId) || feeds[0]
+      const settings: ReaderSettings = {
+        mode: 'opml',
+        endpoint: '',
+        username: '',
+        password: '',
+        opmlSourceType,
+        opmlSource: source,
+        opmlFeeds: feeds,
+        feedId: defaultFeed.id,
+        feedName: defaultFeed.name,
+        timeDisplay: authenticatedSettings?.timeDisplay || timeDisplay,
+        refreshIntervalMinutes: authenticatedSettings?.refreshIntervalMinutes || refreshIntervalMinutes,
+        theme: authenticatedSettings?.theme || theme,
+        useInAppBrowser: authenticatedSettings?.useInAppBrowser ?? useInAppBrowser,
+        widgetUseInAppBrowser: authenticatedSettings?.widgetUseInAppBrowser ?? widgetUseInAppBrowser,
+      }
+      if (!saveSettings(settings)) {
+        setAccountToastMessage('OPML 读取成功，但无法保存配置，请检查 Scripting 的本地存储后重试。')
+        return
+      }
+
+      setSourceMode('opml')
+      setOpmlUrlInput(opmlSourceType === 'url' ? source : '')
+      setOpmlFeeds(feeds)
+      setAuthenticatedSettings(settings)
+      Widget.reloadAll()
+      setAccountToastMessage(`OPML 导入成功，已读取 ${feeds.length} 个订阅源。`)
+    } catch (error) {
+      setAccountToastMessage(error instanceof Error ? error.message : 'OPML 读取失败，请检查文件或 URL。')
+    } finally {
+      setIsSavingAccount(false)
+    }
+  }
+
   const saveAccount = async () => {
     if (isSavingAccount) return
 
@@ -1202,9 +1318,13 @@ function SettingsPage() {
     }
 
     const settings: ReaderSettings = {
+      mode: 'reader',
       endpoint,
       username: username.trim(),
       password,
+      opmlSourceType: 'url',
+      opmlSource: '',
+      opmlFeeds: [],
       feedId: authenticatedSettings?.feedId || READING_LIST_ID,
       feedName: authenticatedSettings?.feedName || DEFAULT_FEED_NAME,
       timeDisplay: authenticatedSettings?.timeDisplay || timeDisplay,
@@ -1226,6 +1346,7 @@ function SettingsPage() {
       }
 
       setAuthenticatedSettings(settings)
+      setSourceMode('reader')
       setSiteIconUrl(readCachedSiteIconUrl(settings))
       Widget.reloadAll()
       setAccountToastMessage('账号登录成功，已保存账号配置。现在可以调整组件配置。')
@@ -1238,7 +1359,7 @@ function SettingsPage() {
 
   const saveWidget = (overrides: Partial<Pick<ReaderSettings, 'feedId' | 'feedName' | 'timeDisplay' | 'refreshIntervalMinutes' | 'theme' | 'useInAppBrowser' | 'widgetUseInAppBrowser'>> = {}) => {
     if (!isAccountConfigured || !authenticatedSettings) {
-      setWidgetMessage('请先保存并登录账号配置。')
+      setWidgetMessage('请先保存订阅配置。')
       return
     }
 
@@ -1329,10 +1450,26 @@ function SettingsPage() {
           </Button>
         ) : null}
       </HStack>
+      <Section header={<Text>订阅方式</Text>}>
+        <Picker
+          title=""
+          value={sourceMode}
+          onChanged={(value) => {
+            setSourceMode(value)
+            setAccountToastMessage('')
+          }}
+          pickerStyle="segmented"
+        >
+          <Text tag="reader">API 账号</Text>
+          <Text tag="opml">OPML</Text>
+        </Picker>
+      </Section>
       {isAccountConfigured && authenticatedSettings ? (
-        <Section header={<Text>账号配置</Text>}>
+        <Section header={<Text>{authenticatedSettings.mode === 'opml' ? 'OPML 配置' : '账号配置'}</Text>}>
           <HStack alignment="center" spacing={10}>
-            {siteIconUrl ? (
+            {authenticatedSettings.mode === 'opml' ? (
+              <Image systemName="doc.text" foregroundStyle="secondaryLabel" />
+            ) : siteIconUrl ? (
               <Image
                 imageUrl={siteIconUrl}
                 resizable={true}
@@ -1340,10 +1477,56 @@ function SettingsPage() {
                 frame={{ width: 24, height: 24, alignment: 'center' }}
               />
             ) : <Image systemName="globe" foregroundStyle="secondaryLabel" />}
-            <Text lineLimit={1} minScaleFactor={0.8}>{siteDomain(authenticatedSettings.endpoint)}</Text>
+            <Text lineLimit={1} minScaleFactor={0.8}>{authenticatedSettings.mode === 'opml' ? authenticatedSettings.opmlSource : siteDomain(authenticatedSettings.endpoint)}</Text>
             <Spacer />
             <Button title="退出" tint="red" action={logoutAccount} />
           </HStack>
+        </Section>
+      ) : sourceMode === 'opml' ? (
+        <Section header={<Text>OPML 配置</Text>}>
+          <Picker
+            title="来源"
+            value={opmlSourceType}
+            onChanged={(value) => setOpmlSourceType(value)}
+            pickerStyle="segmented"
+          >
+            <Text tag="url">线上 URL</Text>
+            <Text tag="file">本地文件</Text>
+          </Picker>
+          {opmlSourceType === 'url' ? (
+            <TextField
+              title="OPML URL"
+              value={opmlUrlInput}
+              onChanged={setOpmlUrlInput}
+              prompt="https://example.com/feeds.opml"
+              autofocus={!current}
+            />
+          ) : (
+            <Button
+              title={opmlFeeds.length ? `已选择 ${opmlFeeds.length} 个订阅源` : '选择本地 OPML 文件'}
+              action={() => {
+                void (async () => {
+                  const paths = await DocumentPicker.pickFiles({ types: ['public.xml'], shouldShowFileExtensions: true })
+                  if (!paths[0]) return
+                  try {
+                    const feeds = parseOpml(await FileManager.readAsString(paths[0]))
+                    setOpmlFeeds(feeds)
+                    setAccountToastMessage(feeds.length ? `已读取 ${feeds.length} 个订阅源，请点击导入并保存。` : 'OPML 文件中没有找到可用的 RSS 订阅源。')
+                  } catch (error) {
+                    setAccountToastMessage(error instanceof Error ? error.message : '本地 OPML 文件读取失败。')
+                  } finally {
+                    DocumentPicker.stopAcessingSecurityScopedResources()
+                  }
+                })()
+              }}
+            />
+          )}
+          <Button
+            title={isSavingAccount ? '正在导入...' : '导入并保存'}
+            buttonStyle="borderedProminent"
+            disabled={isSavingAccount}
+            action={() => { void saveOpml() }}
+          />
         </Section>
       ) : (
         <Section header={(

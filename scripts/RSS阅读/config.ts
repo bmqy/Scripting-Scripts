@@ -1,7 +1,13 @@
+import { type OpmlFeed } from './opml'
+
 export type ReaderSettings = {
+  mode: ReaderMode
   endpoint: string
   username: string
   password: string
+  opmlSourceType: OpmlSourceType
+  opmlSource: string
+  opmlFeeds: OpmlFeed[]
   feedId: string
   feedName: string
   timeDisplay: TimeDisplay
@@ -11,6 +17,8 @@ export type ReaderSettings = {
   widgetUseInAppBrowser: boolean
 }
 
+export type ReaderMode = 'reader' | 'opml'
+export type OpmlSourceType = 'file' | 'url'
 export type TimeDisplay = 'absolute' | 'relative'
 export type RefreshIntervalMinutes = 1 | 3 | 5 | 15 | 30 | 60 | 120 | 180 | 360 | 720
 export type ColorTheme = 'system' | 'light' | 'dark'
@@ -75,6 +83,9 @@ export function normalizeEndpoint(value: string) {
 }
 
 export function readerAccountKey(settings: ReaderSettings) {
+  if (settings.mode === 'opml') {
+    return `opml\n${settings.opmlSourceType}\n${settings.opmlSource}\n${settings.feedId}\n${settings.opmlFeeds.map(feed => feed.xmlUrl).join('\n')}`
+  }
   return `${settings.endpoint}\n${settings.username}\n${settings.password}`
 }
 
@@ -99,6 +110,8 @@ export function readCachedAuth(settings: ReaderSettings) {
 }
 
 export async function resolveSiteIconUrl(settings: ReaderSettings) {
+  if (settings.mode === 'opml') return undefined
+
   try {
     const url = new URL('/favicon.ico', settings.endpoint)
     if (url.protocol !== 'http:' && url.protocol !== 'https:') return undefined
@@ -190,12 +203,23 @@ function parseSettings(value: unknown): ReaderSettings | null {
     const settings = typeof value === 'string'
       ? JSON.parse(value) as Partial<ReaderSettings>
       : value as Partial<ReaderSettings>
-    if (!settings.endpoint || !settings.username || !settings.password) return null
+    const mode: ReaderMode = settings.mode === 'opml' ? 'opml' : 'reader'
+    const opmlSourceType: OpmlSourceType = settings.opmlSourceType === 'url' ? 'url' : 'file'
+    const opmlFeeds = Array.isArray(settings.opmlFeeds)
+      ? settings.opmlFeeds.filter(item => item && typeof item.id === 'string' && typeof item.name === 'string' && typeof item.xmlUrl === 'string') as OpmlFeed[]
+      : []
+
+    if (mode === 'reader' && (!settings.endpoint || !settings.username || !settings.password)) return null
+    if (mode === 'opml' && (!settings.opmlSource || opmlFeeds.length === 0)) return null
 
     return {
-      endpoint: normalizeEndpoint(settings.endpoint),
-      username: settings.username,
-      password: settings.password,
+      mode,
+      endpoint: mode === 'reader' ? normalizeEndpoint(settings.endpoint!) : '',
+      username: mode === 'reader' ? settings.username!.trim() : '',
+      password: mode === 'reader' ? settings.password! : '',
+      opmlSourceType,
+      opmlSource: typeof settings.opmlSource === 'string' ? settings.opmlSource.trim() : '',
+      opmlFeeds,
       feedId: typeof settings.feedId === 'string' && settings.feedId.trim() ? settings.feedId.trim() : READING_LIST_ID,
       feedName: typeof settings.feedName === 'string' && settings.feedName.trim() ? settings.feedName.trim() : DEFAULT_FEED_NAME,
       timeDisplay: timeDisplay(settings.timeDisplay),
@@ -220,7 +244,11 @@ export function loadSettings(): ReaderSettings | null {
 
 function matchesSettings(value: unknown, settings: ReaderSettings) {
   const saved = parseSettings(value)
-  return saved?.endpoint === settings.endpoint
+  return saved?.mode === settings.mode
+    && saved.opmlSourceType === settings.opmlSourceType
+    && saved.opmlSource === settings.opmlSource
+    && JSON.stringify(saved.opmlFeeds) === JSON.stringify(settings.opmlFeeds)
+    && saved.endpoint === settings.endpoint
     && saved.username === settings.username
     && saved.password === settings.password
     && saved.feedId === settings.feedId
