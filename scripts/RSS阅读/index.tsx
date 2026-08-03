@@ -597,6 +597,22 @@ async function markItemsAsRead(settings: ReaderSettings, ids: string[]) {
   return uniqueIds.length
 }
 
+async function unsubscribeFeed(settings: ReaderSettings, feedId: string) {
+  if (settings.mode === 'opml') return
+
+  const response = await fetchWithAuth(
+    settings,
+    settings.endpoint + '/reader/api/0/subscription/edit',
+    'RSS Reader Unsubscribe Feed',
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: 'ac=unsubscribe&s=' + encodeURIComponent(feedId),
+    },
+  )
+  if (!response.ok) throw new Error(apiError('删除 RSS 源', response.status))
+}
+
 function formatArticleDate(timestamp: number) {
   const date = new Date(timestamp)
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
@@ -1216,6 +1232,62 @@ function FeedManagementPage({
     }
   }
 
+  const deleteFeed = async (feed: FeedOverview) => {
+    if (busyFeedId || feed.id === READING_LIST_ID) return
+
+    setBusyFeedId(feed.id)
+    setMessage('')
+    setToastMessage(`正在删除“${feed.name}”...`)
+    const isDefaultFeed = feed.id === defaultFeedId
+    const nextFeeds = feeds.filter(item => item.id !== feed.id)
+    const nextSettings: ReaderSettings = settings.mode === 'opml'
+      ? {
+        ...settings,
+        opmlFeeds: settings.opmlFeeds.filter(item => item.id !== feed.id),
+        ...(isDefaultFeed ? { feedId: READING_LIST_ID, feedName: DEFAULT_FEED_NAME } : {}),
+      }
+      : isDefaultFeed
+        ? { ...settings, feedId: READING_LIST_ID, feedName: DEFAULT_FEED_NAME }
+        : settings
+
+    try {
+      if (settings.mode === 'reader') await unsubscribeFeed(settings, feed.id)
+
+      let settingsSaved = true
+      if (settings.mode === 'opml') {
+        if (!saveSettings(nextSettings)) throw new Error('删除 RSS 源失败，无法保存 OPML 配置。')
+        setDefaultFeedId(nextSettings.feedId)
+        onDefaultChanged(nextSettings)
+      } else if (isDefaultFeed) {
+        settingsSaved = Boolean(saveSettings(nextSettings))
+        if (settingsSaved) {
+          setDefaultFeedId(nextSettings.feedId)
+          onDefaultChanged(nextSettings)
+        }
+      }
+
+      setFeeds(nextFeeds)
+      if (settings.mode === 'reader') {
+        writeCachedFeeds(settings, nextFeeds
+          .filter(item => item.id !== READING_LIST_ID)
+          .map(item => ({ id: item.id, name: item.name })))
+      }
+      if (selectedFeed?.id === feed.id) setSelectedFeed(null)
+      clearWidgetCache()
+      Widget.reloadAll()
+
+      if (!settingsSaved) {
+        setToastMessage(`已删除“${feed.name}”，但默认源配置保存失败，请重新设置。`)
+      } else {
+        setToastMessage(`已删除“${feed.name}”。`)
+      }
+    } catch (error) {
+      setToastMessage(error instanceof Error ? error.message : '删除 RSS 源失败。')
+    } finally {
+      setBusyFeedId(null)
+    }
+  }
+
   return <List
     navigationTitle='RSS 源'
     navigationBarTitleDisplayMode='inline'
@@ -1292,6 +1364,15 @@ function FeedManagementPage({
               disabled={!feed.unreadCount || Boolean(busyFeedId)}
               action={() => { void markFeedRead(feed) }}
             />,
+            ...(feed.id === READING_LIST_ID ? [] : [
+              <Button
+                title={busyFeedId === feed.id ? '删除中' : '删除'}
+                tint='red'
+                role='destructive'
+                disabled={Boolean(busyFeedId)}
+                action={() => { void deleteFeed(feed) }}
+              />,
+            ]),
           ],
         }}
       >
