@@ -1,6 +1,5 @@
 import {
     Button,
-    FileManager,
     Form,
     HStack,
     Image,
@@ -62,6 +61,17 @@ function getDocumentPicker(): DocumentPickerApi {
   return picker
 }
 
+type FileManagerApi = {
+  readAsString(path: string): Promise<string>
+}
+
+function getFileManager(): FileManagerApi {
+  const fileManager = (globalThis as unknown as { FileManager?: FileManagerApi }).FileManager
+  if (!fileManager || typeof fileManager.readAsString !== 'function') {
+    throw new Error('当前 Scripting App 不支持文件读取，请升级 Scripting App 后重试。')
+  }
+  return fileManager
+}
 declare function fetch(input: string, init?: {
   method?: string
   headers?: Record<string, string>
@@ -1268,7 +1278,7 @@ function SettingsPage() {
         if (!paths[0]) return
         try {
           source = paths[0].split('/').pop() || '本地 OPML 文件'
-          feeds = parseOpml(await FileManager.readAsString(paths[0]))
+          feeds = parseOpml(await getFileManager().readAsString(paths[0]))
         } finally {
           getDocumentPicker().stopAcessingSecurityScopedResources()
         }
@@ -1520,7 +1530,7 @@ function SettingsPage() {
                   try {
                     const paths = await getDocumentPicker().pickFiles({ shouldShowFileExtensions: true })
                     if (!paths[0]) return
-                    const feeds = parseOpml(await FileManager.readAsString(paths[0]))
+                    const feeds = parseOpml(await getFileManager().readAsString(paths[0]))
                     setOpmlFeeds(feeds)
                     setAccountToastMessage(feeds.length ? `已读取 ${feeds.length} 个订阅源，请点击导入并保存。` : 'OPML 文件中没有找到可用的 RSS 订阅源。')
                   } catch (error) {
