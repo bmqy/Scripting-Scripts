@@ -649,7 +649,11 @@ function ArticleListPage({
   const [message, setMessage] = useState('')
   const [articleFilter, setArticleFilter] = useState<ArticleFilter>(isOpml ? 'all' : 'unread')
   const [unreadCount, setUnreadCount] = useState(feed.unreadCount)
+  const isLoadingRef = useRef(false)
   const unreadCountRef = useRef(feed.unreadCount)
+  const pageIndexRef = useRef(0)
+  const articleFilterRef = useRef<ArticleFilter>(isOpml ? 'all' : 'unread')
+  const pendingReadIdsRef = useRef<string[]>([])
   const [leadingTargetId, setLeadingTargetId] = useState<string | null>(null)
   const [markedReadIds, setMarkedReadIds] = useState<string[]>([])
   const [pendingReadIds, setPendingReadIds] = useState<string[]>([])
@@ -661,6 +665,18 @@ function ArticleListPage({
   })
 
   const currentPage = pages[pageIndex]
+
+  useEffect(() => {
+    pageIndexRef.current = pageIndex
+  }, [pageIndex])
+
+  useEffect(() => {
+    articleFilterRef.current = articleFilter
+  }, [articleFilter])
+
+  useEffect(() => {
+    pendingReadIdsRef.current = pendingReadIds
+  }, [pendingReadIds])
 
   const articleTargetIdForPage = (targetPageIndex: number, article: ReaderArticle, index: number) => (
     'article-' + targetPageIndex + '-' + (article.id || index)
@@ -747,10 +763,16 @@ function ArticleListPage({
     if (queuedIds.length > 0) void markArticlesRead(queuedIds)
   }, [])
 
-  const loadPage = async (index: number, continuation = '', filter: ArticleFilter = articleFilter): Promise<boolean> => {
-    if (isLoading) return false
-    setIsLoading(true)
-    setMessage('')
+  const loadPage = async (
+    index: number,
+    continuation = '',
+    filter: ArticleFilter = articleFilter,
+    showLoading = true,
+  ): Promise<boolean> => {
+    if (isLoadingRef.current) return false
+    isLoadingRef.current = true
+    if (showLoading) setIsLoading(true)
+    if (showLoading) setMessage('')
     try {
       const page = await loadArticlePage(settings, feed.id, filter, continuation)
       setPages((previous: ArticlePage[]) => {
@@ -763,16 +785,35 @@ function ArticleListPage({
       scrollStateRef.current.hasUserScrolled = false
       return true
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : '无法读取文章列表。')
+      if (showLoading) setMessage(error instanceof Error ? error.message : '无法读取文章列表。')
       return false
     } finally {
-      setIsLoading(false)
+      isLoadingRef.current = false
+      if (showLoading) setIsLoading(false)
     }
   }
 
   useEffect(() => {
     void loadPage(0, '', isOpml ? 'all' : 'unread')
   }, [])
+
+  useEffect(() => {
+    const intervalMs = Math.max(1, settings.refreshIntervalMinutes) * 60 * 1000
+    const timer = setInterval(() => {
+      if (
+        pageIndexRef.current !== 0
+        || pendingReadIdsRef.current.length > 0
+        || readQueueRef.current.length > 0
+      ) return
+
+      void loadPage(0, '', articleFilterRef.current, false).then((isLoaded) => {
+        if (!isLoaded || isOpml) return
+        void loadUnreadCount(settings, feed.id).then(updateUnreadCount).catch(() => {})
+      })
+    }, intervalMs)
+
+    return () => clearInterval(timer)
+  }, [settings.refreshIntervalMinutes, feed.id])
 
   const markPageAsRead = (page?: ArticlePage) => {
     if (!page || articleFilter === 'read') return
@@ -1035,23 +1076,44 @@ function FeedManagementPage({
   const [toastMessage, setToastMessage] = useState('')
   const [isLoadingFeeds, setIsLoadingFeeds] = useState(true)
   const [message, setMessage] = useState('')
+  const isRefreshingFeedsRef = useRef(false)
+  const busyFeedIdRef = useRef<string | null>(null)
 
-  const refresh = async (forceRefresh = false) => {
-    setIsLoadingFeeds(true)
-    setMessage(forceRefresh ? '正在刷新 RSS 源...' : '正在加载 RSS 源...')
+  useEffect(() => {
+    busyFeedIdRef.current = busyFeedId
+  }, [busyFeedId])
+
+  const refresh = async (forceRefresh = false, showLoading = true) => {
+    if (isRefreshingFeedsRef.current) return
+    isRefreshingFeedsRef.current = true
+    if (showLoading) {
+      setIsLoadingFeeds(true)
+      setMessage(forceRefresh ? '正在刷新 RSS 源...' : '正在加载 RSS 源...')
+    }
     try {
       setFeeds(await loadFeedOverview(settings, forceRefresh))
-      setMessage('')
+      if (showLoading) setMessage('')
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : '无法加载 RSS 源列表。')
+      if (showLoading) setMessage(error instanceof Error ? error.message : '无法加载 RSS 源列表。')
     } finally {
-      setIsLoadingFeeds(false)
+      isRefreshingFeedsRef.current = false
+      if (showLoading) setIsLoadingFeeds(false)
     }
   }
 
   useEffect(() => {
     void refresh()
   }, [])
+
+  useEffect(() => {
+    const intervalMs = Math.max(1, settings.refreshIntervalMinutes) * 60 * 1000
+    const timer = setInterval(() => {
+      if (busyFeedIdRef.current) return
+      void refresh(false, false)
+    }, intervalMs)
+
+    return () => clearInterval(timer)
+  }, [settings.refreshIntervalMinutes])
 
   const selectDefault = (feed: FeedOverview) => {
     const nextSettings: ReaderSettings = {
