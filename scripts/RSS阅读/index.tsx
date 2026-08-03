@@ -336,13 +336,23 @@ async function loadUnreadCount(settings: ReaderSettings, feedId: string) {
 async function loadFeedOverview(settings: ReaderSettings, forceRefresh = false): Promise<FeedOverview[]> {
   if (settings.mode === 'opml') {
     const feeds = await loadSubscriptions(settings, forceRefresh)
+    const unreadCounts = await Promise.all(feeds.map(async (feed) => {
+      const opmlFeed = settings.opmlFeeds.find(item => item.id === feed.id)
+      if (!opmlFeed) return 0
+
+      try {
+        return (await loadOpmlFeedArticles(opmlFeed, ARTICLE_PAGE_SIZE)).length
+      } catch {
+        return 0
+      }
+    }))
     return [
       {
         id: READING_LIST_ID,
         name: DEFAULT_FEED_NAME,
-        unreadCount: 0,
+        unreadCount: unreadCounts.reduce((total, count) => total + count, 0),
       },
-      ...feeds.map(feed => ({ ...feed, unreadCount: 0 })),
+      ...feeds.map((feed, index) => ({ ...feed, unreadCount: unreadCounts[index] || 0 })),
     ]
   }
 
@@ -1358,12 +1368,14 @@ function FeedManagementPage({
               disabled={feed.id === defaultFeedId || Boolean(busyFeedId)}
               action={() => selectDefault(feed)}
             />,
-            <Button
-              title={busyFeedId === feed.id ? '处理中' : feed.unreadCount ? '全部已读' : '已读'}
-              tint='orange'
-              disabled={!feed.unreadCount || Boolean(busyFeedId)}
-              action={() => { void markFeedRead(feed) }}
-            />,
+            ...(settings.mode === 'opml' ? [] : [
+              <Button
+                title={busyFeedId === feed.id ? '处理中' : feed.unreadCount ? '全部已读' : '已读'}
+                tint='orange'
+                disabled={!feed.unreadCount || Boolean(busyFeedId)}
+                action={() => { void markFeedRead(feed) }}
+              />,
+            ]),
             ...(feed.id === READING_LIST_ID ? [] : [
               <Button
                 title={busyFeedId === feed.id ? '删除中' : '删除'}
