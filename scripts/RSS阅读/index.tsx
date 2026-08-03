@@ -154,7 +154,7 @@ const READ_STATE_ID = 'user/-/state/com.google/read'
 const ARTICLE_PAGE_SIZE = 10
 const ITEM_ID_PAGE_SIZE = 1000
 const GITHUB_REPOSITORY_URL = 'https://github.com/bmqy/Scripting-Scripts'
-const SCRIPT_VERSION = '1.1.0'
+const SCRIPT_VERSION = '1.0.0'
 
 function scriptingStorage() {
   return (globalThis as unknown as { Storage?: StorageStore }).Storage
@@ -336,7 +336,14 @@ async function loadUnreadCount(settings: ReaderSettings, feedId: string) {
 async function loadFeedOverview(settings: ReaderSettings, forceRefresh = false): Promise<FeedOverview[]> {
   if (settings.mode === 'opml') {
     const feeds = await loadSubscriptions(settings, forceRefresh)
-    return feeds.map(feed => ({ ...feed, unreadCount: 0 }))
+    return [
+      {
+        id: READING_LIST_ID,
+        name: DEFAULT_FEED_NAME,
+        unreadCount: 0,
+      },
+      ...feeds.map(feed => ({ ...feed, unreadCount: 0 })),
+    ]
   }
 
   const [feeds, unreadCounts] = await Promise.all([
@@ -481,6 +488,19 @@ async function loadArticlePage(
   continuation = '',
 ): Promise<ArticlePage> {
   if (settings.mode === 'opml') {
+    if (feedId === READING_LIST_ID) {
+      const pages = await Promise.all(
+        settings.opmlFeeds.map(feed => loadOpmlFeedArticles(feed, ARTICLE_PAGE_SIZE).catch(() => [])),
+      )
+      return {
+        items: pages
+          .flat()
+          .sort((left, right) => right.publishedAt - left.publishedAt)
+          .slice(0, ARTICLE_PAGE_SIZE)
+          .map(article => ({ ...article, isRead: false })),
+      }
+    }
+
     const feed = settings.opmlFeeds.find(item => item.id === feedId)
     if (!feed) throw new Error('OPML 中找不到当前 RSS 源。')
     const articles = await loadOpmlFeedArticles(feed, ARTICLE_PAGE_SIZE)
@@ -1057,6 +1077,11 @@ function FeedManagementPage({
     if (nextFeed) setSelectedFeed(nextFeed)
   }
 
+  const openFeed = (feed: FeedOverview) => {
+    setArticleListSession((previous: number) => previous + 1)
+    setSelectedFeed(feed)
+  }
+
   const onUnreadCountChanged = (feedId: string, delta: number) => {
     setFeeds((previous: FeedOverview[]) => previous.map(item => item.id === feedId
       ? { ...item, unreadCount: Math.max(0, item.unreadCount - delta) }
@@ -1149,13 +1174,16 @@ function FeedManagementPage({
         alignment='center'
         spacing={8}
         contentShape='rect'
-        onTapGesture={() => {
-          setArticleListSession((previous: number) => previous + 1)
-          setSelectedFeed(feed)
-        }}
+        onTapGesture={() => openFeed(feed)}
         trailingSwipeActions={{
           allowsFullSwipe: false,
           actions: [
+            <Button
+              title='查看'
+              tint='systemGreen'
+              disabled={Boolean(busyFeedId)}
+              action={() => openFeed(feed)}
+            />,
             <Button
               title={feed.id === defaultFeedId ? '默认源' : '设为默认'}
               tint='systemBlue'
