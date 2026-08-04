@@ -1788,6 +1788,21 @@ function SettingsPage() {
               <Text foregroundStyle="red">退出</Text>
             </Button>
           </HStack>
+          {authenticatedSettings.mode === 'opml' ? (
+            <HStack alignment="center">
+              <Text>数据存储</Text>
+              <Spacer />
+              <Picker
+                title=""
+                value={opmlStateBackend}
+                onChanged={(value) => { void changeOpmlStateBackend(value) }}
+                pickerStyle="segmented"
+              >
+                <Text tag="storage">Storage</Text>
+                <Text tag="sqlite">SQLite</Text>
+              </Picker>
+            </HStack>
+          ) : null}
         </Section>
       ) : sourceMode === 'opml' ? (
         <Section header={<Text>OPML 配置</Text>}>
@@ -1876,21 +1891,6 @@ function SettingsPage() {
         </Section>
       )}
       {isAccountConfigured ? <Section header={<Text>组件配置</Text>}>
-        {authenticatedSettings?.mode === 'opml' ? (
-          <HStack alignment="center">
-            <Text>已读状态存储</Text>
-            <Spacer />
-            <Picker
-              title=""
-              value={opmlStateBackend}
-              onChanged={(value) => { void changeOpmlStateBackend(value) }}
-              pickerStyle="segmented"
-            >
-              <Text tag="storage">Storage</Text>
-              <Text tag="sqlite">SQLite</Text>
-            </Picker>
-          </HStack>
-        ) : null}
         <NavigationLink destination={
           <FeedManagementPage
             settings={authenticatedSettings}
