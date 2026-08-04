@@ -12,6 +12,7 @@ import {
     NavigationStack,
     OpenURLActionResult,
     Picker,
+    ProgressView,
     Script,
     Section,
     SecureField,
@@ -325,6 +326,56 @@ async function loadSubscriptions(settings: ReaderSettings, forceRefresh = false)
 
   return await loadFreshSubscriptions(settings)
 }
+
+function createInitialFeedOverview(feeds: FeedOption[]): FeedOverview[] {
+  return [
+    {
+      id: READING_LIST_ID,
+      name: DEFAULT_FEED_NAME,
+      unreadCount: 0,
+    },
+    ...feeds.map(feed => ({ ...feed, unreadCount: 0 })),
+  ]
+}
+
+async function loadFeedCounts(
+  settings: ReaderSettings,
+  feeds: FeedOption[],
+  onFeedCountLoaded: (feedId: string, unreadCount: number) => void,
+) {
+  if (settings.mode !== 'opml') {
+    const unreadCounts = await fetchJSON<UnreadCountsResponse>(
+      settings,
+      settings.endpoint + '/reader/api/0/unread-count?output=json',
+      'RSS Reader Feed Unread Counts',
+      '读取源未读数',
+    )
+
+    onFeedCountLoaded(READING_LIST_ID, countForFeed(unreadCounts, READING_LIST_ID))
+    feeds.forEach(feed => onFeedCountLoaded(feed.id, countForFeed(unreadCounts, feed.id)))
+    return
+  }
+
+  const readKeys = await loadOpmlReadState(settings).catch(() => new Set<string>())
+  let readingListCount = 0
+  await Promise.all(feeds.map(async (feed) => {
+    const opmlFeed = settings.opmlFeeds.find(item => item.id === feed.id)
+    let unreadCount = 0
+    if (opmlFeed) {
+      try {
+        const articles = await loadOpmlFeedArticles(opmlFeed, OPML_SCAN_LIMIT)
+        unreadCount = articles.filter(article => !readKeys.has(opmlArticleStateKey(opmlFeed, article))).length
+      } catch {
+        // 单个源加载失败时保留 0 未读数，并结束该行的加载状态。
+      }
+    }
+
+    readingListCount += unreadCount
+    onFeedCountLoaded(feed.id, unreadCount)
+  }))
+  onFeedCountLoaded(READING_LIST_ID, readingListCount)
+}
+
 function countForFeed(response: UnreadCountsResponse, feedId: string) {
   if (feedId === READING_LIST_ID && typeof response.max === 'number' && Number.isFinite(response.max)) {
     return Math.max(0, response.max)
@@ -1201,6 +1252,7 @@ function FeedManagementPage({
   const [articleListSession, setArticleListSession] = useState(0)
   const [toastMessage, setToastMessage] = useState('')
   const [isLoadingFeeds, setIsLoadingFeeds] = useState(true)
+  const [loadingFeedIds, setLoadingFeedIds] = useState<string[]>([])
   const [message, setMessage] = useState('')
   const isRefreshingFeedsRef = useRef(false)
   const busyFeedIdRef = useRef<string | null>(null)
@@ -1216,10 +1268,24 @@ function FeedManagementPage({
       setIsLoadingFeeds(true)
       setMessage(forceRefresh ? '正在刷新 RSS 源...' : '正在加载 RSS 源...')
     }
+    setLoadingFeedIds([])
+
     try {
-      setFeeds(await loadFeedOverview(settings, forceRefresh))
+      const feedOptions = await loadSubscriptions(settings, forceRefresh)
+      const initialFeeds = createInitialFeedOverview(feedOptions)
+      setFeeds(initialFeeds)
+      setLoadingFeedIds(initialFeeds.map(feed => feed.id))
+      setIsLoadingFeeds(false)
       if (showLoading) setMessage('')
+
+      await loadFeedCounts(settings, feedOptions, (feedId, unreadCount) => {
+        setFeeds(previous => previous.map(feed => feed.id === feedId
+          ? { ...feed, unreadCount }
+          : feed))
+        setLoadingFeedIds(previous => previous.filter(id => id !== feedId))
+      })
     } catch (error) {
+      setLoadingFeedIds([])
       if (showLoading) setMessage(error instanceof Error ? error.message : '无法加载 RSS 源列表。')
     } finally {
       isRefreshingFeedsRef.current = false
@@ -1413,7 +1479,9 @@ function FeedManagementPage({
       </HStack>
     )}>
       {feeds.length === 0 && !message ? <Text foregroundStyle='secondaryLabel'>暂无 RSS 源。</Text> : null}
-      {feeds.map((feed: FeedOverview) => <HStack
+      {feeds.map((feed: FeedOverview) => {
+        const isFeedLoading = loadingFeedIds.includes(feed.id)
+        return <HStack
         key={feed.id}
         alignment='center'
         spacing={8}
@@ -1454,13 +1522,19 @@ function FeedManagementPage({
           ],
         }}
       >
-        <VStack alignment='leading' spacing={3}>
-          <Text>{feed.name}</Text>
-          <Text font='caption' foregroundStyle='secondaryLabel'>{feed.unreadCount} 篇未读 · 查看文章</Text>
+        <VStack alignment='leading' spacing={6} frame={{ maxWidth: 'infinity', alignment: 'leading' }}>
+          <HStack alignment='center' spacing={8} frame={{ maxWidth: 'infinity', alignment: 'leading' }}>
+            <VStack alignment='leading' spacing={3}>
+              <Text>{feed.name}</Text>
+              <Text font='caption' foregroundStyle='secondaryLabel'>{isFeedLoading ? '正在加载未读数...' : feed.unreadCount + ' 篇未读 · 查看文章'}</Text>
+            </VStack>
+            <Spacer />
+            <Image systemName='chevron.right' foregroundStyle='secondaryLabel' />
+          </HStack>
+          {isFeedLoading ? <ProgressView progressViewStyle='linear' /> : null}
         </VStack>
-        <Spacer />
-        <Image systemName='chevron.right' foregroundStyle='secondaryLabel' />
-      </HStack>)}
+      </HStack>
+      })}
     </Section>
   </List>
 }
