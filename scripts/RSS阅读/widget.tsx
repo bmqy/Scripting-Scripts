@@ -29,6 +29,7 @@ import {
   type TimeDisplay,
 } from './config'
 import { loadOpmlFeedArticles } from './opml'
+import { loadOpmlReadState, opmlArticleStateKey } from './opmlReadState'
 
 declare function fetch(input: string, init?: {
   method?: string
@@ -89,6 +90,7 @@ type StreamResponse = {
 const CACHE_KEY = WIDGET_CACHE_KEY
 const DISPLAY_ARTICLE_COUNT = 2
 const LARGE_DISPLAY_ARTICLE_COUNT = 7
+const OPML_SCAN_LIMIT = 100
 const WIDGET_NAME = 'RSS阅读'
 const READER_SCRIPT_NAME = 'RSS 阅读'
 const READER_ICON_SYSTEM_NAME = 'dot.radiowaves.left.and.right'
@@ -327,11 +329,23 @@ async function loadFreshDataWithAuth(settings: ReaderSettings, auth: string): Pr
 async function loadFreshOpmlData(settings: ReaderSettings): Promise<ReaderData> {
   const feed = settings.opmlFeeds.find(item => item.id === settings.feedId)
   if (!feed) throw new Error('OPML 中找不到当前 RSS 源。')
+
+  const readKeys = await loadOpmlReadState(settings)
+  const articles = await loadOpmlFeedArticles(feed, OPML_SCAN_LIMIT)
+  const unreadArticles = articles
+    .filter(article => !readKeys.has(opmlArticleStateKey(feed, article)))
+  const displayArticles = unreadArticles
+    .slice(0, LARGE_DISPLAY_ARTICLE_COUNT)
+    .map(article => ({
+      ...article,
+      id: opmlArticleStateKey(feed, article),
+    }))
+
   return {
     serverName: 'OPML',
     sourceName: feed.name,
-    unreadCount: 0,
-    articles: await loadOpmlFeedArticles(feed, LARGE_DISPLAY_ARTICLE_COUNT),
+    unreadCount: unreadArticles.length,
+    articles: displayArticles,
     updatedAt: Date.now(),
   }
 }

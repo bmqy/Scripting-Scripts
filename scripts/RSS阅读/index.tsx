@@ -41,6 +41,8 @@ import {
     writeCachedSiteIconUrl,
     writeCachedAuth,
     type ColorTheme,
+    DEFAULT_OPML_STATE_BACKEND,
+    type OpmlStateBackend,
     type OpmlSourceType,
     type ReaderMode,
     type ReaderSettings,
@@ -48,6 +50,12 @@ import {
     type TimeDisplay,
 } from './config'
 import { parseOpml, loadOpmlFeedArticles, type OpmlFeed } from './opml'
+import {
+  loadOpmlReadState,
+  markOpmlArticlesRead,
+  migrateOpmlReadState,
+  opmlArticleStateKey,
+} from './opmlReadState'
 type DocumentPickerApi = {
   pickFiles(options?: { shouldShowFileExtensions?: boolean }): Promise<string[]>
   stopAcessingSecurityScopedResources(): void
@@ -152,6 +160,7 @@ const FEED_LIST_CACHE_MIN_MINUTES = 60
 const FEED_LIST_CACHE_REFRESH_MULTIPLIER = 6
 const READ_STATE_ID = 'user/-/state/com.google/read'
 const ARTICLE_PAGE_SIZE = 10
+const OPML_SCAN_LIMIT = 100
 const ITEM_ID_PAGE_SIZE = 1000
 const GITHUB_REPOSITORY_URL = 'https://github.com/bmqy/Scripting-Scripts'
 const SCRIPT_VERSION = '1.0.0'
@@ -336,12 +345,14 @@ async function loadUnreadCount(settings: ReaderSettings, feedId: string) {
 async function loadFeedOverview(settings: ReaderSettings, forceRefresh = false): Promise<FeedOverview[]> {
   if (settings.mode === 'opml') {
     const feeds = await loadSubscriptions(settings, forceRefresh)
+    const readKeys = await loadOpmlReadState(settings)
     const unreadCounts = await Promise.all(feeds.map(async (feed) => {
       const opmlFeed = settings.opmlFeeds.find(item => item.id === feed.id)
       if (!opmlFeed) return 0
 
       try {
-        return (await loadOpmlFeedArticles(opmlFeed, ARTICLE_PAGE_SIZE)).length
+        const articles = await loadOpmlFeedArticles(opmlFeed, OPML_SCAN_LIMIT)
+        return articles.filter(article => !readKeys.has(opmlArticleStateKey(opmlFeed, article))).length
       } catch {
         return 0
       }
@@ -498,24 +509,39 @@ async function loadArticlePage(
   continuation = '',
 ): Promise<ArticlePage> {
   if (settings.mode === 'opml') {
+    const readKeys = await loadOpmlReadState(settings)
+    const mapArticles = (feed: OpmlFeed, articles: Awaited<ReturnType<typeof loadOpmlFeedArticles>>) => (
+      articles.map(article => {
+        const stateKey = opmlArticleStateKey(feed, article)
+        return {
+          ...article,
+          id: stateKey,
+          isRead: readKeys.has(stateKey),
+        }
+      })
+    )
+
     if (feedId === READING_LIST_ID) {
       const pages = await Promise.all(
-        settings.opmlFeeds.map(feed => loadOpmlFeedArticles(feed, ARTICLE_PAGE_SIZE).catch(() => [])),
+        settings.opmlFeeds.map(async feed => ({
+          feed,
+          articles: await loadOpmlFeedArticles(feed, OPML_SCAN_LIMIT).catch(() => []),
+        })),
       )
-      return {
-        items: pages
-          .flat()
-          .sort((left, right) => right.publishedAt - left.publishedAt)
-          .slice(0, ARTICLE_PAGE_SIZE)
-          .map(article => ({ ...article, isRead: false })),
-      }
+      const items = pages
+        .flatMap(({ feed, articles }) => mapArticles(feed, articles))
+        .sort((left, right) => right.publishedAt - left.publishedAt)
+        .filter(article => filter === 'all' || (filter === 'read' ? article.isRead : !article.isRead))
+      return { items: items.slice(0, ARTICLE_PAGE_SIZE) }
     }
 
     const feed = settings.opmlFeeds.find(item => item.id === feedId)
     if (!feed) throw new Error('OPML 中找不到当前 RSS 源。')
-    const articles = await loadOpmlFeedArticles(feed, ARTICLE_PAGE_SIZE)
+    const articles = mapArticles(feed, await loadOpmlFeedArticles(feed, OPML_SCAN_LIMIT))
     return {
-      items: articles.map(article => ({ ...article, isRead: false })),
+      items: articles
+        .filter(article => filter === 'all' || (filter === 'read' ? article.isRead : !article.isRead))
+        .slice(0, ARTICLE_PAGE_SIZE),
     }
   }
 
@@ -549,7 +575,19 @@ async function loadArticlePage(
   }
 }
 async function loadUnreadItemIds(settings: ReaderSettings, feedId: string) {
-  if (settings.mode === 'opml') return []
+  if (settings.mode === 'opml') {
+    const readKeys = await loadOpmlReadState(settings)
+    const feeds = feedId === READING_LIST_ID
+      ? settings.opmlFeeds
+      : settings.opmlFeeds.filter(feed => feed.id === feedId)
+    const pages = await Promise.all(
+      feeds.map(feed => loadOpmlFeedArticles(feed, OPML_SCAN_LIMIT).catch(() => [])),
+    )
+    return pages
+      .flatMap((articles, index) => articles
+        .map(article => opmlArticleStateKey(feeds[index], article))
+        .filter(key => !readKeys.has(key)))
+  }
 
   const ids: string[] = []
   const seenContinuations = new Set<string>()
@@ -582,7 +620,12 @@ async function markAllUnreadAsRead(settings: ReaderSettings, feedId: string) {
 }
 
 async function markItemsAsRead(settings: ReaderSettings, ids: string[]) {
-  if (settings.mode === 'opml') return 0
+  if (settings.mode === 'opml') {
+    const count = await markOpmlArticlesRead(settings, ids)
+    clearWidgetCache()
+    Widget.reloadAll()
+    return count
+  }
 
   const uniqueIds = Array.from(new Set(ids.filter(id => typeof id === 'string' && id.trim()).map(id => id.trim())))
   for (let index = 0; index < uniqueIds.length; index += ITEM_ID_PAGE_SIZE) {
@@ -673,12 +716,12 @@ function ArticleListPage({
   const [pageIndex, setPageIndex] = useState(0)
   const [isLoading, setIsLoading] = useState(false)
   const [message, setMessage] = useState('')
-  const [articleFilter, setArticleFilter] = useState<ArticleFilter>(isOpml ? 'all' : 'unread')
+  const [articleFilter, setArticleFilter] = useState<ArticleFilter>('unread')
   const [unreadCount, setUnreadCount] = useState(feed.unreadCount)
   const isLoadingRef = useRef(false)
   const unreadCountRef = useRef(feed.unreadCount)
   const pageIndexRef = useRef(0)
-  const articleFilterRef = useRef<ArticleFilter>(isOpml ? 'all' : 'unread')
+  const articleFilterRef = useRef<ArticleFilter>('unread')
   const pendingReadIdsRef = useRef<string[]>([])
   const [leadingTargetId, setLeadingTargetId] = useState<string | null>(null)
   const [markedReadIds, setMarkedReadIds] = useState<string[]>([])
@@ -730,7 +773,6 @@ function ArticleListPage({
   }
 
   const markArticlesRead = async (articleIds: string[]) => {
-    if (isOpml) return
 
     const candidates = Array.from(new Set(articleIds.filter(id => !markedReadIds.includes(id) && !pendingReadIds.includes(id))))
     if (candidates.length === 0) return
@@ -747,10 +789,12 @@ function ArticleListPage({
           ? { ...article, isRead: true }
           : article),
       })))
-      try {
-        updateUnreadCount(await loadUnreadCount(settings, feed.id))
-      } catch {
-        // 标记成功但计数校准失败时，保留本地已扣减的计数。
+      if (!isOpml) {
+        try {
+          updateUnreadCount(await loadUnreadCount(settings, feed.id))
+        } catch {
+          // 标记成功但计数校准失败时，保留本地已扣减的计数。
+        }
       }
     } catch (error) {
       updateUnreadCount(unreadCountRef.current + optimisticCount)
@@ -820,7 +864,7 @@ function ArticleListPage({
   }
 
   useEffect(() => {
-    void loadPage(0, '', isOpml ? 'all' : 'unread')
+    void loadPage(0, '', 'unread')
   }, [])
 
   useEffect(() => {
@@ -929,7 +973,6 @@ function ArticleListPage({
   }
 
   const selectFilter = (nextFilter: ArticleFilter) => {
-    if (isOpml && nextFilter !== 'all') return
     if (nextFilter === articleFilter || isLoading || pendingReadIds.length > 0) return
     setArticleFilter(nextFilter)
     setPages([])
@@ -969,7 +1012,7 @@ function ArticleListPage({
       onChanged: handleLeadingTargetChanged,
     }}
       toolbar={{
-        topBarTrailing: isOpml ? null : <Menu title={ARTICLE_FILTER_LABELS[articleFilter]}>
+        topBarTrailing: <Menu title={ARTICLE_FILTER_LABELS[articleFilter]}>
           <Button title='未读' action={() => selectFilter('unread')} />
           <Button title='已读' action={() => selectFilter('read')} />
           <Button title='全部' action={() => selectFilter('all')} />
@@ -1413,6 +1456,7 @@ function SettingsPage() {
   const [timeDisplay, setTimeDisplay] = useState<TimeDisplay>(current?.timeDisplay || 'absolute')
   const [refreshIntervalMinutes, setRefreshIntervalMinutes] = useState<RefreshIntervalMinutes>(current?.refreshIntervalMinutes || 30)
   const [theme, setTheme] = useState<ColorTheme>(current?.theme || 'system')
+  const [opmlStateBackend, setOpmlStateBackend] = useState<OpmlStateBackend>(current?.opmlStateBackend || DEFAULT_OPML_STATE_BACKEND)
   const [useInAppBrowser, setUseInAppBrowser] = useState(current?.useInAppBrowser || false)
   const [widgetUseInAppBrowser, setWidgetUseInAppBrowser] = useState(current?.widgetUseInAppBrowser || false)
   const [feedId, setFeedId] = useState(current?.feedId || READING_LIST_ID)
@@ -1518,6 +1562,7 @@ function SettingsPage() {
         timeDisplay: authenticatedSettings?.timeDisplay || timeDisplay,
         refreshIntervalMinutes: authenticatedSettings?.refreshIntervalMinutes || refreshIntervalMinutes,
         theme: authenticatedSettings?.theme || theme,
+        opmlStateBackend: authenticatedSettings?.opmlStateBackend || opmlStateBackend,
         useInAppBrowser: authenticatedSettings?.useInAppBrowser ?? useInAppBrowser,
         widgetUseInAppBrowser: authenticatedSettings?.widgetUseInAppBrowser ?? widgetUseInAppBrowser,
       }
@@ -1568,6 +1613,7 @@ function SettingsPage() {
       timeDisplay: authenticatedSettings?.timeDisplay || timeDisplay,
       refreshIntervalMinutes: authenticatedSettings?.refreshIntervalMinutes || refreshIntervalMinutes,
       theme: authenticatedSettings?.theme || theme,
+      opmlStateBackend: authenticatedSettings?.opmlStateBackend || opmlStateBackend,
       useInAppBrowser: authenticatedSettings?.useInAppBrowser ?? useInAppBrowser,
       widgetUseInAppBrowser: authenticatedSettings?.widgetUseInAppBrowser ?? widgetUseInAppBrowser,
     }
@@ -1592,6 +1638,24 @@ function SettingsPage() {
       setAccountToastMessage(error instanceof Error ? error.message : '接口测试失败，请检查 API 地址、用户名和 API 密码。')
     } finally {
       setIsSavingAccount(false)
+    }
+  }
+  const changeOpmlStateBackend = async (nextBackend: OpmlStateBackend) => {
+    if (!authenticatedSettings || authenticatedSettings.mode !== 'opml') return
+    if (nextBackend === authenticatedSettings.opmlStateBackend) return
+
+    setWidgetMessage('正在迁移 OPML 已读状态...')
+    try {
+      await migrateOpmlReadState(authenticatedSettings.opmlStateBackend, nextBackend)
+      const settings = { ...authenticatedSettings, opmlStateBackend: nextBackend }
+      if (!saveSettings(settings)) throw new Error('无法保存已读状态存储方式。')
+      setAuthenticatedSettings(settings)
+      setOpmlStateBackend(nextBackend)
+      clearWidgetCache()
+      Widget.reloadAll()
+      setWidgetMessage('')
+    } catch (error) {
+      setWidgetMessage(error instanceof Error ? error.message : '迁移 OPML 已读状态失败。')
     }
   }
 
@@ -1807,6 +1871,21 @@ function SettingsPage() {
         </Section>
       )}
       {isAccountConfigured ? <Section header={<Text>组件配置</Text>}>
+        {authenticatedSettings?.mode === 'opml' ? (
+          <HStack alignment="center">
+            <Text>已读状态存储</Text>
+            <Spacer />
+            <Picker
+              title=""
+              value={opmlStateBackend}
+              onChanged={(value) => { void changeOpmlStateBackend(value) }}
+              pickerStyle="segmented"
+            >
+              <Text tag="storage">Storage</Text>
+              <Text tag="sqlite">SQLite</Text>
+            </Picker>
+          </HStack>
+        ) : null}
         <NavigationLink destination={
           <FeedManagementPage
             settings={authenticatedSettings}
@@ -1816,6 +1895,7 @@ function SettingsPage() {
               setOpmlSourceType(nextSettings.opmlSourceType)
               setOpmlUrlInput(nextSettings.mode === 'opml' && nextSettings.opmlSourceType === 'url' ? nextSettings.opmlSource : '')
               setOpmlFeeds(nextSettings.mode === 'opml' ? nextSettings.opmlFeeds : [])
+              setOpmlStateBackend(nextSettings.opmlStateBackend)
               setFeedId(nextSettings.feedId)
               setFeedName(nextSettings.feedName)
             }}

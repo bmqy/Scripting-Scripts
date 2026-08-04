@@ -13,6 +13,7 @@ export type ReaderSettings = {
   timeDisplay: TimeDisplay
   refreshIntervalMinutes: RefreshIntervalMinutes
   theme: ColorTheme
+  opmlStateBackend: OpmlStateBackend
   useInAppBrowser: boolean
   widgetUseInAppBrowser: boolean
 }
@@ -22,6 +23,7 @@ export type OpmlSourceType = 'file' | 'url'
 export type TimeDisplay = 'absolute' | 'relative'
 export type RefreshIntervalMinutes = 1 | 3 | 5 | 15 | 30 | 60 | 120 | 180 | 360 | 720
 export type ColorTheme = 'system' | 'light' | 'dark'
+export type OpmlStateBackend = 'storage' | 'sqlite'
 
 export type ReaderAuthCache = {
   accountKey: string
@@ -39,6 +41,7 @@ declare function fetch(input: string, init?: {
 const DEFAULT_TIME_DISPLAY: TimeDisplay = 'absolute'
 const DEFAULT_REFRESH_INTERVAL_MINUTES: RefreshIntervalMinutes = 30
 const DEFAULT_COLOR_THEME: ColorTheme = 'system'
+export const DEFAULT_OPML_STATE_BACKEND: OpmlStateBackend = 'storage'
 const REFRESH_INTERVAL_OPTIONS: RefreshIntervalMinutes[] = [1, 3, 5, 15, 30, 60, 120, 180, 360, 720]
 const COLOR_THEME_OPTIONS: ColorTheme[] = ['system', 'light', 'dark']
 
@@ -196,6 +199,10 @@ function colorTheme(value: unknown): ColorTheme {
     : DEFAULT_COLOR_THEME
 }
 
+function opmlStateBackend(value: unknown): OpmlStateBackend {
+  return value === 'sqlite' ? 'sqlite' : DEFAULT_OPML_STATE_BACKEND
+}
+
 function parseSettings(value: unknown): ReaderSettings | null {
   try {
     if (!value) return null
@@ -225,6 +232,7 @@ function parseSettings(value: unknown): ReaderSettings | null {
       timeDisplay: timeDisplay(settings.timeDisplay),
       refreshIntervalMinutes: refreshIntervalMinutes(settings.refreshIntervalMinutes),
       theme: colorTheme(settings.theme),
+      opmlStateBackend: opmlStateBackend(settings.opmlStateBackend),
       useInAppBrowser: settings.useInAppBrowser === true,
       widgetUseInAppBrowser: settings.widgetUseInAppBrowser === true,
     }
@@ -256,6 +264,7 @@ function matchesSettings(value: unknown, settings: ReaderSettings) {
     && saved.timeDisplay === settings.timeDisplay
     && saved.refreshIntervalMinutes === settings.refreshIntervalMinutes
     && saved.theme === settings.theme
+    && saved.opmlStateBackend === settings.opmlStateBackend
     && saved.useInAppBrowser === settings.useInAppBrowser
     && saved.widgetUseInAppBrowser === settings.widgetUseInAppBrowser
 }

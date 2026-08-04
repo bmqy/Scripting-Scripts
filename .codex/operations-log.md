@@ -204,3 +204,15 @@
 - 修复分页切换时仅将 scrollPosition 设为 null 导致新页继承底部滚动位置的问题。
 - 新页数据渲染后，将 scrollPosition 指向当前页第一条文章的稳定 key；普通滚动不会触发该 effect。
 - npm run build 和 git diff --check 通过，构建产物已恢复。
+## 2026-08-04 OPML SQLite 状态后端
+
+- 执行者：Codex
+- 先同步 dev 分支；远端快进更新仅包含既有构建产物。
+- 新增 scripts/RSS阅读/opmlReadState.ts，提供 Storage 和 SQLite 两种 OPML 已读状态后端。
+- 默认后端为 Storage；设置页可切换到 SQLite，切换时自动迁移已有状态。
+- SQLite 使用 Scripting 全局 SQLite API，数据库位于 FileManager.appGroupDocumentsDirectory/rss-reader.sqlite。
+- OPML 文章无 guid/id/url 时改用标题、发布时间和订阅源生成稳定 ID，避免刷新后状态错位。
+- 主脚本、主屏组件、未读统计、已读/未读筛选和组件跳转共用同一状态键。
+- 通过 npm run build；构建成功。
+- npx tsc --noEmit --pretty false 受仓库缺失 dts/scripting.d.ts 影响失败，属于现有环境限制。
+- 本次使用的内置补丁工具无法写入 Windows 工作区，改用等价的受控补丁写入流程；最终通过 git diff --check 检查。

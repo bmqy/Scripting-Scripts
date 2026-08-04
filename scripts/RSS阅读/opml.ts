@@ -110,6 +110,15 @@ function stripHtml(value: string) {
     .trim()
 }
 
+function stableArticleId(seed: string) {
+  let hash = 2166136261
+  for (let index = 0; index < seed.length; index += 1) {
+    hash ^= seed.charCodeAt(index)
+    hash = Math.imul(hash, 16777619)
+  }
+  return 'fallback:' + (hash >>> 0).toString(16)
+}
+
 export type OpmlArticle = {
   id: string
   url?: string
@@ -128,12 +137,15 @@ export function parseFeedArticles(text: string, feed: OpmlFeed, limit = 10): Opm
   while (articles.length < limit && (match = itemPattern.exec(text))) {
     const block = match[2]
     const url = articleUrl(block)
-    const id = elementText(block, ['id', 'guid']) || url || `${feed.xmlUrl}#${articles.length}`
-    if (seen.has(id)) continue
-
     const title = stripHtml(elementText(block, ['title'])) || '未命名文章'
     const excerpt = stripHtml(elementText(block, ['content:encoded', 'content', 'summary', 'description']))
-    articles.push({ id, url: url || undefined, title, source: feed.name, excerpt, publishedAt: publishedAt(block) })
+    const articlePublishedAt = publishedAt(block)
+    const rawId = elementText(block, ['id', 'guid']) || url
+    const id = rawId || stableArticleId(feed.xmlUrl + '\n' + title + '\n' + articlePublishedAt)
+
+    if (seen.has(id)) continue
+
+    articles.push({ id, url: url || undefined, title, source: feed.name, excerpt, publishedAt: articlePublishedAt })
     seen.add(id)
   }
 
