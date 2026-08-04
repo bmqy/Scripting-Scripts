@@ -160,6 +160,7 @@ const FEED_LIST_CACHE_MIN_MINUTES = 60
 const FEED_LIST_CACHE_REFRESH_MULTIPLIER = 6
 const READ_STATE_ID = 'user/-/state/com.google/read'
 const ARTICLE_PAGE_SIZE = 10
+const UNREAD_PAGE_OFFSET_PREFIX = 'unread-offset:'
 const OPML_SCAN_LIMIT = 100
 const ITEM_ID_PAGE_SIZE = 1000
 const GITHUB_REPOSITORY_URL = 'https://github.com/bmqy/Scripting-Scripts'
@@ -485,70 +486,43 @@ async function loadStreamItemsContents(settings: ReaderSettings, itemIds: string
   )
 }
 
+async function loadArticlesForItemIds(settings: ReaderSettings, itemIds: string[]) {
+  if (itemIds.length === 0) return []
+
+  const contents = await loadStreamItemsContents(settings, itemIds)
+  const contentItems = contents.items || []
+  const contentById = new Map(
+    contentItems
+      .filter(item => typeof item.id === 'string' && item.id.trim())
+      .map(item => [item.id!.trim(), toArticle(item)] as const),
+  )
+
+  return itemIds
+    .map((itemId, index) => contentById.get(itemId) || (contentItems[index] ? toArticle(contentItems[index]) : undefined))
+    .filter((article): article is ReaderArticle => Boolean(article?.id))
+}
+
 async function loadUnreadArticlePage(
   settings: ReaderSettings,
   feedId: string,
   continuation = '',
 ): Promise<ArticlePage> {
-  const items: ReaderArticle[] = []
-  const seenItemIds = new Set<string>()
-  const seenContinuations = new Set<string>()
-  let cursor = continuation
-  if (cursor) seenContinuations.add(cursor)
+  const offsetText = continuation.startsWith(UNREAD_PAGE_OFFSET_PREFIX)
+    ? continuation.slice(UNREAD_PAGE_OFFSET_PREFIX.length)
+    : '0'
+  const offset = Math.max(0, Number.parseInt(offsetText, 10) || 0)
+  const unreadItemIds = await loadUnreadItemIds(settings, feedId)
+  const pageItemIds = unreadItemIds.slice(offset, offset + ARTICLE_PAGE_SIZE)
+  const items = await loadArticlesForItemIds(settings, pageItemIds)
+  const nextOffset = offset + pageItemIds.length
 
-  while (true) {
-    const continuationQuery = cursor ? '&c=' + encodeURIComponent(cursor) : ''
-    const data = await fetchJSON<ItemIdsResponse>(
-      settings,
-      settings.endpoint + '/reader/api/0/stream/items/ids?output=json&s=' + encodeURIComponent(feedId)
-        + '&xt=' + encodeURIComponent(READ_STATE_ID)
-        + '&n=' + ARTICLE_PAGE_SIZE
-        + continuationQuery,
-      'RSS Reader Unread Article IDs',
-      '读取未读文章',
-    )
-    const itemIds = (data.itemRefs || [])
-      .map(item => typeof item.id === 'string' ? item.id.trim() : '')
-      .filter(id => Boolean(id))
-
-    if (itemIds.length > 0) {
-      const contents = await loadStreamItemsContents(settings, itemIds)
-      const contentItems = contents.items || []
-      const contentById = new Map(
-        contentItems
-          .filter(item => typeof item.id === 'string' && item.id.trim())
-          .map(item => [item.id!.trim(), toArticle(item)] as const),
-      )
-
-      itemIds.forEach((itemId, index) => {
-        const article = contentById.get(itemId) || (contentItems[index] ? toArticle(contentItems[index]) : undefined)
-        if (!article?.id || seenItemIds.has(article.id)) return
-        seenItemIds.add(article.id)
-        items.push(article)
-      })
-    }
-
-    const nextContinuation = typeof data.continuation === 'string' ? data.continuation.trim() : ''
-    if (
-      items.length >= ARTICLE_PAGE_SIZE
-      || !nextContinuation
-      || seenContinuations.has(nextContinuation)
-    ) {
-      return {
-        items,
-        continuation: items.length >= ARTICLE_PAGE_SIZE
-          && Boolean(nextContinuation)
-          && !seenContinuations.has(nextContinuation)
-          ? nextContinuation
-          : undefined,
-      }
-    }
-
-    seenContinuations.add(nextContinuation)
-    cursor = nextContinuation
+  return {
+    items,
+    continuation: nextOffset < unreadItemIds.length
+      ? UNREAD_PAGE_OFFSET_PREFIX + nextOffset
+      : undefined,
   }
 }
-
 async function loadArticlePage(
   settings: ReaderSettings,
   feedId: string,
