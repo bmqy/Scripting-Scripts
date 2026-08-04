@@ -161,6 +161,7 @@ const FEED_LIST_CACHE_REFRESH_MULTIPLIER = 6
 const READ_STATE_ID = 'user/-/state/com.google/read'
 const ARTICLE_PAGE_SIZE = 10
 const UNREAD_PAGE_OFFSET_PREFIX = 'unread-offset:'
+const UNREAD_STREAM_CURSOR_PREFIX = 'unread-stream:'
 const OPML_SCAN_LIMIT = 100
 const ITEM_ID_PAGE_SIZE = 1000
 const GITHUB_REPOSITORY_URL = 'https://github.com/bmqy/Scripting-Scripts'
@@ -507,12 +508,13 @@ async function loadStreamContentsPage(
   feedId: string,
   filter: ArticleFilter,
   continuation = '',
+  pageSize = ARTICLE_PAGE_SIZE,
 ) {
   const continuationQuery = continuation ? '&c=' + encodeURIComponent(continuation) : ''
   return await fetchJSON<StreamResponse>(
     settings,
     settings.endpoint + '/reader/api/0/stream/contents/' + streamPath(feedId)
-      + '?output=json&n=' + ARTICLE_PAGE_SIZE
+      + '?output=json&n=' + pageSize
       + articleFilterQuery(filter)
       + '&ck=' + Math.floor(Date.now() / 1000)
       + continuationQuery,
@@ -523,7 +525,9 @@ async function loadStreamContentsPage(
 
 function articleItemsForFilter(data: StreamResponse, filter: ArticleFilter) {
   const pageItems = (data.items || []).map(toArticle)
-  return filter === 'read' ? pageItems.filter(article => article.isRead) : pageItems
+  if (filter === 'read') return pageItems.filter(article => article.isRead)
+  if (filter === 'unread') return pageItems.filter(article => !article.isRead)
+  return pageItems
 }
 
 async function loadStreamItemsContents(settings: ReaderSettings, itemIds: string[]) {
@@ -556,12 +560,45 @@ async function loadUnreadArticlePage(
   settings: ReaderSettings,
   feedId: string,
   continuation = '',
+  expectedUnreadCount = 0,
 ): Promise<ArticlePage> {
+  const streamCursor = continuation.startsWith(UNREAD_STREAM_CURSOR_PREFIX)
+    ? continuation.slice(UNREAD_STREAM_CURSOR_PREFIX.length)
+    : ''
+  if (!continuation || streamCursor) {
+    const items: ReaderArticle[] = []
+    const seenContinuations = new Set<string>()
+    let cursor = streamCursor
+    if (cursor) seenContinuations.add(cursor)
+
+    while (true) {
+      const data = await loadStreamContentsPage(settings, feedId, 'all', cursor)
+      items.push(...articleItemsForFilter(data, 'unread'))
+      const nextContinuation = typeof data.continuation === 'string' ? data.continuation.trim() : ''
+      if (items.length >= ARTICLE_PAGE_SIZE && (nextContinuation || !expectedUnreadCount || expectedUnreadCount <= items.length)) {
+        return {
+          items: items.slice(0, ARTICLE_PAGE_SIZE),
+          continuation: nextContinuation && !seenContinuations.has(nextContinuation)
+            ? UNREAD_STREAM_CURSOR_PREFIX + nextContinuation
+            : undefined,
+        }
+      }
+      if (!nextContinuation || seenContinuations.has(nextContinuation)) break
+      seenContinuations.add(nextContinuation)
+      cursor = nextContinuation
+    }
+
+    if (streamCursor) return { items }
+    if (items.length > 0 && (!expectedUnreadCount || items.length >= expectedUnreadCount)) {
+      return { items }
+    }
+  }
+
   const offsetText = continuation.startsWith(UNREAD_PAGE_OFFSET_PREFIX)
     ? continuation.slice(UNREAD_PAGE_OFFSET_PREFIX.length)
     : '0'
   const offset = Math.max(0, Number.parseInt(offsetText, 10) || 0)
-  const unreadItemIds = await loadUnreadItemIds(settings, feedId)
+  const unreadItemIds = await loadUnreadItemIds(settings, feedId, expectedUnreadCount)
   const pageItemIds = unreadItemIds.slice(offset, offset + ARTICLE_PAGE_SIZE)
   const items = await loadArticlesForItemIds(settings, pageItemIds)
   const nextOffset = offset + pageItemIds.length
@@ -573,11 +610,13 @@ async function loadUnreadArticlePage(
       : undefined,
   }
 }
+
 async function loadArticlePage(
   settings: ReaderSettings,
   feedId: string,
   filter: ArticleFilter,
   continuation = '',
+  expectedUnreadCount = 0,
 ): Promise<ArticlePage> {
   if (settings.mode === 'opml') {
     const readKeys = await loadOpmlReadState(settings)
@@ -616,7 +655,9 @@ async function loadArticlePage(
     }
   }
 
-  if (filter === 'unread') return await loadUnreadArticlePage(settings, feedId, continuation)
+  if (filter === 'unread') {
+    return await loadUnreadArticlePage(settings, feedId, continuation, expectedUnreadCount)
+  }
 
   const items: ReaderArticle[] = []
   const seenContinuations = new Set<string>()
@@ -647,7 +688,7 @@ async function loadArticlePage(
     cursor = nextContinuation
   }
 }
-async function loadUnreadItemIds(settings: ReaderSettings, feedId: string) {
+async function loadUnreadItemIds(settings: ReaderSettings, feedId: string, minimumCount = 0) {
   if (settings.mode === 'opml') {
     const readKeys = await loadOpmlReadState(settings)
     const feeds = feedId === READING_LIST_ID
@@ -663,6 +704,7 @@ async function loadUnreadItemIds(settings: ReaderSettings, feedId: string) {
   }
 
   const ids: string[] = []
+  const seenIds = new Set<string>()
   const seenContinuations = new Set<string>()
   let continuation = ''
 
@@ -675,10 +717,18 @@ async function loadUnreadItemIds(settings: ReaderSettings, feedId: string) {
       '读取未读文章',
     )
     for (const item of data.itemRefs || []) {
-      if (typeof item.id === 'string' && item.id.trim()) ids.push(item.id.trim())
+      const id = typeof item.id === 'string' ? item.id.trim() : ''
+      if (id && !seenIds.has(id)) {
+        seenIds.add(id)
+        ids.push(id)
+      }
     }
 
-    const nextContinuation = typeof data.continuation === 'string' ? data.continuation.trim() : ''
+    let nextContinuation = typeof data.continuation === 'string' ? data.continuation.trim() : ''
+    if (!nextContinuation && minimumCount > ids.length) {
+      const lastId = ids[ids.length - 1] || ''
+      if (lastId && !seenContinuations.has(lastId)) nextContinuation = lastId
+    }
     if (!nextContinuation || seenContinuations.has(nextContinuation)) break
     seenContinuations.add(nextContinuation)
     continuation = nextContinuation
@@ -917,7 +967,7 @@ function ArticleListPage({
     if (showLoading) setIsLoading(true)
     if (showLoading) setMessage('')
     try {
-      const page = await loadArticlePage(settings, feed.id, filter, continuation)
+      const page = await loadArticlePage(settings, feed.id, filter, continuation, feed.unreadCount)
       setPages((previous: ArticlePage[]) => {
         const next = index === 0 ? [] : previous.slice(0, index)
         next[index] = page
