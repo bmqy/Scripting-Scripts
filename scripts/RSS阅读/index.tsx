@@ -1253,6 +1253,7 @@ function FeedManagementPage({
   const [toastMessage, setToastMessage] = useState('')
   const [isLoadingFeeds, setIsLoadingFeeds] = useState(true)
   const [loadingFeedIds, setLoadingFeedIds] = useState<string[]>([])
+  const [loadingProgress, setLoadingProgress] = useState(0)
   const [message, setMessage] = useState('')
   const isRefreshingFeedsRef = useRef(false)
   const busyFeedIdRef = useRef<string | null>(null)
@@ -1260,6 +1261,20 @@ function FeedManagementPage({
   useEffect(() => {
     busyFeedIdRef.current = busyFeedId
   }, [busyFeedId])
+
+  useEffect(() => {
+    if (loadingFeedIds.length === 0) {
+      setLoadingProgress(0)
+      return
+    }
+
+    setLoadingProgress(0)
+    const timer = setInterval(() => {
+      setLoadingProgress(previous => previous >= 1 ? 0 : Math.min(1, previous + 0.08))
+    }, 120)
+
+    return () => clearInterval(timer)
+  }, [loadingFeedIds.length > 0])
 
   const refresh = async (forceRefresh = false, showLoading = true) => {
     if (isRefreshingFeedsRef.current) return
@@ -1531,7 +1546,11 @@ function FeedManagementPage({
             <Spacer />
             <Image systemName='chevron.right' foregroundStyle='secondaryLabel' />
           </HStack>
-          {isFeedLoading ? <ProgressView progressViewStyle='linear' /> : null}
+          {isFeedLoading ? <ProgressView
+            value={loadingProgress}
+            total={1}
+            progressViewStyle='linear'
+          /> : null}
         </VStack>
       </HStack>
       })}
