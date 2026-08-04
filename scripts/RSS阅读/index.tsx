@@ -1781,7 +1781,12 @@ function SettingsPage() {
             ) : <Image systemName="globe" foregroundStyle="secondaryLabel" />}
             <Text lineLimit={1} minScaleFactor={0.8}>{authenticatedSettings.mode === 'opml' ? authenticatedSettings.opmlSource : siteDomain(authenticatedSettings.endpoint)}</Text>
             <Spacer />
-            <Button title="退出" tint="red" action={logoutAccount} />
+            <Button
+              buttonStyle="plain"
+              action={logoutAccount}
+            >
+              <Text foregroundStyle="red">退出</Text>
+            </Button>
           </HStack>
         </Section>
       ) : sourceMode === 'opml' ? (
