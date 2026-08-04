@@ -12,7 +12,6 @@ import {
     NavigationStack,
     OpenURLActionResult,
     Picker,
-    RoundedRectangle,
     Script,
     Section,
     SecureField,
@@ -1509,16 +1508,7 @@ function FeedManagementPage({
         spacing={8}
         contentShape='rect'
         onTapGesture={() => openFeed(feed)}
-        background={<RoundedRectangle
-          fill='clear'
-          cornerRadius={12}
-          stroke={{
-            shapeStyle: feedBorderColor,
-            strokeStyle: {
-              lineWidth: isFeedLoading ? 1.5 : 1,
-            },
-          }}
-        />}
+        listRowSeparatorTint={feedBorderColor}
         trailingSwipeActions={{
           allowsFullSwipe: false,
           actions: [
@@ -1563,10 +1553,6 @@ function FeedManagementPage({
             <Spacer />
             <Image systemName='chevron.right' foregroundStyle='secondaryLabel' />
           </HStack>
-          {isFeedLoading ? <Text
-            font='caption2'
-            foregroundStyle={feedBorderColor}
-          >正在同步未读数</Text> : null}
         </VStack>
       </HStack>
       })}
