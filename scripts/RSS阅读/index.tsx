@@ -12,7 +12,7 @@ import {
     NavigationStack,
     OpenURLActionResult,
     Picker,
-    ProgressView,
+    RoundedRectangle,
     Script,
     Section,
     SecureField,
@@ -1253,7 +1253,7 @@ function FeedManagementPage({
   const [toastMessage, setToastMessage] = useState('')
   const [isLoadingFeeds, setIsLoadingFeeds] = useState(true)
   const [loadingFeedIds, setLoadingFeedIds] = useState<string[]>([])
-  const [loadingProgress, setLoadingProgress] = useState(0)
+  const [loadingPulse, setLoadingPulse] = useState(0)
   const [message, setMessage] = useState('')
   const isRefreshingFeedsRef = useRef(false)
   const busyFeedIdRef = useRef<string | null>(null)
@@ -1264,14 +1264,13 @@ function FeedManagementPage({
 
   useEffect(() => {
     if (loadingFeedIds.length === 0) {
-      setLoadingProgress(0)
+      setLoadingPulse(0)
       return
     }
 
-    setLoadingProgress(0)
     const timer = setInterval(() => {
-      setLoadingProgress(previous => previous >= 1 ? 0 : Math.min(1, previous + 0.08))
-    }, 120)
+      setLoadingPulse(previous => (previous + 1) % 4)
+    }, 180)
 
     return () => clearInterval(timer)
   }, [loadingFeedIds.length > 0])
@@ -1496,12 +1495,30 @@ function FeedManagementPage({
       {feeds.length === 0 && !message ? <Text foregroundStyle='secondaryLabel'>暂无 RSS 源。</Text> : null}
       {feeds.map((feed: FeedOverview) => {
         const isFeedLoading = loadingFeedIds.includes(feed.id)
+        const feedBorderColor = isFeedLoading
+          ? [
+            'rgba(0, 122, 255, 0.35)',
+            'rgba(0, 122, 255, 0.60)',
+            'rgba(0, 122, 255, 0.95)',
+            'rgba(88, 86, 214, 0.82)',
+          ][loadingPulse]
+          : 'rgba(142, 142, 147, 0.24)'
         return <HStack
         key={feed.id}
         alignment='center'
         spacing={8}
         contentShape='rect'
         onTapGesture={() => openFeed(feed)}
+        background={<RoundedRectangle
+          fill='clear'
+          cornerRadius={12}
+          stroke={{
+            shapeStyle: feedBorderColor,
+            strokeStyle: {
+              lineWidth: isFeedLoading ? 1.5 : 1,
+            },
+          }}
+        />}
         trailingSwipeActions={{
           allowsFullSwipe: false,
           actions: [
@@ -1546,11 +1563,10 @@ function FeedManagementPage({
             <Spacer />
             <Image systemName='chevron.right' foregroundStyle='secondaryLabel' />
           </HStack>
-          {isFeedLoading ? <ProgressView
-            value={loadingProgress}
-            total={1}
-            progressViewStyle='linear'
-          /> : null}
+          {isFeedLoading ? <Text
+            font='caption2'
+            foregroundStyle={feedBorderColor}
+          >正在同步未读数</Text> : null}
         </VStack>
       </HStack>
       })}
