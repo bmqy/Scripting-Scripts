@@ -475,6 +475,80 @@ function articleItemsForFilter(data: StreamResponse, filter: ArticleFilter) {
   return filter === 'read' ? pageItems.filter(article => article.isRead) : pageItems
 }
 
+async function loadStreamItemsContents(settings: ReaderSettings, itemIds: string[]) {
+  const itemQuery = itemIds.map(id => '&i=' + encodeURIComponent(id)).join('')
+  return await fetchJSON<StreamResponse>(
+    settings,
+    settings.endpoint + '/reader/api/0/stream/items/contents?output=json' + itemQuery,
+    'RSS Reader Article Contents',
+    '读取文章内容',
+  )
+}
+
+async function loadUnreadArticlePage(
+  settings: ReaderSettings,
+  feedId: string,
+  continuation = '',
+): Promise<ArticlePage> {
+  const items: ReaderArticle[] = []
+  const seenItemIds = new Set<string>()
+  const seenContinuations = new Set<string>()
+  let cursor = continuation
+  if (cursor) seenContinuations.add(cursor)
+
+  while (true) {
+    const continuationQuery = cursor ? '&c=' + encodeURIComponent(cursor) : ''
+    const data = await fetchJSON<ItemIdsResponse>(
+      settings,
+      settings.endpoint + '/reader/api/0/stream/items/ids?output=json&s=' + encodeURIComponent(feedId)
+        + '&xt=' + encodeURIComponent(READ_STATE_ID)
+        + '&n=' + ARTICLE_PAGE_SIZE
+        + continuationQuery,
+      'RSS Reader Unread Article IDs',
+      '读取未读文章',
+    )
+    const itemIds = (data.itemRefs || [])
+      .map(item => typeof item.id === 'string' ? item.id.trim() : '')
+      .filter(id => Boolean(id))
+
+    if (itemIds.length > 0) {
+      const contents = await loadStreamItemsContents(settings, itemIds)
+      const contentItems = contents.items || []
+      const contentById = new Map(
+        contentItems
+          .filter(item => typeof item.id === 'string' && item.id.trim())
+          .map(item => [item.id!.trim(), toArticle(item)] as const),
+      )
+
+      itemIds.forEach((itemId, index) => {
+        const article = contentById.get(itemId) || (contentItems[index] ? toArticle(contentItems[index]) : undefined)
+        if (!article?.id || seenItemIds.has(article.id)) return
+        seenItemIds.add(article.id)
+        items.push(article)
+      })
+    }
+
+    const nextContinuation = typeof data.continuation === 'string' ? data.continuation.trim() : ''
+    if (
+      items.length >= ARTICLE_PAGE_SIZE
+      || !nextContinuation
+      || seenContinuations.has(nextContinuation)
+    ) {
+      return {
+        items,
+        continuation: items.length >= ARTICLE_PAGE_SIZE
+          && Boolean(nextContinuation)
+          && !seenContinuations.has(nextContinuation)
+          ? nextContinuation
+          : undefined,
+      }
+    }
+
+    seenContinuations.add(nextContinuation)
+    cursor = nextContinuation
+  }
+}
+
 async function loadArticlePage(
   settings: ReaderSettings,
   feedId: string,
@@ -517,6 +591,8 @@ async function loadArticlePage(
         .slice(0, ARTICLE_PAGE_SIZE),
     }
   }
+
+  if (filter === 'unread') return await loadUnreadArticlePage(settings, feedId, continuation)
 
   const items: ReaderArticle[] = []
   const seenContinuations = new Set<string>()
