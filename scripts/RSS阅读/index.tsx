@@ -475,33 +475,6 @@ function articleItemsForFilter(data: StreamResponse, filter: ArticleFilter) {
   return filter === 'read' ? pageItems.filter(article => article.isRead) : pageItems
 }
 
-async function hasArticleAfterContinuation(
-  settings: ReaderSettings,
-  feedId: string,
-  filter: ArticleFilter,
-  continuation: string,
-  seenContinuations: Set<string>,
-) {
-  let cursor = continuation
-  const probeContinuations = new Set(seenContinuations)
-
-  while (cursor && !probeContinuations.has(cursor)) {
-    probeContinuations.add(cursor)
-    let data: StreamResponse
-    try {
-      data = await loadStreamContentsPage(settings, feedId, filter, cursor)
-    } catch {
-      return false
-    }
-
-    if (articleItemsForFilter(data, filter).length > 0) return true
-    const nextContinuation = typeof data.continuation === 'string' ? data.continuation.trim() : ''
-    cursor = nextContinuation
-  }
-
-  return false
-}
-
 async function loadArticlePage(
   settings: ReaderSettings,
   feedId: string,
@@ -560,13 +533,13 @@ async function loadArticlePage(
       || !nextContinuation
       || seenContinuations.has(nextContinuation)
     ) {
-      const hasMore = items.length >= ARTICLE_PAGE_SIZE
-        && Boolean(nextContinuation)
-        && !seenContinuations.has(nextContinuation)
-        && await hasArticleAfterContinuation(settings, feedId, filter, nextContinuation, seenContinuations)
       return {
         items,
-        continuation: hasMore ? nextContinuation : undefined,
+        continuation: items.length >= ARTICLE_PAGE_SIZE
+          && Boolean(nextContinuation)
+          && !seenContinuations.has(nextContinuation)
+          ? nextContinuation
+          : undefined,
       }
     }
 
@@ -1145,8 +1118,8 @@ function ArticleListPage({
         }}
       /> : null}
       {currentPage ? <Section>
-        <VStack alignment='leading' padding={{ top: 10, leading: 16, bottom: 18, trailing: 16 }}>
-          <HStack alignment='center'>
+        <VStack alignment='center' spacing={8} padding={{ top: 10, leading: 16, bottom: 18, trailing: 16 }} frame={{ maxWidth: 'infinity', alignment: 'center' }}>
+          <HStack alignment='center' frame={{ maxWidth: 'infinity', alignment: 'center' }}>
             <Button title='上一页' disabled={isLoading || pageIndex === 0} action={goPreviousPage} />
             <Spacer />
             <Text foregroundStyle='secondaryLabel'>第 {pageIndex + 1} 页</Text>
@@ -1157,7 +1130,7 @@ function ArticleListPage({
               <Button title='下一页' disabled={isLoading} action={goNextPage} />
             )}
           </HStack>
-          {isLastPage && !hasNextFeed ? <Text foregroundStyle='secondaryLabel'>已经是最后一个源。</Text> : null}
+          {isLastPage && !hasNextFeed ? <Text font='caption' foregroundStyle='secondaryLabel' multilineTextAlignment='center' frame={{ maxWidth: 'infinity', alignment: 'center' }}>已经是最后一个源。</Text> : null}
         </VStack>
       </Section> : null}
     </LazyVStack>
