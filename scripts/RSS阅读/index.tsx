@@ -1079,9 +1079,12 @@ function ArticleListPage({
       markPageAsRead(pageToMark)
       return
     }
-    if (currentPage.continuation) {
+    const nextPageContinuation = currentPage.continuation || (hasUnreadNextPage
+      ? UNREAD_PAGE_OFFSET_PREFIX + ((pageIndex + 1) * ARTICLE_PAGE_SIZE)
+      : '')
+    if (nextPageContinuation) {
       discardQueuedReads()
-      void loadPage(pageIndex + 1, currentPage.continuation).then(isLoaded => {
+      void loadPage(pageIndex + 1, nextPageContinuation).then(isLoaded => {
         if (isLoaded) markPageAsRead(pageToMark)
       })
     }
@@ -1125,7 +1128,13 @@ function ArticleListPage({
       ? '这个源暂无文章。'
       : '这个源暂无未读文章。'
 
-  const isLastPage = Boolean(currentPage && !currentPage.continuation && pageIndex === pages.length - 1)
+  const hasUnreadNextPage = Boolean(
+    !isOpml
+    && articleFilter === 'unread'
+    && feed.unreadCount > (pageIndex + 1) * ARTICLE_PAGE_SIZE
+  )
+  const hasMorePages = Boolean(currentPage && (currentPage.continuation || hasUnreadNextPage))
+  const isLastPage = Boolean(currentPage && !hasMorePages && pageIndex === pages.length - 1)
 
   return <ScrollView
     navigationTitle={navigationTitleText(feed.name, unreadCount)}
