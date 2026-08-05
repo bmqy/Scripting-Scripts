@@ -1950,12 +1950,12 @@ function SettingsPage() {
       }}
     >
       <HStack
-        alignment="bottom"
+        alignment="lastTextBaseline"
         listRowInsets={{ top: 18, bottom: 12, leading: 0, trailing: 0 }}
         listRowSeparator="hidden"
       >
         <Text font="largeTitle" fontWeight="bold">RSS 阅读</Text>
-        <HStack alignment="bottom" spacing={6}>
+        <HStack alignment="lastTextBaseline" spacing={6}>
           <Link url={GITHUB_REPOSITORY_URL}>
             <Image
               imageUrl="https://github.com/favicon.ico"
