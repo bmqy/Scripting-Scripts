@@ -1965,7 +1965,7 @@ function SettingsPage() {
               frame={{ width: 20, height: 20, alignment: 'center' }}
             />
           </Link>
-          <Text font="caption" foregroundStyle="secondaryLabel">v{SCRIPT_VERSION}</Text>
+          <Text font="caption" foregroundStyle="secondaryLabel" baselineOffset={2}>v{SCRIPT_VERSION}</Text>
         </HStack>
         <Spacer />
         {isAccountConfigured ? (
