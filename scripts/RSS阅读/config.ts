@@ -276,35 +276,12 @@ export function loadSettings(): ReaderSettings | null {
   }
 }
 
-function matchesSettings(value: unknown, settings: ReaderSettings) {
-  const saved = parseSettings(value)
-  return saved?.mode === settings.mode
-    && saved.opmlSourceType === settings.opmlSourceType
-    && saved.opmlSource === settings.opmlSource
-    && JSON.stringify(saved.opmlFeeds) === JSON.stringify(settings.opmlFeeds)
-    && saved.endpoint === settings.endpoint
-    && saved.username === settings.username
-    && saved.password === settings.password
-    && saved.feedId === settings.feedId
-    && saved.feedName === settings.feedName
-    && saved.timeDisplay === settings.timeDisplay
-    && saved.refreshIntervalMinutes === settings.refreshIntervalMinutes
-    && saved.theme === settings.theme
-    && saved.opmlStateBackend === settings.opmlStateBackend
-    && saved.opmlStateMaxItems === settings.opmlStateMaxItems
-    && saved.opmlStateMaxAgeDays === settings.opmlStateMaxAgeDays
-    && saved.useInAppBrowser === settings.useInAppBrowser
-    && saved.widgetUseInAppBrowser === settings.widgetUseInAppBrowser
-}
-
 export function saveSettings(settings: ReaderSettings) {
   try {
     const storage = scriptingStorage()
     if (!storage) return null
     const writeResult = storage.set(SETTINGS_KEY, settings)
-    if (writeResult === false) return null
-    const saved = storage.get<ReaderSettings>(SETTINGS_KEY)
-    return matchesSettings(saved, settings) ? 'storage' : null
+    return writeResult === false ? null : 'storage'
   } catch {
     return null
   }
