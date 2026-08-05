@@ -2002,6 +2002,7 @@ function SettingsPage() {
             </Button>
           </HStack>
           {authenticatedSettings.mode === 'opml' ? (
+            <VStack alignment="leading" spacing={0}>
             <HStack alignment="center">
               <Text>数据存储</Text>
               <Spacer />
@@ -2042,6 +2043,7 @@ function SettingsPage() {
               <Text tag={365}>365 天</Text>
               <Text tag={730}>730 天</Text>
             </Picker>
+            </VStack>
           ) : null}
         </Section>
       ) : sourceMode === 'opml' ? (
