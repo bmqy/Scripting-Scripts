@@ -1955,6 +1955,18 @@ function SettingsPage() {
         listRowSeparator="hidden"
       >
         <Text font="largeTitle" fontWeight="bold">RSS 阅读</Text>
+        <HStack alignment="center" spacing={6}>
+          <Link url={GITHUB_REPOSITORY_URL}>
+            <Image
+              imageUrl="https://github.com/favicon.ico"
+              resizable={true}
+              scaleToFit={true}
+              placeholder={<Image systemName="link" foregroundStyle="systemBlue" />}
+              frame={{ width: 20, height: 20, alignment: 'center' }}
+            />
+          </Link>
+          <Text font="caption" foregroundStyle="secondaryLabel">v{SCRIPT_VERSION}</Text>
+        </HStack>
         <Spacer />
         {isAccountConfigured ? (
           <Button
@@ -2273,23 +2285,6 @@ function SettingsPage() {
       </Section> : <Section>
         <Text font="footnote" foregroundStyle="secondaryLabel">请先登录并保存账号配置，登录成功后可继续调整组件配置。</Text>
       </Section>}
-      <HStack
-        alignment="center"
-        listRowInsets={{ top: 16, bottom: 8, leading: 0, trailing: 0 }}
-        listRowSeparator="hidden"
-      >
-        <Spacer />
-        <Link url={GITHUB_REPOSITORY_URL}>
-          <Image
-            imageUrl="https://github.com/favicon.ico"
-            resizable={true}
-            scaleToFit={true}
-            placeholder={<Image systemName="link" foregroundStyle="systemBlue" />}
-            frame={{ width: 20, height: 20, alignment: 'center' }}
-          />
-        </Link>
-        <Text font="caption" foregroundStyle="secondaryLabel">v{SCRIPT_VERSION}</Text>
-      </HStack>
     </Form>
   </NavigationStack>
 }
