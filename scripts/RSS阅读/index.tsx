@@ -162,6 +162,7 @@ const READ_STATE_ID = 'user/-/state/com.google/read'
 const ARTICLE_PAGE_SIZE = 10
 const UNREAD_PAGE_OFFSET_PREFIX = 'unread-offset:'
 const UNREAD_STREAM_CURSOR_PREFIX = 'unread-stream:'
+const OPML_PAGE_OFFSET_PREFIX = 'opml-offset:'
 const OPML_SCAN_LIMIT = 100
 const ITEM_ID_PAGE_SIZE = 1000
 const GITHUB_REPOSITORY_URL = 'https://github.com/bmqy/Scripting-Scripts'
@@ -619,6 +620,10 @@ async function loadArticlePage(
   expectedUnreadCount = 0,
 ): Promise<ArticlePage> {
   if (settings.mode === 'opml') {
+    const offsetText = continuation.startsWith(OPML_PAGE_OFFSET_PREFIX)
+      ? continuation.slice(OPML_PAGE_OFFSET_PREFIX.length)
+      : '0'
+    const offset = Math.max(0, Number.parseInt(offsetText, 10) || 0)
     const readKeys = await loadOpmlReadState(settings)
     const mapArticles = (feed: OpmlFeed, articles: Awaited<ReturnType<typeof loadOpmlFeedArticles>>) => (
       articles.map(article => {
@@ -642,16 +647,22 @@ async function loadArticlePage(
         .flatMap(({ feed, articles }) => mapArticles(feed, articles))
         .sort((left, right) => right.publishedAt - left.publishedAt)
         .filter(article => filter === 'all' || (filter === 'read' ? article.isRead : !article.isRead))
-      return { items: items.slice(0, ARTICLE_PAGE_SIZE) }
+      const nextOffset = offset + ARTICLE_PAGE_SIZE
+      return {
+        items: items.slice(offset, nextOffset),
+        continuation: nextOffset < items.length ? OPML_PAGE_OFFSET_PREFIX + nextOffset : undefined,
+      }
     }
 
     const feed = settings.opmlFeeds.find(item => item.id === feedId)
     if (!feed) throw new Error('OPML 中找不到当前 RSS 源。')
     const articles = mapArticles(feed, await loadOpmlFeedArticles(feed, OPML_SCAN_LIMIT))
+    const items = articles
+      .filter(article => filter === 'all' || (filter === 'read' ? article.isRead : !article.isRead))
+    const nextOffset = offset + ARTICLE_PAGE_SIZE
     return {
-      items: articles
-        .filter(article => filter === 'all' || (filter === 'read' ? article.isRead : !article.isRead))
-        .slice(0, ARTICLE_PAGE_SIZE),
+      items: items.slice(offset, nextOffset),
+      continuation: nextOffset < items.length ? OPML_PAGE_OFFSET_PREFIX + nextOffset : undefined,
     }
   }
 
