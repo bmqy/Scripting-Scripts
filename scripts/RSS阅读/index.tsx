@@ -2029,6 +2029,11 @@ function SettingsPage() {
               <Text tag={5000}>5000 条</Text>
               <Text tag={10000}>10000 条</Text>
             </Picker>
+            <Text
+              font="footnote"
+              foregroundStyle="secondaryLabel"
+              listRowSeparator="hidden"
+            >全部 OPML 订阅源合计保存的已读状态条数，超出后优先清理较早记录。</Text>
             <Picker
               title="保留天数"
               value={opmlStateMaxAgeDays}
@@ -2043,6 +2048,11 @@ function SettingsPage() {
               <Text tag={365}>365 天</Text>
               <Text tag={730}>730 天</Text>
             </Picker>
+            <Text
+              font="footnote"
+              foregroundStyle="secondaryLabel"
+              listRowSeparator="hidden"
+            >按最后一次标记已读的时间计算；最多保存和保留天数至少设置一项。</Text>
             </VStack>
           ) : null}
         </Section>
