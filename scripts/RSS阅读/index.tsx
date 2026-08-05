@@ -160,8 +160,7 @@ const FEED_LIST_CACHE_MIN_MINUTES = 60
 const FEED_LIST_CACHE_REFRESH_MULTIPLIER = 6
 const READ_STATE_ID = 'user/-/state/com.google/read'
 const ARTICLE_PAGE_SIZE = 10
-const UNREAD_PAGE_OFFSET_PREFIX = 'unread-offset:'
-const UNREAD_STREAM_CURSOR_PREFIX = 'unread-stream:'
+const UNREAD_SNAPSHOT_PREFIX = 'unread-snapshot:'
 const OPML_PAGE_OFFSET_PREFIX = 'opml-offset:'
 const OPML_SCAN_LIMIT = 100
 const ITEM_ID_PAGE_SIZE = 1000
@@ -498,6 +497,25 @@ type ArticlePage = {
   continuation?: string
 }
 
+function encodeUnreadSnapshotContinuation(itemIds: string[]) {
+  const restIds = itemIds
+    .filter(id => typeof id === 'string' && id.trim())
+    .map(id => id.trim())
+  return restIds.length > 0 ? UNREAD_SNAPSHOT_PREFIX + JSON.stringify(restIds) : undefined
+}
+
+function decodeUnreadSnapshotContinuation(continuation: string) {
+  if (!continuation.startsWith(UNREAD_SNAPSHOT_PREFIX)) return null
+  try {
+    const value = JSON.parse(continuation.slice(UNREAD_SNAPSHOT_PREFIX.length))
+    return Array.isArray(value)
+      ? value.filter((id): id is string => typeof id === 'string' && Boolean(id.trim())).map(id => id.trim())
+      : []
+  } catch {
+    return []
+  }
+}
+
 function articleFilterQuery(filter: ArticleFilter) {
   return filter === 'unread'
     ? '&xt=' + encodeURIComponent(READ_STATE_ID)
@@ -563,55 +581,16 @@ async function loadUnreadArticlePage(
   continuation = '',
   expectedUnreadCount = 0,
 ): Promise<ArticlePage> {
-  const streamCursor = continuation.startsWith(UNREAD_STREAM_CURSOR_PREFIX)
-    ? continuation.slice(UNREAD_STREAM_CURSOR_PREFIX.length)
-    : ''
-  if (!continuation || streamCursor) {
-    const items: ReaderArticle[] = []
-    const seenContinuations = new Set<string>()
-    let cursor = streamCursor
-    if (cursor) seenContinuations.add(cursor)
-
-    while (true) {
-      const data = await loadStreamContentsPage(settings, feedId, 'all', cursor)
-      items.push(...articleItemsForFilter(data, 'unread'))
-      const nextContinuation = typeof data.continuation === 'string' ? data.continuation.trim() : ''
-      if (items.length >= ARTICLE_PAGE_SIZE && (nextContinuation || !expectedUnreadCount || expectedUnreadCount <= items.length)) {
-        return {
-          items: items.slice(0, ARTICLE_PAGE_SIZE),
-          continuation: nextContinuation && !seenContinuations.has(nextContinuation)
-            ? UNREAD_STREAM_CURSOR_PREFIX + nextContinuation
-            : undefined,
-        }
-      }
-      if (!nextContinuation || seenContinuations.has(nextContinuation)) break
-      seenContinuations.add(nextContinuation)
-      cursor = nextContinuation
-    }
-
-    if (streamCursor) return { items }
-    if (items.length > 0 && (!expectedUnreadCount || items.length >= expectedUnreadCount)) {
-      return { items }
-    }
-  }
-
-  const offsetText = continuation.startsWith(UNREAD_PAGE_OFFSET_PREFIX)
-    ? continuation.slice(UNREAD_PAGE_OFFSET_PREFIX.length)
-    : '0'
-  const offset = Math.max(0, Number.parseInt(offsetText, 10) || 0)
-  const unreadItemIds = await loadUnreadItemIds(settings, feedId, expectedUnreadCount)
-  const pageItemIds = unreadItemIds.slice(offset, offset + ARTICLE_PAGE_SIZE)
+  const snapshotIds = decodeUnreadSnapshotContinuation(continuation)
+  const unreadItemIds = snapshotIds || await loadUnreadItemIds(settings, feedId, expectedUnreadCount)
+  const pageItemIds = unreadItemIds.slice(0, ARTICLE_PAGE_SIZE)
   const items = await loadArticlesForItemIds(settings, pageItemIds)
-  const nextOffset = offset + pageItemIds.length
 
   return {
     items,
-    continuation: nextOffset < unreadItemIds.length
-      ? UNREAD_PAGE_OFFSET_PREFIX + nextOffset
-      : undefined,
+    continuation: encodeUnreadSnapshotContinuation(unreadItemIds.slice(ARTICLE_PAGE_SIZE)),
   }
 }
-
 async function loadArticlePage(
   settings: ReaderSettings,
   feedId: string,
@@ -635,6 +614,37 @@ async function loadArticlePage(
         }
       })
     )
+    const paginateItems = (items: ReaderArticle[]): ArticlePage => {
+      if (filter === 'unread') {
+        const snapshotIds = decodeUnreadSnapshotContinuation(continuation)
+        if (snapshotIds) {
+          const articleById = new Map<string, ReaderArticle>()
+          items.forEach(article => {
+            if (article.id) articleById.set(article.id, article)
+          })
+          return {
+            items: snapshotIds
+              .slice(0, ARTICLE_PAGE_SIZE)
+              .map(id => articleById.get(id))
+              .filter((article): article is ReaderArticle => Boolean(article)),
+            continuation: encodeUnreadSnapshotContinuation(snapshotIds.slice(ARTICLE_PAGE_SIZE)),
+          }
+        }
+
+        const unreadItems = items.filter(article => !article.isRead)
+        return {
+          items: unreadItems.slice(0, ARTICLE_PAGE_SIZE),
+          continuation: encodeUnreadSnapshotContinuation(unreadItems.slice(ARTICLE_PAGE_SIZE).map(article => article.id || '')),
+        }
+      }
+
+      const filteredItems = items.filter(article => filter === 'all' || article.isRead)
+      const nextOffset = offset + ARTICLE_PAGE_SIZE
+      return {
+        items: filteredItems.slice(offset, nextOffset),
+        continuation: nextOffset < filteredItems.length ? OPML_PAGE_OFFSET_PREFIX + nextOffset : undefined,
+      }
+    }
 
     if (feedId === READING_LIST_ID) {
       const pages = await Promise.all(
@@ -643,29 +653,15 @@ async function loadArticlePage(
           articles: await loadOpmlFeedArticles(feed, OPML_SCAN_LIMIT).catch(() => []),
         })),
       )
-      const items = pages
+      return paginateItems(pages
         .flatMap(({ feed, articles }) => mapArticles(feed, articles))
-        .sort((left, right) => right.publishedAt - left.publishedAt)
-        .filter(article => filter === 'all' || (filter === 'read' ? article.isRead : !article.isRead))
-      const nextOffset = offset + ARTICLE_PAGE_SIZE
-      return {
-        items: items.slice(offset, nextOffset),
-        continuation: nextOffset < items.length ? OPML_PAGE_OFFSET_PREFIX + nextOffset : undefined,
-      }
+        .sort((left, right) => right.publishedAt - left.publishedAt))
     }
 
     const feed = settings.opmlFeeds.find(item => item.id === feedId)
     if (!feed) throw new Error('OPML 中找不到当前 RSS 源。')
-    const articles = mapArticles(feed, await loadOpmlFeedArticles(feed, OPML_SCAN_LIMIT))
-    const items = articles
-      .filter(article => filter === 'all' || (filter === 'read' ? article.isRead : !article.isRead))
-    const nextOffset = offset + ARTICLE_PAGE_SIZE
-    return {
-      items: items.slice(offset, nextOffset),
-      continuation: nextOffset < items.length ? OPML_PAGE_OFFSET_PREFIX + nextOffset : undefined,
-    }
+    return paginateItems(mapArticles(feed, await loadOpmlFeedArticles(feed, OPML_SCAN_LIMIT)))
   }
-
   if (filter === 'unread') {
     return await loadUnreadArticlePage(settings, feedId, continuation, expectedUnreadCount)
   }
@@ -1090,9 +1086,7 @@ function ArticleListPage({
       markPageAsRead(pageToMark)
       return
     }
-    const nextPageContinuation = currentPage.continuation || (hasUnreadNextPage
-      ? UNREAD_PAGE_OFFSET_PREFIX + ((pageIndex + 1) * ARTICLE_PAGE_SIZE)
-      : '')
+    const nextPageContinuation = currentPage.continuation || ''
     if (nextPageContinuation) {
       discardQueuedReads()
       void loadPage(pageIndex + 1, nextPageContinuation).then(isLoaded => {
@@ -1139,12 +1133,7 @@ function ArticleListPage({
       ? '这个源暂无文章。'
       : '这个源暂无未读文章。'
 
-  const hasUnreadNextPage = Boolean(
-    !isOpml
-    && articleFilter === 'unread'
-    && feed.unreadCount > (pageIndex + 1) * ARTICLE_PAGE_SIZE
-  )
-  const hasMorePages = Boolean(currentPage && (currentPage.continuation || hasUnreadNextPage))
+  const hasMorePages = Boolean(currentPage?.continuation)
   const isLastPage = Boolean(currentPage && !hasMorePages && pageIndex === pages.length - 1)
 
   return <ScrollView
