@@ -1955,7 +1955,7 @@ function SettingsPage() {
         listRowSeparator="hidden"
       >
         <Text font="largeTitle" fontWeight="bold">RSS 阅读</Text>
-        <HStack alignment="lastTextBaseline" spacing={6}>
+        <HStack alignment="bottom" spacing={6} offset={{ x: 0, y: 12 }}>
           <Link url={GITHUB_REPOSITORY_URL}>
             <Image
               imageUrl="https://github.com/favicon.ico"
@@ -1965,7 +1965,7 @@ function SettingsPage() {
               frame={{ width: 20, height: 20, alignment: 'center' }}
             />
           </Link>
-          <Text font="caption" foregroundStyle="secondaryLabel" baselineOffset={2}>v{SCRIPT_VERSION}</Text>
+          <Text font="caption" foregroundStyle="secondaryLabel" baselineOffset={-3}>v{SCRIPT_VERSION}</Text>
         </HStack>
         <Spacer />
         {isAccountConfigured ? (
