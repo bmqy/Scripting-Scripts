@@ -31,7 +31,7 @@
 #### 功能特点
 - 使用 Google Reader 兼容的 `ClientLogin`、`unread-count` 和 `stream/contents` 接口
 - 可在设置页选择 API 账号或 OPML 订阅方式；OPML 支持从 Files App 选择本地文件，或填写线上 URL
-- OPML 模式支持本地保存文章已读状态，默认使用 Storage；也可切换到 SQLite，并设置最多保存条数和保留天数，超出限制时自动清理较早记录
+- OPML 模式支持本地保存文章已读状态，默认最多保存 5000 条、保留天数不限；也可切换到 SQLite，并调整条数或天数限制，但至少需要设置一项限制
 - 账号凭据优先保存到 Scripting App 的 Keychain；若钥匙串暂时不可用，会保存到当前脚本的私有本地存储，并在设置页面明确提示
 - 小号显示未读总数和一篇最新文章；中号显示三篇；大号显示五篇及摘要
 - 可选择显示绝对时间或相对时间；默认为绝对时间
@@ -52,7 +52,7 @@
 
 在脚本设置页的“订阅方式”中选择“OPML”，再选择“线上 URL”或“本地文件”。线上 URL 会在组件刷新时读取 OPML 并获取当前源文章；本地文件会在导入时解析并保存订阅源清单。OPML 文件需要包含带有 `xmlUrl` 属性的 `<outline>` 节点。
 
-OPML 已读状态只保存在当前设备。SQLite 数据库使用 Scripting 的 App Group 文档目录，Storage 和 SQLite 两种方式都不会修改原始 OPML 文件；可在设置中按条数或天数限制状态记录，超出后自动清理。
+OPML 已读状态只保存在当前设备。SQLite 数据库使用 Scripting 的 App Group 文档目录，Storage 和 SQLite 两种方式都不会修改原始 OPML 文件；状态会按设置的条数或天数自动清理，至少需要设置一项限制。
 
 
 

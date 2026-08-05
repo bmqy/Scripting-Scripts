@@ -1853,6 +1853,10 @@ function SettingsPage() {
     if (!authenticatedSettings || authenticatedSettings.mode !== 'opml') return
 
     const settings = { ...authenticatedSettings, ...overrides }
+    if (settings.opmlStateMaxItems === 0 && settings.opmlStateMaxAgeDays === 0) {
+      setWidgetMessage('最多保存和保留天数至少设置一项。')
+      return
+    }
     setWidgetMessage('正在清理 OPML 已读状态...')
     try {
       const removedCount = await pruneOpmlReadState(settings)

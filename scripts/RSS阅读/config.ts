@@ -46,7 +46,7 @@ const DEFAULT_TIME_DISPLAY: TimeDisplay = 'absolute'
 const DEFAULT_REFRESH_INTERVAL_MINUTES: RefreshIntervalMinutes = 30
 const DEFAULT_COLOR_THEME: ColorTheme = 'system'
 export const DEFAULT_OPML_STATE_BACKEND: OpmlStateBackend = 'storage'
-export const DEFAULT_OPML_STATE_MAX_ITEMS: OpmlStateMaxItems = 0
+export const DEFAULT_OPML_STATE_MAX_ITEMS: OpmlStateMaxItems = 5000
 export const DEFAULT_OPML_STATE_MAX_AGE_DAYS: OpmlStateMaxAgeDays = 0
 const REFRESH_INTERVAL_OPTIONS: RefreshIntervalMinutes[] = [1, 3, 5, 15, 30, 60, 120, 180, 360, 720]
 const COLOR_THEME_OPTIONS: ColorTheme[] = ['system', 'light', 'dark']
@@ -239,6 +239,10 @@ function parseSettings(value: unknown): ReaderSettings | null {
     if (mode === 'reader' && (!settings.endpoint || !settings.username || !settings.password)) return null
     if (mode === 'opml' && (!settings.opmlSource || opmlFeeds.length === 0)) return null
 
+    const parsedOpmlStateMaxItems = opmlStateMaxItems(settings.opmlStateMaxItems)
+    const parsedOpmlStateMaxAgeDays = opmlStateMaxAgeDays(settings.opmlStateMaxAgeDays)
+    const hasNoOpmlStateLimit = parsedOpmlStateMaxItems === 0 && parsedOpmlStateMaxAgeDays === 0
+
     return {
       mode,
       endpoint: mode === 'reader' ? normalizeEndpoint(settings.endpoint!) : '',
@@ -253,8 +257,8 @@ function parseSettings(value: unknown): ReaderSettings | null {
       refreshIntervalMinutes: refreshIntervalMinutes(settings.refreshIntervalMinutes),
       theme: colorTheme(settings.theme),
       opmlStateBackend: opmlStateBackend(settings.opmlStateBackend),
-      opmlStateMaxItems: opmlStateMaxItems(settings.opmlStateMaxItems),
-      opmlStateMaxAgeDays: opmlStateMaxAgeDays(settings.opmlStateMaxAgeDays),
+      opmlStateMaxItems: hasNoOpmlStateLimit ? DEFAULT_OPML_STATE_MAX_ITEMS : parsedOpmlStateMaxItems,
+      opmlStateMaxAgeDays: parsedOpmlStateMaxAgeDays,
       useInAppBrowser: settings.useInAppBrowser === true,
       widgetUseInAppBrowser: settings.widgetUseInAppBrowser === true,
     }
