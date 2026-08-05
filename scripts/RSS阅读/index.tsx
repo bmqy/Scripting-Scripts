@@ -1555,10 +1555,10 @@ function FeedManagementPage({
         const isFeedLoading = loadingFeedIds.includes(feed.id)
         const feedBorderColor = isFeedLoading
           ? [
-            'rgba(0, 122, 255, 0.28)',
-            'rgba(0, 122, 255, 0.70)',
-            'rgba(0, 122, 255, 1.0)',
-            'rgba(0, 122, 255, 0.70)',
+            '#007AFF',
+            '#0066FF',
+            '#00A8FF',
+            '#0066FF',
           ][loadingPulse]
           : 'rgba(142, 142, 147, 0.24)'
         return <HStack
@@ -1567,7 +1567,7 @@ function FeedManagementPage({
         spacing={8}
         contentShape='rect'
         onTapGesture={() => openFeed(feed)}
-        listRowSeparatorTint={isFeedLoading ? feedBorderColor : undefined}
+        listRowSeparatorTint={isFeedLoading ? { color: feedBorderColor, edges: 'bottom' } : undefined}
         animation={{ animation: Animation.linear(0.42), value: loadingPulse }}
         trailingSwipeActions={{
           allowsFullSwipe: false,
