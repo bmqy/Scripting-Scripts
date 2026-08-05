@@ -554,54 +554,11 @@ function articleItemsForFilter(data: StreamResponse, filter: ArticleFilter) {
   return pageItems
 }
 
-async function loadStreamItemsContents(settings: ReaderSettings, itemIds: string[]) {
-  const itemQuery = itemIds.map(id => '&i=' + encodeURIComponent(id)).join('')
-  return await fetchJSON<StreamResponse>(
-    settings,
-    settings.endpoint + '/reader/api/0/stream/items/contents?output=json' + itemQuery,
-    'RSS Reader Article Contents',
-    '读取文章内容',
-  )
-}
-
-async function loadArticlesForItemIds(settings: ReaderSettings, itemIds: string[]) {
-  if (itemIds.length === 0) return []
-
-  const contents = await loadStreamItemsContents(settings, itemIds)
-  const contentItems = contents.items || []
-  const contentById = new Map(
-    contentItems
-      .filter(item => typeof item.id === 'string' && item.id.trim())
-      .map(item => [item.id!.trim(), toArticle(item)] as const),
-  )
-
-  return itemIds
-    .map((itemId, index) => contentById.get(itemId) || (contentItems[index] ? toArticle(contentItems[index]) : undefined))
-    .filter((article): article is ReaderArticle => Boolean(article?.id))
-}
-
-async function loadUnreadArticlePage(
-  settings: ReaderSettings,
-  feedId: string,
-  continuation = '',
-  expectedUnreadCount = 0,
-): Promise<ArticlePage> {
-  const snapshotIds = decodeUnreadSnapshotContinuation(continuation)
-  const unreadItemIds = snapshotIds || await loadUnreadItemIds(settings, feedId, expectedUnreadCount)
-  const pageItemIds = unreadItemIds.slice(0, ARTICLE_PAGE_SIZE)
-  const items = await loadArticlesForItemIds(settings, pageItemIds)
-
-  return {
-    items,
-    continuation: encodeUnreadSnapshotContinuation(unreadItemIds.slice(ARTICLE_PAGE_SIZE)),
-  }
-}
 async function loadArticlePage(
   settings: ReaderSettings,
   feedId: string,
   filter: ArticleFilter,
   continuation = '',
-  expectedUnreadCount = 0,
 ): Promise<ArticlePage> {
   if (settings.mode === 'opml') {
     const offsetText = continuation.startsWith(OPML_PAGE_OFFSET_PREFIX)
@@ -667,10 +624,8 @@ async function loadArticlePage(
     if (!feed) throw new Error('OPML 中找不到当前 RSS 源。')
     return paginateItems(mapArticles(feed, await loadOpmlFeedArticles(feed, OPML_SCAN_LIMIT)))
   }
-  if (filter === 'unread') {
-    return await loadUnreadArticlePage(settings, feedId, continuation, expectedUnreadCount)
-  }
 
+  // 文章列表统一使用兼容性更好的 stream/contents；未读 ID 接口仅用于批量标记已读。
   const items: ReaderArticle[] = []
   const seenContinuations = new Set<string>()
   let cursor = continuation
@@ -979,7 +934,7 @@ function ArticleListPage({
     if (showLoading) setIsLoading(true)
     if (showLoading) setMessage('')
     try {
-      const page = await loadArticlePage(settings, feed.id, filter, continuation, feed.unreadCount)
+      const page = await loadArticlePage(settings, feed.id, filter, continuation)
       setPages((previous: ArticlePage[]) => {
         const next = index === 0 ? [] : previous.slice(0, index)
         next[index] = page
@@ -1577,18 +1532,14 @@ function FeedManagementPage({
         trailingSwipeActions={{
           allowsFullSwipe: false,
           actions: [
-            <Button
-              title='查看'
-              tint='systemGreen'
-              disabled={Boolean(busyFeedId)}
-              action={() => openFeed(feed)}
-            />,
-            <Button
-              title={feed.id === defaultFeedId ? '默认源' : '设为默认'}
-              tint='systemBlue'
-              disabled={feed.id === defaultFeedId || Boolean(busyFeedId)}
-              action={() => selectDefault(feed)}
-            />,
+            ...(settings.mode === 'opml' ? [] : [
+              <Button
+                title={feed.id === defaultFeedId ? '默认源' : '设为默认'}
+                tint='systemBlue'
+                disabled={feed.id === defaultFeedId || Boolean(busyFeedId)}
+                action={() => selectDefault(feed)}
+              />,
+            ]),
             ...(settings.mode === 'opml' ? [] : [
               <Button
                 title={busyFeedId === feed.id ? '处理中' : feed.unreadCount ? '全部已读' : '已读'}
