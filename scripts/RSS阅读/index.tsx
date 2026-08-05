@@ -1532,22 +1532,18 @@ function FeedManagementPage({
         trailingSwipeActions={{
           allowsFullSwipe: false,
           actions: [
-            ...(settings.mode === 'opml' ? [] : [
-              <Button
-                title={feed.id === defaultFeedId ? '默认源' : '设为默认'}
-                tint='systemBlue'
-                disabled={feed.id === defaultFeedId || Boolean(busyFeedId)}
-                action={() => selectDefault(feed)}
-              />,
-            ]),
-            ...(settings.mode === 'opml' ? [] : [
-              <Button
-                title={busyFeedId === feed.id ? '处理中' : feed.unreadCount ? '全部已读' : '已读'}
-                tint='orange'
-                disabled={!feed.unreadCount || Boolean(busyFeedId)}
-                action={() => { void markFeedRead(feed) }}
-              />,
-            ]),
+            <Button
+              title={feed.id === defaultFeedId ? '默认源' : '设为默认'}
+              tint='systemBlue'
+              disabled={feed.id === defaultFeedId || Boolean(busyFeedId)}
+              action={() => selectDefault(feed)}
+            />,
+            <Button
+              title={busyFeedId === feed.id ? '处理中' : feed.unreadCount ? '全部已读' : '已读'}
+              tint='orange'
+              disabled={!feed.unreadCount || Boolean(busyFeedId)}
+              action={() => { void markFeedRead(feed) }}
+            />,
             ...(feed.id === READING_LIST_ID ? [] : [
               <Button
                 title={busyFeedId === feed.id ? '删除中' : '删除'}
