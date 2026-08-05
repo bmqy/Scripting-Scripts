@@ -95,6 +95,35 @@ function opmlStateKey(feed: OpmlFeed, article: Pick<OpmlArticle, 'id'>) {
   return feed.xmlUrl + '\n' + article.id
 }
 
+function pruneState(state: OpmlReadState, settings: ReaderSettings, now = Date.now()) {
+  const cutoff = settings.opmlStateMaxAgeDays > 0
+    ? now - settings.opmlStateMaxAgeDays * 24 * 60 * 60 * 1000
+    : null
+  const entries = Object.entries(state.items)
+    .filter(([, record]) => cutoff === null || record.lastSeenAt >= cutoff)
+    .sort(([, left], [, right]) => right.lastSeenAt - left.lastSeenAt)
+  const limitedEntries = settings.opmlStateMaxItems > 0
+    ? entries.slice(0, settings.opmlStateMaxItems)
+    : entries
+  const items: OpmlReadState['items'] = {}
+  for (const [key, record] of limitedEntries) {
+    items[key] = record
+  }
+  return {
+    state: { version: 1 as const, items },
+    removedCount: Object.keys(state.items).length - limitedEntries.length,
+  }
+}
+
+async function pruneStoredState(settings: ReaderSettings) {
+  const state = await readState(settings.opmlStateBackend)
+  const result = pruneState(state, settings)
+  if (result.removedCount > 0) {
+    await writeState(settings.opmlStateBackend, result.state)
+  }
+  return result.removedCount
+}
+
 export function opmlArticleStateKey(feed: OpmlFeed, article: Pick<OpmlArticle, 'id'>) {
   return opmlStateKey(feed, article)
 }
@@ -188,7 +217,14 @@ async function writeState(backend: OpmlStateBackend, state: OpmlReadState) {
   writeStorageState(state)
 }
 
+export async function pruneOpmlReadState(settings: ReaderSettings) {
+  const operation = stateMutationPromise.then(() => pruneStoredState(settings))
+  stateMutationPromise = operation.then(() => undefined, () => undefined)
+  return await operation
+}
+
 export async function loadOpmlReadState(settings: ReaderSettings) {
+  await pruneOpmlReadState(settings)
   const state = await readState(settings.opmlStateBackend)
   return new Set(Object.keys(state.items))
 }
@@ -209,7 +245,8 @@ export async function markOpmlArticlesRead(settings: ReaderSettings, articleKeys
         lastSeenAt: now,
       }
     }
-    await writeState(settings.opmlStateBackend, state)
+    const limited = pruneState(state, settings, now).state
+    await writeState(settings.opmlStateBackend, limited)
     return addedCount
   })
   stateMutationPromise = operation.then(() => undefined, () => undefined)
@@ -229,7 +266,8 @@ export async function markOpmlArticlesUnread(settings: ReaderSettings, articleKe
         removedCount += 1
       }
     }
-    await writeState(settings.opmlStateBackend, state)
+    const limited = pruneState(state, settings).state
+    await writeState(settings.opmlStateBackend, limited)
     return removedCount
   })
   stateMutationPromise = operation.then(() => undefined, () => undefined)

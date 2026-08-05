@@ -14,6 +14,8 @@ export type ReaderSettings = {
   refreshIntervalMinutes: RefreshIntervalMinutes
   theme: ColorTheme
   opmlStateBackend: OpmlStateBackend
+  opmlStateMaxItems: OpmlStateMaxItems
+  opmlStateMaxAgeDays: OpmlStateMaxAgeDays
   useInAppBrowser: boolean
   widgetUseInAppBrowser: boolean
 }
@@ -24,6 +26,8 @@ export type TimeDisplay = 'absolute' | 'relative'
 export type RefreshIntervalMinutes = 1 | 3 | 5 | 15 | 30 | 60 | 120 | 180 | 360 | 720
 export type ColorTheme = 'system' | 'light' | 'dark'
 export type OpmlStateBackend = 'storage' | 'sqlite'
+export type OpmlStateMaxItems = 0 | 100 | 500 | 1000 | 5000 | 10000
+export type OpmlStateMaxAgeDays = 0 | 7 | 30 | 90 | 180 | 365 | 730
 
 export type ReaderAuthCache = {
   accountKey: string
@@ -42,8 +46,12 @@ const DEFAULT_TIME_DISPLAY: TimeDisplay = 'absolute'
 const DEFAULT_REFRESH_INTERVAL_MINUTES: RefreshIntervalMinutes = 30
 const DEFAULT_COLOR_THEME: ColorTheme = 'system'
 export const DEFAULT_OPML_STATE_BACKEND: OpmlStateBackend = 'storage'
+export const DEFAULT_OPML_STATE_MAX_ITEMS: OpmlStateMaxItems = 0
+export const DEFAULT_OPML_STATE_MAX_AGE_DAYS: OpmlStateMaxAgeDays = 0
 const REFRESH_INTERVAL_OPTIONS: RefreshIntervalMinutes[] = [1, 3, 5, 15, 30, 60, 120, 180, 360, 720]
 const COLOR_THEME_OPTIONS: ColorTheme[] = ['system', 'light', 'dark']
+const OPML_STATE_MAX_ITEM_OPTIONS: OpmlStateMaxItems[] = [0, 100, 500, 1000, 5000, 10000]
+const OPML_STATE_MAX_AGE_OPTIONS: OpmlStateMaxAgeDays[] = [0, 7, 30, 90, 180, 365, 730]
 
 export const READING_LIST_ID = 'user/-/state/com.google/reading-list'
 export const DEFAULT_FEED_NAME = '全部未读'
@@ -203,6 +211,18 @@ function opmlStateBackend(value: unknown): OpmlStateBackend {
   return value === 'sqlite' ? 'sqlite' : DEFAULT_OPML_STATE_BACKEND
 }
 
+function opmlStateMaxItems(value: unknown): OpmlStateMaxItems {
+  return typeof value === 'number' && OPML_STATE_MAX_ITEM_OPTIONS.includes(value as OpmlStateMaxItems)
+    ? value as OpmlStateMaxItems
+    : DEFAULT_OPML_STATE_MAX_ITEMS
+}
+
+function opmlStateMaxAgeDays(value: unknown): OpmlStateMaxAgeDays {
+  return typeof value === 'number' && OPML_STATE_MAX_AGE_OPTIONS.includes(value as OpmlStateMaxAgeDays)
+    ? value as OpmlStateMaxAgeDays
+    : DEFAULT_OPML_STATE_MAX_AGE_DAYS
+}
+
 function parseSettings(value: unknown): ReaderSettings | null {
   try {
     if (!value) return null
@@ -233,6 +253,8 @@ function parseSettings(value: unknown): ReaderSettings | null {
       refreshIntervalMinutes: refreshIntervalMinutes(settings.refreshIntervalMinutes),
       theme: colorTheme(settings.theme),
       opmlStateBackend: opmlStateBackend(settings.opmlStateBackend),
+      opmlStateMaxItems: opmlStateMaxItems(settings.opmlStateMaxItems),
+      opmlStateMaxAgeDays: opmlStateMaxAgeDays(settings.opmlStateMaxAgeDays),
       useInAppBrowser: settings.useInAppBrowser === true,
       widgetUseInAppBrowser: settings.widgetUseInAppBrowser === true,
     }
@@ -265,6 +287,8 @@ function matchesSettings(value: unknown, settings: ReaderSettings) {
     && saved.refreshIntervalMinutes === settings.refreshIntervalMinutes
     && saved.theme === settings.theme
     && saved.opmlStateBackend === settings.opmlStateBackend
+    && saved.opmlStateMaxItems === settings.opmlStateMaxItems
+    && saved.opmlStateMaxAgeDays === settings.opmlStateMaxAgeDays
     && saved.useInAppBrowser === settings.useInAppBrowser
     && saved.widgetUseInAppBrowser === settings.widgetUseInAppBrowser
 }

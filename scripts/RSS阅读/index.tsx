@@ -42,7 +42,11 @@ import {
     writeCachedAuth,
     type ColorTheme,
     DEFAULT_OPML_STATE_BACKEND,
+    DEFAULT_OPML_STATE_MAX_ITEMS,
+    DEFAULT_OPML_STATE_MAX_AGE_DAYS,
     type OpmlStateBackend,
+    type OpmlStateMaxItems,
+    type OpmlStateMaxAgeDays,
     type OpmlSourceType,
     type ReaderMode,
     type ReaderSettings,
@@ -52,6 +56,7 @@ import {
 import { parseOpml, loadOpmlFeedArticles, type OpmlFeed } from './opml'
 import {
   loadOpmlReadState,
+  pruneOpmlReadState,
   markOpmlArticlesRead,
   migrateOpmlReadState,
   opmlArticleStateKey,
@@ -1635,6 +1640,8 @@ function SettingsPage() {
   const [refreshIntervalMinutes, setRefreshIntervalMinutes] = useState<RefreshIntervalMinutes>(current?.refreshIntervalMinutes || 30)
   const [theme, setTheme] = useState<ColorTheme>(current?.theme || 'system')
   const [opmlStateBackend, setOpmlStateBackend] = useState<OpmlStateBackend>(current?.opmlStateBackend || DEFAULT_OPML_STATE_BACKEND)
+  const [opmlStateMaxItems, setOpmlStateMaxItems] = useState<OpmlStateMaxItems>(current?.opmlStateMaxItems ?? DEFAULT_OPML_STATE_MAX_ITEMS)
+  const [opmlStateMaxAgeDays, setOpmlStateMaxAgeDays] = useState<OpmlStateMaxAgeDays>(current?.opmlStateMaxAgeDays ?? DEFAULT_OPML_STATE_MAX_AGE_DAYS)
   const [useInAppBrowser, setUseInAppBrowser] = useState(current?.useInAppBrowser || false)
   const [widgetUseInAppBrowser, setWidgetUseInAppBrowser] = useState(current?.widgetUseInAppBrowser || false)
   const [feedId, setFeedId] = useState(current?.feedId || READING_LIST_ID)
@@ -1741,6 +1748,8 @@ function SettingsPage() {
         refreshIntervalMinutes: authenticatedSettings?.refreshIntervalMinutes || refreshIntervalMinutes,
         theme: authenticatedSettings?.theme || theme,
         opmlStateBackend: authenticatedSettings?.opmlStateBackend || opmlStateBackend,
+        opmlStateMaxItems: authenticatedSettings?.opmlStateMaxItems ?? opmlStateMaxItems,
+        opmlStateMaxAgeDays: authenticatedSettings?.opmlStateMaxAgeDays ?? opmlStateMaxAgeDays,
         useInAppBrowser: authenticatedSettings?.useInAppBrowser ?? useInAppBrowser,
         widgetUseInAppBrowser: authenticatedSettings?.widgetUseInAppBrowser ?? widgetUseInAppBrowser,
       }
@@ -1792,6 +1801,8 @@ function SettingsPage() {
       refreshIntervalMinutes: authenticatedSettings?.refreshIntervalMinutes || refreshIntervalMinutes,
       theme: authenticatedSettings?.theme || theme,
       opmlStateBackend: authenticatedSettings?.opmlStateBackend || opmlStateBackend,
+      opmlStateMaxItems: authenticatedSettings?.opmlStateMaxItems ?? opmlStateMaxItems,
+      opmlStateMaxAgeDays: authenticatedSettings?.opmlStateMaxAgeDays ?? opmlStateMaxAgeDays,
       useInAppBrowser: authenticatedSettings?.useInAppBrowser ?? useInAppBrowser,
       widgetUseInAppBrowser: authenticatedSettings?.widgetUseInAppBrowser ?? widgetUseInAppBrowser,
     }
@@ -1826,6 +1837,7 @@ function SettingsPage() {
     try {
       await migrateOpmlReadState(authenticatedSettings.opmlStateBackend, nextBackend)
       const settings = { ...authenticatedSettings, opmlStateBackend: nextBackend }
+      await pruneOpmlReadState(settings)
       if (!saveSettings(settings)) throw new Error('无法保存已读状态存储方式。')
       setAuthenticatedSettings(settings)
       setOpmlStateBackend(nextBackend)
@@ -1834,6 +1846,25 @@ function SettingsPage() {
       setWidgetMessage('')
     } catch (error) {
       setWidgetMessage(error instanceof Error ? error.message : '迁移 OPML 已读状态失败。')
+    }
+  }
+
+  const changeOpmlStateLimits = async (overrides: Partial<Pick<ReaderSettings, 'opmlStateMaxItems' | 'opmlStateMaxAgeDays'>>) => {
+    if (!authenticatedSettings || authenticatedSettings.mode !== 'opml') return
+
+    const settings = { ...authenticatedSettings, ...overrides }
+    setWidgetMessage('正在清理 OPML 已读状态...')
+    try {
+      const removedCount = await pruneOpmlReadState(settings)
+      if (!saveSettings(settings)) throw new Error('无法保存 OPML 已读状态上限。')
+      setAuthenticatedSettings(settings)
+      setOpmlStateMaxItems(settings.opmlStateMaxItems)
+      setOpmlStateMaxAgeDays(settings.opmlStateMaxAgeDays)
+      clearWidgetCache()
+      Widget.reloadAll()
+      setWidgetMessage(removedCount > 0 ? '已清理超出上限的 OPML 已读状态。' : '')
+    } catch (error) {
+      setWidgetMessage(error instanceof Error ? error.message : '更新 OPML 已读状态上限失败。')
     }
   }
 
@@ -1980,6 +2011,33 @@ function SettingsPage() {
                 <Text tag="sqlite">SQLite</Text>
               </Picker>
             </HStack>
+            <Picker
+              title="最多保存"
+              value={opmlStateMaxItems}
+              onChanged={(value) => { void changeOpmlStateLimits({ opmlStateMaxItems: value }) }}
+              pickerStyle="menu"
+            >
+              <Text tag={0}>不限</Text>
+              <Text tag={100}>100 条</Text>
+              <Text tag={500}>500 条</Text>
+              <Text tag={1000}>1000 条</Text>
+              <Text tag={5000}>5000 条</Text>
+              <Text tag={10000}>10000 条</Text>
+            </Picker>
+            <Picker
+              title="保留天数"
+              value={opmlStateMaxAgeDays}
+              onChanged={(value) => { void changeOpmlStateLimits({ opmlStateMaxAgeDays: value }) }}
+              pickerStyle="menu"
+            >
+              <Text tag={0}>不限</Text>
+              <Text tag={7}>7 天</Text>
+              <Text tag={30}>30 天</Text>
+              <Text tag={90}>90 天</Text>
+              <Text tag={180}>180 天</Text>
+              <Text tag={365}>365 天</Text>
+              <Text tag={730}>730 天</Text>
+            </Picker>
           ) : null}
         </Section>
       ) : sourceMode === 'opml' ? (
@@ -2079,6 +2137,8 @@ function SettingsPage() {
               setOpmlUrlInput(nextSettings.mode === 'opml' && nextSettings.opmlSourceType === 'url' ? nextSettings.opmlSource : '')
               setOpmlFeeds(nextSettings.mode === 'opml' ? nextSettings.opmlFeeds : [])
               setOpmlStateBackend(nextSettings.opmlStateBackend)
+              setOpmlStateMaxItems(nextSettings.opmlStateMaxItems)
+              setOpmlStateMaxAgeDays(nextSettings.opmlStateMaxAgeDays)
               setFeedId(nextSettings.feedId)
               setFeedName(nextSettings.feedName)
             }}
