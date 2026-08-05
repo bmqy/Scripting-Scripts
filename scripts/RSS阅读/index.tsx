@@ -1950,7 +1950,7 @@ function SettingsPage() {
       }}
     >
       <HStack
-        alignment="center"
+        alignment="bottom"
         listRowInsets={{ top: 18, bottom: 12, leading: 0, trailing: 0 }}
         listRowSeparator="hidden"
       >
