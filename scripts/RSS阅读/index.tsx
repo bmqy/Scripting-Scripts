@@ -1955,7 +1955,7 @@ function SettingsPage() {
         listRowSeparator="hidden"
       >
         <Text font="largeTitle" fontWeight="bold">RSS 阅读</Text>
-        <HStack alignment="center" spacing={6}>
+        <HStack alignment="bottom" spacing={6}>
           <Link url={GITHUB_REPOSITORY_URL}>
             <Image
               imageUrl="https://github.com/favicon.ico"
