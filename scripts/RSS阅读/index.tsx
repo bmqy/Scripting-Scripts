@@ -1944,8 +1944,8 @@ function SettingsPage() {
         listRowSeparator="hidden"
       >
         <Text font="largeTitle" fontWeight="bold">RSS 阅读</Text>
-        <HStack alignment="lastTextBaseline" spacing={6} offset={{ x: 0, y: 3 }}>
-          <Link url={GITHUB_REPOSITORY_URL} frame={{ width: 20, height: 20, alignment: 'center' }}>
+        <Link url={GITHUB_REPOSITORY_URL}>
+          <HStack alignment="lastTextBaseline" spacing={6} offset={{ x: 0, y: 3 }}>
             <Image
               imageUrl="https://github.com/favicon.ico"
               resizable={true}
@@ -1953,11 +1953,11 @@ function SettingsPage() {
               placeholder={<Image systemName="link" foregroundStyle="systemBlue" />}
               frame={{ width: 20, height: 20, alignment: 'center' }}
             />
-          </Link>
-          <Text font="caption" foregroundStyle="secondaryLabel" baselineOffset={1}>v{SCRIPT_VERSION}</Text>
-        </HStack>
+            <Text font="caption" foregroundStyle="secondaryLabel" baselineOffset={1}>v{SCRIPT_VERSION}</Text>
+          </HStack>
+        </Link>
         <Spacer />
-        <Menu label={<Image systemName="ellipsis.circle" />}>
+        <Menu label={<Image systemName="circle.grid.3x1" />}>
           <Button
             title="预览"
             systemImage="rectangle.grid.1x2"
