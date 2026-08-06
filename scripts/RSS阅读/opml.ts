@@ -5,6 +5,79 @@ export type OpmlFeed = {
   htmlUrl?: string
 }
 
+function escapeXml(value: string) {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;')
+}
+
+function normalizedHttpUrl(value: string) {
+  try {
+    const url = new URL(value.trim())
+    return url.protocol === 'http:' || url.protocol === 'https:' ? url.toString() : ''
+  } catch {
+    return ''
+  }
+}
+
+export function subscriptionToOpmlFeed(id: string, name: string): OpmlFeed | null {
+  if (!id.startsWith('feed/')) return null
+
+  const rawUrl = id.slice('feed/'.length).trim()
+  const candidates = [rawUrl]
+  try {
+    candidates.push(decodeURIComponent(rawUrl))
+  } catch {
+    // ?? ID ????????????? URL?
+  }
+
+  const xmlUrl = candidates.map(normalizedHttpUrl).find(Boolean) || ''
+  if (!xmlUrl) return null
+
+  return {
+    id: `opml:${xmlUrl}`,
+    name: name.trim() || xmlUrl,
+    xmlUrl,
+  }
+}
+
+export function serializeOpml(feeds: OpmlFeed[], title = 'RSS 阅读') {
+  const seen = new Set<string>()
+  const outlines = feeds
+    .map(feed => {
+      const xmlUrl = normalizedHttpUrl(feed.xmlUrl)
+      if (!xmlUrl || seen.has(xmlUrl)) return null
+      seen.add(xmlUrl)
+      const name = feed.name.trim() || xmlUrl
+      const htmlUrl = feed.htmlUrl ? normalizedHttpUrl(feed.htmlUrl) : ''
+      const attributes = [
+        `text="${escapeXml(name)}"`,
+        `title="${escapeXml(name)}"`,
+        'type="rss"',
+        `xmlUrl="${escapeXml(xmlUrl)}"`,
+        ...(htmlUrl ? [`htmlUrl="${escapeXml(htmlUrl)}"`] : []),
+      ]
+      return `    <outline ${attributes.join(' ')} />`
+    })
+    .filter((outline): outline is string => Boolean(outline))
+
+  return [
+    '<?xml version="1.0" encoding="UTF-8"?>',
+    '<opml version="2.0">',
+    '  <head>',
+    `    <title>${escapeXml(title)}</title>`,
+    '  </head>',
+    '  <body>',
+    ...outlines,
+    '  </body>',
+    '</opml>',
+    '',
+  ].join('\n')
+}
+
 declare function fetch(input: string, init?: {
   headers?: Record<string, string>
   timeout?: number

@@ -53,7 +53,13 @@ import {
     type RefreshIntervalMinutes,
     type TimeDisplay,
 } from './config'
-import { parseOpml, loadOpmlFeedArticles, type OpmlFeed } from './opml'
+import {
+  parseOpml,
+  loadOpmlFeedArticles,
+  serializeOpml,
+  subscriptionToOpmlFeed,
+  type OpmlFeed,
+} from './opml'
 import {
   loadOpmlReadState,
   pruneOpmlReadState,
@@ -75,7 +81,9 @@ function getDocumentPicker(): DocumentPickerApi {
 }
 
 type FileManagerApi = {
+  documentsDirectory?: string
   readAsString(path: string): Promise<string>
+  writeAsString?: (path: string, content: string) => Promise<void>
 }
 
 function getFileManager(): FileManagerApi {
@@ -1598,6 +1606,7 @@ function SettingsPage() {
   const [widgetSavedToast, setWidgetSavedToast] = useState(false)
   const [widgetMessage, setWidgetMessage] = useState('')
   const [isSavingAccount, setIsSavingAccount] = useState(false)
+  const [isExportingOpml, setIsExportingOpml] = useState(false)
 
   let normalizedAccountEndpoint = ''
   try {
@@ -1776,6 +1785,39 @@ function SettingsPage() {
       setIsSavingAccount(false)
     }
   }
+  const exportOpml = async () => {
+    if (!authenticatedSettings || isExportingOpml) return
+
+    setIsExportingOpml(true)
+    setAccountToastMessage('正在导出 OPML...')
+    try {
+      const feeds = authenticatedSettings.mode === 'opml'
+        ? authenticatedSettings.opmlFeeds
+        : (await loadSubscriptions(authenticatedSettings, true))
+          .map(feed => subscriptionToOpmlFeed(feed.id, feed.name))
+          .filter((feed): feed is OpmlFeed => Boolean(feed))
+
+      if (feeds.length === 0) {
+        throw new Error('未找到可导出的 RSS 订阅源。')
+      }
+
+      const now = new Date()
+      const pad = (value: number) => String(value).padStart(2, '0')
+      const fileName = `rss-reader-${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}.opml`
+      const fileManager = getFileManager()
+      if (typeof fileManager.documentsDirectory !== 'string' || typeof fileManager.writeAsString !== 'function') {
+        throw new Error('当前 Scripting App 不支持文件导出，请升级 Scripting App 后重试。')
+      }
+      const path = `${fileManager.documentsDirectory}/${fileName}`
+      await fileManager.writeAsString(path, serializeOpml(feeds))
+      setAccountToastMessage(`OPML 导出成功，已保存 ${feeds.length} 个订阅源。`)
+    } catch (error) {
+      setAccountToastMessage(error instanceof Error ? error.message : 'OPML 导出失败，请重试。')
+    } finally {
+      setIsExportingOpml(false)
+    }
+  }
+
   const changeOpmlStateBackend = async (nextBackend: OpmlStateBackend) => {
     if (!authenticatedSettings || authenticatedSettings.mode !== 'opml') return
     if (nextBackend === authenticatedSettings.opmlStateBackend) return
@@ -1915,14 +1957,20 @@ function SettingsPage() {
           <Text font="caption" foregroundStyle="secondaryLabel" baselineOffset={1}>v{SCRIPT_VERSION}</Text>
         </HStack>
         <Spacer />
-        {isAccountConfigured ? (
+        <Menu title="更多" systemImage="ellipsis">
           <Button
-            buttonStyle="plain"
+            title="预览"
+            systemImage="rectangle.grid.1x2"
+            disabled={!isAccountConfigured}
             action={() => { void Widget.preview({ family: 'systemMedium' }) }}
-          >
-            <Text foregroundStyle="systemBlue">预览</Text>
-          </Button>
-        ) : null}
+          />
+          <Button
+            title="导出 OPML"
+            systemImage="square.and.arrow.up"
+            disabled={!isAccountConfigured || isExportingOpml}
+            action={() => { void exportOpml() }}
+          />
+        </Menu>
       </HStack>
       <Section header={<Text>订阅方式</Text>}>
         <Picker
