@@ -1957,7 +1957,7 @@ function SettingsPage() {
           <Text font="caption" foregroundStyle="secondaryLabel" baselineOffset={1}>v{SCRIPT_VERSION}</Text>
         </HStack>
         <Spacer />
-        <Menu title="更多" systemImage="ellipsis">
+        <Menu label={<Image systemName="ellipsis" />}>
           <Button
             title="预览"
             systemImage="rectangle.grid.1x2"
