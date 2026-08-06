@@ -70,17 +70,8 @@ import {
 } from './opmlReadState'
 type DocumentPickerApi = {
   pickFiles(options?: { shouldShowFileExtensions?: boolean }): Promise<string[]>
-  exportFiles(options: {
-    initialDirectory?: string
-    files: Array<{ data: DataApi; name: string }>
-  }): Promise<string[]>
+  pickDirectory(initialDirectory?: string): Promise<string | null>
   stopAcessingSecurityScopedResources(): void
-}
-
-type DataApi = object
-
-type DataFactoryApi = {
-  fromRawString(value: string, encoding?: string): DataApi | null
 }
 
 function getDocumentPicker(): DocumentPickerApi {
@@ -89,14 +80,6 @@ function getDocumentPicker(): DocumentPickerApi {
     throw new Error('当前 Scripting App 不支持文档选择器，请升级 Scripting App 后重试。')
   }
   return picker
-}
-
-function getDataFactory(): DataFactoryApi {
-  const data = (globalThis as unknown as { Data?: DataFactoryApi }).Data
-  if (!data || typeof data.fromRawString !== 'function') {
-    throw new Error('当前 Scripting App 不支持文件导出，请升级 Scripting App 后重试。')
-  }
-  return data
 }
 
 type FileManagerApi = {
@@ -1824,21 +1807,26 @@ function SettingsPage() {
       const pad = (value: number) => String(value).padStart(2, '0')
       const fileName = `rss-reader-${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}.opml`
       const picker = getDocumentPicker()
-      if (typeof picker.exportFiles !== 'function') {
+      if (typeof picker.pickDirectory !== 'function') {
         throw new Error('当前 Scripting App 不支持文件导出，请升级 Scripting App 后重试。')
       }
-      const data = getDataFactory().fromRawString(serializeOpml(feeds), 'utf-8')
-      if (!data) {
-        throw new Error('OPML 文件生成失败，请重试。')
+      const fileManager = getFileManager()
+      if (typeof fileManager.writeAsString !== 'function') {
+        throw new Error('当前 Scripting App 不支持文件导出，请升级 Scripting App 后重试。')
       }
-      const exportedPaths = await picker.exportFiles({
-        files: [{ data, name: fileName }],
-      })
-      if (exportedPaths.length === 0) {
+      setAccountToastMessage('请选择 OPML 文件保存位置...')
+      const selectedDirectory = await picker.pickDirectory()
+      if (!selectedDirectory) {
         setAccountToastMessage('已取消 OPML 导出。')
         return
       }
-      setAccountToastMessage(`OPML 导出成功，已保存到：${exportedPaths[0]}`)
+      const path = `${selectedDirectory}/${fileName}`
+      try {
+        await fileManager.writeAsString(path, serializeOpml(feeds))
+      } finally {
+        picker.stopAcessingSecurityScopedResources()
+      }
+      setAccountToastMessage(`OPML 导出成功，已保存到：${path}`)
     } catch (error) {
       setAccountToastMessage(error instanceof Error ? error.message : 'OPML 导出失败，请重试。')
     } finally {
