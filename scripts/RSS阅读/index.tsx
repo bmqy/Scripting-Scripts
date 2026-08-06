@@ -1,5 +1,6 @@
 import {
     Button,
+    Circle,
     Form,
     HStack,
     Image,
@@ -1944,7 +1945,7 @@ function SettingsPage() {
         listRowSeparator="hidden"
       >
         <Text font="largeTitle" fontWeight="bold">RSS 阅读</Text>
-        <Link url={GITHUB_REPOSITORY_URL}>
+        <Link url={GITHUB_REPOSITORY_URL} buttonStyle="plain">
           <HStack alignment="lastTextBaseline" spacing={6} offset={{ x: 0, y: 3 }}>
             <Image
               imageUrl="https://github.com/favicon.ico"
@@ -1957,7 +1958,15 @@ function SettingsPage() {
           </HStack>
         </Link>
         <Spacer />
-        <Menu label={<Image systemName="circle.grid.3x1" />}>
+        <Menu
+          label={
+            <HStack spacing={3} frame={{ width: 24, height: 24, alignment: 'center' }}>
+              <Circle fill="secondaryLabel" frame={{ width: 4, height: 4 }} />
+              <Circle fill="secondaryLabel" frame={{ width: 4, height: 4 }} />
+              <Circle fill="secondaryLabel" frame={{ width: 4, height: 4 }} />
+            </HStack>
+          }
+        >
           <Button
             title="预览"
             systemImage="rectangle.grid.1x2"
