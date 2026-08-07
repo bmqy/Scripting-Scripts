@@ -56,20 +56,20 @@ OPML 已读状态只保存在当前设备。SQLite 数据库使用 Scripting 的
 
 #### 使用截图
 
-- API 登录
-![API 登录](https://image.bmqy.net/upload/2026-08/微信图片_20260807124234_125_131.png)
-- OPML 导入
-![OPML 导入](https://image.bmqy.net/upload/2026-08/微信图片_20260807124227_119_131.jpg)
-- RSS 源列表
-![RSS 源列表](https://image.bmqy.net/upload/2026-08/微信图片_20260807124228_120_131.png)
-- RSS 源文章列表
-![RSS 源文章列表](https://image.bmqy.net/upload/2026-08/微信图片_20260807124230_121_131.png)
-- 小号组件
-![小号组件](https://image.bmqy.net/upload/2026-08/微信图片_20260807124231_122_131.png)
-- 中号组件
-![中号组件](https://image.bmqy.net/upload/2026-08/微信图片_20260807124232_123_131.png)
-- 大号组件
-![大号组件](https://image.bmqy.net/upload/2026-08/微信图片_20260807124233_124_131.png)
+- API 登录<br>
+  <img src="https://image.bmqy.net/upload/2026-08/微信图片_20260807124234_125_131.png" alt="API 登录" width="200">
+- OPML 导入<br>
+  <img src="https://image.bmqy.net/upload/2026-08/微信图片_20260807124227_119_131.jpg" alt="OPML 导入" width="200">
+- RSS 源列表<br>
+  <img src="https://image.bmqy.net/upload/2026-08/微信图片_20260807124228_120_131.png" alt="RSS 源列表" width="200">
+- RSS 源文章列表<br>
+  <img src="https://image.bmqy.net/upload/2026-08/微信图片_20260807124230_121_131.png" alt="RSS 源文章列表" width="200">
+- 小号组件<br>
+  <img src="https://image.bmqy.net/upload/2026-08/微信图片_20260807124231_122_131.png" alt="小号组件" width="200">
+- 中号组件<br>
+  <img src="https://image.bmqy.net/upload/2026-08/微信图片_20260807124232_123_131.png" alt="中号组件" width="200">
+- 大号组件<br>
+  <img src="https://image.bmqy.net/upload/2026-08/微信图片_20260807124233_124_131.png" alt="大号组件" width="200">
 
 
 
