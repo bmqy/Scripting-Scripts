@@ -54,6 +54,23 @@
 
 OPML 已读状态只保存在当前设备。SQLite 数据库使用 Scripting 的 App Group 文档目录，Storage 和 SQLite 两种方式都不会修改原始 OPML 文件；状态会按设置的条数或天数自动清理，至少需要设置一项限制。
 
+#### 使用截图
+
+- API 登录
+![API 登录](https://image.bmqy.net/upload/2026-08/微信图片_20260807124234_125_131.png)
+- OPML 导入
+![OPML 导入](https://image.bmqy.net/upload/2026-08/微信图片_20260807124227_119_131.jpg)
+- RSS 源列表
+![RSS 源列表](https://image.bmqy.net/upload/2026-08/微信图片_20260807124228_120_131.png)
+- RSS 源文章列表
+![RSS 源文章列表](https://image.bmqy.net/upload/2026-08/微信图片_20260807124230_121_131.png)
+- 小号组件
+![小号组件](https://image.bmqy.net/upload/2026-08/微信图片_20260807124231_122_131.png)
+- 中号组件
+![中号组件](https://image.bmqy.net/upload/2026-08/微信图片_20260807124232_123_131.png)
+- 大号组件
+![大号组件](https://image.bmqy.net/upload/2026-08/微信图片_20260807124233_124_131.png)
+
 
 
 ## 开发环境设置
