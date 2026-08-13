@@ -250,3 +250,12 @@
 - script.json 版本更新为 1.3.0，README 同步修正文案。
 - 强制 npm run build 通过；dist 构建产物已恢复，不纳入提交。
 - npx tsc --noEmit 受仓库缺失 dts/scripting.d.ts 阻塞，属于既有环境限制。
+
+## 2026-08-14 RSS 主页工具栏显示修正
+
+- 执行者：Codex。
+- 编辑前同步 origin/dev；main 未修改，版本号保持 1.0.0。
+- 根因：主页默认 UI 直接挂载 HomeReaderPage，没有 NavigationStack，ArticleListPage 的 navigationTitle/toolbar 没有导航容器承载。
+- 修复：home_screen_default_ui.tsx 为配置页和文章页增加 NavigationStack 包装。
+- npm run build、包构建和 git diff --check 通过；dist 已恢复，不纳入提交。
+- 未连接 Scripting App/iOS，仍需设备确认主页顶部工具栏真实显示。

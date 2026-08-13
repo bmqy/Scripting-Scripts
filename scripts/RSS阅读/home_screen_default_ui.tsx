@@ -1,5 +1,6 @@
 import {
   Link,
+  NavigationStack,
   Script,
   Text,
   VStack,
@@ -39,9 +40,11 @@ function MissingSettingsView() {
 export default function HomeScreenDefaultUI() {
   const [settings, setSettings] = useState<ReaderSettings | null>(loadSettings())
 
-  if (!settings) return <MissingSettingsView />
+  if (!settings) {
+    return <NavigationStack><MissingSettingsView /></NavigationStack>
+  }
 
   return (
-    <HomeReaderPage settings={settings} />
+    <NavigationStack><HomeReaderPage settings={settings} /></NavigationStack>
   )
 }
