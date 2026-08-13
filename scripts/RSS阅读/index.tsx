@@ -825,12 +825,18 @@ function ArticleListPage({
   onUnreadCountChanged,
   onNextFeed,
   hasNextFeed,
+  sourceOptions,
+  onSourceSelected,
+  onRefreshArticles,
 }: {
   settings: ReaderSettings
   feed: FeedOverview
   onUnreadCountChanged: (feedId: string, delta: number) => void
   onNextFeed: () => void
   hasNextFeed: boolean
+  sourceOptions?: FeedOverview[]
+  onSourceSelected?: (feed: FeedOverview) => void
+  onRefreshArticles?: () => void
 }) {
   const isOpml = settings.mode === 'opml'
   const [pages, setPages] = useState<ArticlePage[]>([])
@@ -1135,11 +1141,31 @@ function ArticleListPage({
       onChanged: handleLeadingTargetChanged,
     }}
       toolbar={{
-        topBarTrailing: <Menu title={ARTICLE_FILTER_LABELS[articleFilter]}>
-          <Button title='未读' action={() => selectFilter('unread')} />
-          <Button title='已读' action={() => selectFilter('read')} />
-          <Button title='全部' action={() => selectFilter('all')} />
-        </Menu>,
+        topBarTrailing: sourceOptions && onSourceSelected ? (
+          <HStack alignment='center' spacing={8}>
+            <Menu title='切换源'>
+              {sourceOptions.map(option => (
+                <Button
+                  key={option.id}
+                  title={option.id === feed.id ? `✓ ${option.name}` : option.name}
+                  action={() => onSourceSelected(option)}
+                />
+              ))}
+            </Menu>
+            <Menu title={ARTICLE_FILTER_LABELS[articleFilter]}>
+              <Button title='未读' action={() => selectFilter('unread')} />
+              <Button title='已读' action={() => selectFilter('read')} />
+              <Button title='全部' action={() => selectFilter('all')} />
+            </Menu>
+            {onRefreshArticles ? <Button title='刷新' action={onRefreshArticles} /> : null}
+          </HStack>
+        ) : (
+          <Menu title={ARTICLE_FILTER_LABELS[articleFilter]}>
+            <Button title='未读' action={() => selectFilter('unread')} />
+            <Button title='已读' action={() => selectFilter('read')} />
+            <Button title='全部' action={() => selectFilter('all')} />
+          </Menu>
+        ),
       }}
   >
     <LazyVStack alignment='leading' spacing={10} scrollTargetLayout>
@@ -1285,6 +1311,93 @@ function ArticleListPage({
       </Section> : null}
     </LazyVStack>
   </ScrollView>
+}
+
+export function HomeReaderPage({ settings }: { settings: ReaderSettings }) {
+  const [feeds, setFeeds] = useState<FeedOverview[]>([])
+  const [selectedFeed, setSelectedFeed] = useState<FeedOverview | null>(null)
+  const [articleListSession, setArticleListSession] = useState(0)
+  const [isLoadingFeeds, setIsLoadingFeeds] = useState(true)
+  const [message, setMessage] = useState('')
+  const isRefreshingRef = useRef(false)
+
+  const refreshFeeds = async (forceRefresh = false, remountArticles = false) => {
+    if (isRefreshingRef.current) return
+    isRefreshingRef.current = true
+    setIsLoadingFeeds(true)
+    setMessage('')
+
+    try {
+      const nextFeeds = await loadFeedOverview(settings, forceRefresh)
+      setFeeds(nextFeeds)
+      setSelectedFeed(previous => {
+        const preferredId = previous?.id || settings.feedId
+        return nextFeeds.find(feed => feed.id === preferredId) || nextFeeds[0] || null
+      })
+      if (remountArticles) setArticleListSession(previous => previous + 1)
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : '无法加载 RSS 源列表。')
+    } finally {
+      isRefreshingRef.current = false
+      setIsLoadingFeeds(false)
+    }
+  }
+
+  useEffect(() => {
+    void refreshFeeds()
+  }, [])
+
+  const selectSource = (feed: FeedOverview) => {
+    if (feed.id === selectedFeed?.id) return
+    setSelectedFeed(feed)
+    setArticleListSession(previous => previous + 1)
+    setMessage('')
+  }
+
+  const onUnreadCountChanged = (feedId: string, delta: number) => {
+    setFeeds(previous => previous.map(feed => feed.id === feedId
+      ? { ...feed, unreadCount: Math.max(0, feed.unreadCount - delta) }
+      : feed))
+    setSelectedFeed(previous => previous && previous.id === feedId
+      ? { ...previous, unreadCount: Math.max(0, previous.unreadCount - delta) }
+      : previous)
+  }
+
+  const selectNextFeed = () => {
+    if (!selectedFeed) return
+    const currentIndex = feeds.findIndex(feed => feed.id === selectedFeed.id)
+    const nextFeed = currentIndex >= 0 ? feeds[currentIndex + 1] : undefined
+    if (nextFeed) selectSource(nextFeed)
+  }
+
+  if (!selectedFeed) {
+    return <List
+      navigationTitle='RSS 阅读'
+      navigationBarTitleDisplayMode='inline'
+      toolbar={{
+        topBarTrailing: <Button
+          title='刷新'
+          disabled={isLoadingFeeds}
+          action={() => { void refreshFeeds(true) }}
+        />,
+      }}
+    >
+      <Text>{message || (isLoadingFeeds ? '正在加载默认源...' : '没有可用的 RSS 源。')}</Text>
+    </List>
+  }
+
+  const selectedIndex = feeds.findIndex(feed => feed.id === selectedFeed.id)
+  return <ArticleListPage
+    key={selectedFeed.id + '-' + articleListSession}
+    settings={settings}
+    feed={selectedFeed}
+    sourceOptions={feeds}
+    onSourceSelected={selectSource}
+    onRefreshArticles={() => { void refreshFeeds(true, true) }}
+    onUnreadCountChanged={onUnreadCountChanged}
+    onNextFeed={selectNextFeed}
+    hasNextFeed={selectedIndex >= 0 && selectedIndex < feeds.length - 1}
+  />
 }
 
 export function FeedManagementPage({

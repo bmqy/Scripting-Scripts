@@ -6,7 +6,7 @@ import {
   modifiers,
   useState,
 } from 'scripting'
-import { FeedManagementPage } from './index'
+import { HomeReaderPage } from './index'
 import { loadSettings, type ReaderSettings } from './config'
 
 const READER_SCRIPT_NAME = 'RSS 阅读'
@@ -42,9 +42,6 @@ export default function HomeScreenDefaultUI() {
   if (!settings) return <MissingSettingsView />
 
   return (
-    <FeedManagementPage
-      settings={settings}
-      onDefaultChanged={(nextSettings) => setSettings(nextSettings)}
-    />
+    <HomeReaderPage settings={settings} />
   )
 }

@@ -1,12 +1,14 @@
 ﻿{
   "date": "2026-08-13",
   "executor": "Codex",
-  "task": "为 RSS 阅读主页默认 UI 增加源切换、分页/末页切源和离屏自动已读",
+  "task": "修正 RSS 阅读主页默认展示逻辑：默认源文章列表、右上角切换源与刷新、底部分页",
   "module": "scripts/RSS阅读/home_screen_default_ui.tsx, scripts/RSS阅读/index.tsx",
   "currentImplementation": {
-    "homeEntry": "home_screen_default_ui.tsx 默认导出函数组件，配置完成后直接承载 index.tsx 导出的 FeedManagementPage；未配置时提供打开设置入口。",
-    "sourceSwitching": "FeedManagementPage 展示全部未读和各 RSS 源，选择源进入 ArticleListPage，文章列表末页可切换下一个源。",
-    "pagination": "ArticleListPage 使用 stream/contents 或 OPML offset/快照 continuation 分页，支持上一页、下一页和末页判断。",
+    "homeEntry": "home_screen_default_ui.tsx 默认导出函数组件，配置完成后承载 index.tsx 导出的 HomeReaderPage；未配置时提供打开设置入口。",
+    "defaultView": "HomeReaderPage 加载源列表后优先选择 settings.feedId 对应的默认源，直接渲染 ArticleListPage，不展示源管理列表。",
+    "sourceSwitching": "ArticleListPage 右上角提供切换源菜单；选择源只切换当前主页文章，不改变已保存的默认源。",
+    "refresh": "右上角刷新会重新加载源列表和未读数，并通过 session 重挂载当前 ArticleListPage 以重新加载文章。",
+    "pagination": "ArticleListPage 使用 stream/contents 或 OPML offset/快照 continuation 分页，底部提供上一页、下一页和末页切换下一个源。",
     "readState": "文章行 onDisappear 进入延迟去重队列，滚动确认后批量调用 markItemsAsRead，并同步当前源未读数和已读状态。",
     "lifecycle": "index.tsx 仅在 Script.env === index 时执行 run，主页导入页面组件不会触发 Navigation.present 或 Script.exit。"
   },

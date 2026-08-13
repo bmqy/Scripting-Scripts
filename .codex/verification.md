@@ -213,3 +213,12 @@
 - 生命周期：主页导入 index.tsx 不会执行普通脚本 Navigation.present/Script.exit；主页环境也不会执行 Widget.reloadAll。
 - 构建：npm run build 通过；dist 已恢复。
 - 遗留风险：滚动加载仍是现有按钮分页模式，不是自动追加下一页；真机需确认 Scripting 主页环境的 Navigation/List/ScrollView 行为。
+
+## 2026-08-13 RSS 主页默认文章列表修正验证报告
+
+- 默认展示：主页配置存在时调用 HomeReaderPage，优先显示 settings.feedId 对应源的 ArticleListPage；不再展示 FeedManagementPage 源管理列表。
+- 顶部操作：文章页 toolbar 在主页模式显示切换源 Menu、筛选 Menu 和刷新 Button；普通脚本页面继续只显示筛选 Menu。
+- 刷新行为：刷新源列表和未读数后通过 articleListSession 重挂载当前文章页，触发第一页文章重新加载。
+- 底部操作：ArticleListPage 继续提供上一页、下一页和最后一页切换下一个源。
+- 已读行为：文章 onDisappear、滚动状态保护、延迟去重队列和批量标记已读逻辑未改变。
+- 构建与包检查通过；类型检查受缺少 Scripting 声明阻塞；未做真机主页验证。

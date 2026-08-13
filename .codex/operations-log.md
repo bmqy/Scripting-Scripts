@@ -238,3 +238,15 @@
 - script.json 版本更新为 1.2.0，README 补充主页交互说明。
 - npm run build 通过，dist 构建产物已恢复，不纳入提交。
 - npx tsc --noEmit 仍受仓库缺失 dts/scripting.d.ts 阻塞，属于既有环境限制。
+
+## 2026-08-13 RSS 主页默认文章列表修正
+
+- 执行者：Codex。
+- 编辑前同步 origin/dev；main 未修改。
+- 修正主页入口：不再直接显示 FeedManagementPage 源管理列表，新增 HomeReaderPage，初始化后优先选择 settings.feedId 默认源并直接显示 ArticleListPage。
+- ArticleListPage 右上角增加主页专用的切换源菜单和刷新按钮；普通脚本源管理页保持原有工具栏。
+- 切换源通过 key/session 重挂载文章页，刷新通过重新加载源列表、未读数并重挂载当前文章页。
+- 底部分页、末页切换下一个源和 onDisappear 离屏已读逻辑继续复用既有实现。
+- script.json 版本更新为 1.3.0，README 同步修正文案。
+- 强制 npm run build 通过；dist 构建产物已恢复，不纳入提交。
+- npx tsc --noEmit 受仓库缺失 dts/scripting.d.ts 阻塞，属于既有环境限制。

@@ -240,3 +240,13 @@
 - 差异检查：git diff --check 通过。
 - 类型检查：npx tsc --noEmit 未通过，原因是缺少 dts/scripting.d.ts，且现有项目文件同样出现 scripting/JSX 运行时类型错误。
 - 设备验证：未连接 Scripting App/iOS，尚未实测主页源切换、分页滚动、离屏回调和多源末页切换。
+
+## 2026-08-13 RSS 主页默认文章列表修正
+
+- 冒烟构建：强制 npm run build 通过，RSS 阅读和限号脚本均成功打包。
+- 包内容检查：dist/RSS阅读.scripting 包含 home_screen_default_ui.tsx、index.tsx 和 script.json。
+- 元数据检查：script.json JSON 解析通过，版本为 1.3.0，entry 仍为 index.tsx。
+- 源码检查：HomeReaderPage 使用 settings.feedId 初始化默认源；ArticleListPage 右上角包含切换源和刷新；底部保留分页及末页下一个源；文章行保留 onDisappear。
+- 差异检查：git diff --check 通过，dist 已恢复。
+- 类型检查：npx tsc --noEmit 未通过，原因是缺少 dts/scripting.d.ts；同时现有文件出现 scripting 模块和 JSX 工厂错误。
+- 设备验证：未连接 Scripting App/iOS，尚未实测主页默认源加载、顶部菜单、刷新重载和分页滚动。
