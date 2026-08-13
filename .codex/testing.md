@@ -250,3 +250,11 @@
 - 差异检查：git diff --check 通过，dist 已恢复。
 - 类型检查：npx tsc --noEmit 未通过，原因是缺少 dts/scripting.d.ts；同时现有文件出现 scripting 模块和 JSX 工厂错误。
 - 设备验证：未连接 Scripting App/iOS，尚未实测主页默认源加载、顶部菜单、刷新重载和分页滚动。
+
+## 2026-08-14 RSS 标题切换源调整
+
+- 冒烟构建：npm run build 通过，RSS 阅读脚本成功打包，限号脚本无变更。
+- 版本检查：scripts/RSS阅读/script.json 与 package.json 均为 1.0.0。
+- 差异检查：git diff --check 通过，dist/RSS阅读.scripting 已恢复。
+- 功能静态检查：主页模式使用 toolbar.principal 承载当前源 Menu，topBarTrailing 仅保留筛选与刷新；普通源管理页面未改动。
+- 设备验证：未连接 Scripting App/iOS，尚未实测标题菜单的真机点击和多源切换。

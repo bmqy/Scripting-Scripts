@@ -259,3 +259,11 @@
 - 修复：home_screen_default_ui.tsx 为配置页和文章页增加 NavigationStack 包装。
 - npm run build、包构建和 git diff --check 通过；dist 已恢复，不纳入提交。
 - 未连接 Scripting App/iOS，仍需设备确认主页顶部工具栏真实显示。
+
+## 2026-08-14 RSS 标题切换源调整
+
+- 执行者：Codex。
+- 编辑前已同步 origin/dev；main 未修改，RSS script.json 与 package.json 版本均保持 1.0.0。
+- 依据 Scripting 官方 toolbar 文档，将主页模式的源选择 Menu 从 topBarTrailing 移至 toolbar.principal，使当前源标题本身承担切换入口。
+- 右侧保留文章筛选与刷新；普通脚本源管理页面行为不变。
+- npm run build 与 git diff --check 通过；dist 构建产物已恢复，不纳入提交。

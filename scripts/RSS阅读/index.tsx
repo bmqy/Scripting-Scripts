@@ -1132,41 +1132,40 @@ function ArticleListPage({
 
   const hasMorePages = Boolean(currentPage?.continuation)
   const isLastPage = Boolean(currentPage && !hasMorePages && pageIndex === pages.length - 1)
+  const currentSourceTitle = navigationTitleText(feed.name, unreadCount)
+  const sourceMenu = sourceOptions && onSourceSelected ? (
+    <Menu title={currentSourceTitle}>
+      {sourceOptions.map(option => (
+        <Button
+          key={option.id}
+          title={option.id === feed.id ? `✓ ${option.name}` : option.name}
+          action={() => onSourceSelected(option)}
+        />
+      ))}
+    </Menu>
+  ) : null
+  const filterMenu = <Menu title={ARTICLE_FILTER_LABELS[articleFilter]}>
+    <Button title='未读' action={() => selectFilter('unread')} />
+    <Button title='已读' action={() => selectFilter('read')} />
+    <Button title='全部' action={() => selectFilter('all')} />
+  </Menu>
 
   return <ScrollView
-    navigationTitle={navigationTitleText(feed.name, unreadCount)}
+    navigationTitle={currentSourceTitle}
     navigationBarTitleDisplayMode='inline'
     scrollPosition={{
       value: leadingTargetId,
       onChanged: handleLeadingTargetChanged,
     }}
-      toolbar={{
-        topBarTrailing: sourceOptions && onSourceSelected ? (
-          <HStack alignment='center' spacing={8}>
-            <Menu title='切换源'>
-              {sourceOptions.map(option => (
-                <Button
-                  key={option.id}
-                  title={option.id === feed.id ? `✓ ${option.name}` : option.name}
-                  action={() => onSourceSelected(option)}
-                />
-              ))}
-            </Menu>
-            <Menu title={ARTICLE_FILTER_LABELS[articleFilter]}>
-              <Button title='未读' action={() => selectFilter('unread')} />
-              <Button title='已读' action={() => selectFilter('read')} />
-              <Button title='全部' action={() => selectFilter('all')} />
-            </Menu>
-            {onRefreshArticles ? <Button title='刷新' action={onRefreshArticles} /> : null}
-          </HStack>
-        ) : (
-          <Menu title={ARTICLE_FILTER_LABELS[articleFilter]}>
-            <Button title='未读' action={() => selectFilter('unread')} />
-            <Button title='已读' action={() => selectFilter('read')} />
-            <Button title='全部' action={() => selectFilter('all')} />
-          </Menu>
-        ),
-      }}
+    toolbar={{
+      principal: sourceMenu || undefined,
+      topBarTrailing: onRefreshArticles ? (
+        <HStack alignment='center' spacing={8}>
+          {filterMenu}
+          <Button title='刷新' action={onRefreshArticles} />
+        </HStack>
+      ) : filterMenu,
+    }}
   >
     <LazyVStack alignment='leading' spacing={10} scrollTargetLayout>
       {message ? <Section>

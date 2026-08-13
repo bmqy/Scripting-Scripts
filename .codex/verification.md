@@ -222,3 +222,11 @@
 - 底部操作：ArticleListPage 继续提供上一页、下一页和最后一页切换下一个源。
 - 已读行为：文章 onDisappear、滚动状态保护、延迟去重队列和批量标记已读逻辑未改变。
 - 构建与包检查通过；类型检查受缺少 Scripting 声明阻塞；未做真机主页验证。
+
+## 2026-08-14 RSS 标题切换源调整验证报告
+
+- API依据：Scripting 官方文档说明 toolbar.principal 位于导航栏主区域，通常居中显示，适合承载标题内容；来源：https://scriptingapp.github.io/guide/Views/Toolbars/
+- 标题交互：主页模式的当前源名称作为 Menu 标题，并通过 toolbar.principal 放置；选择源仍调用既有 onSourceSelected 流程。
+- 右侧操作：文章筛选 Menu 与刷新 Button 保持在 topBarTrailing。
+- 版本与构建：版本保持 1.0.0；npm run build 和 git diff --check 均通过；本地 dist 已恢复。
+- 遗留风险：未连接 Scripting App/iOS，需真机确认 principal Menu 的显示宽度、点击反馈及源列表较长时的布局。
