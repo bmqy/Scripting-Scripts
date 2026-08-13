@@ -15,12 +15,12 @@
     "zh": "RSS 阅读",
     "en": "RSS Reader"
   },
-  "description": "显示 Google Reader 兼容 RSS 平台的未读文章，也支持本地或线上 OPML 订阅源，可按订阅源筛选，并可分别设置 App 与主屏组件的文章打开方式",
+  "description": "显示 Google Reader 兼容 RSS 平台的未读文章，也支持本地或线上 OPML 订阅源，可按订阅源筛选，并可分别设置 App、主屏组件与 Scripting 主页默认 UI 的文章打开方式",
   "localizedDescriptions": {
-    "zh": "显示 Google Reader 兼容 RSS 平台的未读数与最新文章，支持 FreshRSS；也可从本地或线上 OPML 读取订阅源，并可分别设置 App 与主屏组件使用内置浏览器或系统浏览器打开文章。",
+    "zh": "显示 Google Reader 兼容 RSS 平台的未读数与最新文章，支持 FreshRSS；也可从本地或线上 OPML 读取订阅源，并可在 App、主屏组件与 Scripting 主页默认 UI 中阅读文章。",
     "en": "Shows unread articles from Google Reader compatible RSS services, including FreshRSS, and supports local or remote OPML feeds with per-feed filtering and separate browser options for the app and Home Screen widget."
   },
-  "version": "1.0.0",
+  "version": "1.1.0",
   "color": "rgba(56, 189, 248, 1)",
   "contributors": [],
   "name": "RSS 阅读"

@@ -44,7 +44,7 @@ declare function fetch(input: string, init?: {
   json(): Promise<unknown>
 }>
 
-type ReaderArticle = {
+export type ReaderArticle = {
   id?: string
   url?: string
   title: string
@@ -53,7 +53,7 @@ type ReaderArticle = {
   publishedAt: number
 }
 
-type ReaderData = {
+export type ReaderData = {
   serverName: string
   sourceName: string
   unreadCount: number
@@ -103,7 +103,7 @@ type PaletteKey = 'background' | 'primaryText' | 'headerName' | 'secondaryText' 
 type SolidPalette = Record<PaletteKey, ShapeStyle>
 type Palette = Record<PaletteKey, WidgetColor>
 
-function articleLinkUrl(article: ReaderArticle, useInAppBrowser: boolean) {
+export function articleLinkUrl(article: ReaderArticle, useInAppBrowser: boolean) {
   if (!article.url) return undefined
   if (!useInAppBrowser) return article.url
 
@@ -141,7 +141,7 @@ const LIGHT_PALETTE: SolidPalette = {
   thumbnail: '#38BDF8',
 }
 
-function resolvePalette(theme: ColorTheme): Palette {
+export function resolvePalette(theme: ColorTheme): Palette {
   if (theme === 'light') return LIGHT_PALETTE
   if (theme === 'dark') return DARK_PALETTE
   const keys = Object.keys(DARK_PALETTE) as PaletteKey[]
@@ -375,12 +375,12 @@ function missingConfigurationData(): ReaderData {
   }
 }
 
-async function loadData(): Promise<ReaderData> {
+export async function loadData(forceRefresh = false): Promise<ReaderData> {
   const settings = loadSettings()
   if (!settings) return missingConfigurationData()
 
   const cache = readCache()
-  if (cacheIsFresh(cache, settings)) return cache!.data
+  if (!forceRefresh && cacheIsFresh(cache, settings)) return cache!.data
 
   try {
     const data = await loadFreshData(settings)
@@ -623,8 +623,10 @@ async function present(data: ReaderData, settings: ReaderSettings | null) {
   })
 }
 
-const settings = loadSettings()
+if (Script.env === 'widget') {
+  const settings = loadSettings()
 
-loadData()
-  .then(data => present(data, settings))
-  .catch(() => present(missingConfigurationData(), settings))
+  loadData()
+    .then(data => present(data, settings))
+    .catch(() => present(missingConfigurationData(), settings))
+}

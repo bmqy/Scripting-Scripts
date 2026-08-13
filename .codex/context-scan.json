@@ -1,18 +1,18 @@
 ﻿{
-  "date": "2026-08-01",
+  "date": "2026-08-13",
   "executor": "Codex",
-  "task": "RSS 阅读设置页显示源未读数量，并在文章滚出屏幕后自动标记已读和更新计数",
-  "module": "scripts/RSS阅读/index.tsx",
+  "task": "分析 Scripting App 主页默认 UI 能力，并为 RSS 阅读组件增加可选的主页默认 UI",
+  "module": "scripts/RSS阅读/home_screen_default_ui.tsx",
   "currentImplementation": {
-    "sourceUnreadCount": "FeedOverview.unreadCount 已由 unread-count 接口加载，文章详情页通过 navigationTitle 显示源名和当前未读数。",
-    "articleReadState": "文章列表请求增加 xt=state/com.google/read，只加载未读文章；通过 edit-tag 接口批量添加 read 标签。",
-    "visibility": "详情页使用官方 ScrollView.onScrollTargetVisibilityChange，LazyVStack 开启 scrollTargetLayout，threshold=0 表示完全离屏后触发。",
-    "countSync": "详情页本地计数和 FeedManagementPage 源列表计数均在标记成功后递减。"
+    "homeEntry": "新增 home_screen_default_ui.tsx，默认导出函数组件，直接返回主页 UI，不调用 Navigation.present 或 Script.exit。",
+    "dataReuse": "widget.tsx 导出 ReaderData、loadData、articleLinkUrl 和 resolvePalette；仅在 Script.env === widget 时执行 Widget.present，避免主页导入产生副作用。",
+    "homeBehavior": "主页显示未读数、当前源、文章标题与摘要，支持文章链接、错误/空状态、打开设置和强制刷新。",
+    "refresh": "loadData 接受 forceRefresh 参数；小组件继续使用缓存策略，主页手动刷新绕过新鲜缓存。"
   },
   "similarPatterns": [
-    "FeedManagementPage 已有源未读数展示与全部已读操作。",
-    "loadUnreadItemIds 已有分页读取未读文章 ID 的实现。",
-    "widget.tsx 已使用 xt=read 只读取未读文章。"
+    "widget.tsx 已有 ReaderData、文章链接和主题调色板，可作为主页入口的共享数据基础。",
+    "index.tsx 已通过 Link 展示文章链接，并通过 Script.createRunURLScheme 处理脚本跳转。",
+    "Scripting 官方 additional-entry-points 参考明确要求 home_screen_default_ui.tsx 默认导出函数组件。"
   ],
   "officialReferences": [
     "https://scriptingapp.github.io/llms.txt",
@@ -23,6 +23,7 @@
     "npm run build",
     "git diff --check",
     "npx tsc --noEmit --pretty false（受仓库缺少 dts/scripting.d.ts 阻塞）",
-    "iOS 18+ Scripting App 手动进入源文章列表并滚动验证"
+    "检查 .scripting 包包含 home_screen_default_ui.tsx、script.json 和 widget.tsx",
+    "在 Scripting App 主页选择 RSS 阅读脚本并执行设备端手动验证"
   ]
 }

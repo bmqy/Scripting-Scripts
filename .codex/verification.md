@@ -193,3 +193,13 @@
 - 通过 npm run build；构建成功。
 - npx tsc --noEmit --pretty false 受仓库缺失 dts/scripting.d.ts 影响失败，属于现有环境限制。
 - 本次使用的内置补丁工具无法写入 Windows 工作区，改用等价的受控补丁写入流程；最终通过 git diff --check 检查。
+## 2026-08-13 RSS 主页默认 UI 验证报告
+
+- 入口：新增 scripts/RSS阅读/home_screen_default_ui.tsx，使用默认导出函数组件，符合官方主页默认 UI 入口约定。
+- 复用：主页从 widget.tsx 复用数据类型、缓存读取、强制刷新、文章链接和主题调色板；导入主页时不会触发 Widget.present()。
+- 交互：覆盖未配置、网络错误、有文章、无未读文章、手动刷新和文章链接场景；设置入口使用现有脚本 URL scheme。
+- 构建：npm run build 通过；scripting 包确认包含新增文件。
+- 元数据：script.json JSON 解析通过，版本 1.1.0，入口 index.tsx 未改变。
+- 差异：git diff --check 通过；本地 dist 已恢复。
+- 类型：仓库缺少 dts/scripting.d.ts，不能完成有效的 TypeScript 诊断；现有项目文件同样受影响。
+- 遗留风险：需在 Scripting App 中从“主页”选择 RSS 阅读脚本，确认 ScrollView、按钮、链接和长列表在目标 iOS 版本上的实际渲染；主页默认 UI 依赖 RSS 组件已有网络/存储权限。

@@ -216,3 +216,13 @@
 - 通过 npm run build；构建成功。
 - npx tsc --noEmit --pretty false 受仓库缺失 dts/scripting.d.ts 影响失败，属于现有环境限制。
 - 本次使用的内置补丁工具无法写入 Windows 工作区，改用等价的受控补丁写入流程；最终通过 git diff --check 检查。
+## 2026-08-13 RSS 主页默认 UI
+
+- 执行者：Codex。
+- 编辑前确认工作区干净，并执行 git pull --ff-only origin main；按用户要求切换到 dev 后再次确认 dev 已同步远端。
+- 阅读 Scripting App 官方 Home Screen UI 入口约定，确认新增 home_screen_default_ui.tsx，默认导出函数组件且不调用 Navigation.present/Script.exit。
+- 新增 RSS 主页默认 UI，复用 widget.tsx 的数据加载、文章链接和调色板；widget.tsx 增加 Script.env === widget 守卫，避免被主页导入时调用 Widget.present。
+- loadData 增加 forceRefresh 参数，主页手动刷新绕过新鲜缓存，小组件保持原缓存行为。
+- 更新 RSS script.json 版本为 1.1.0 和描述，并补充 README 使用说明。
+- npm run build 通过；构建包内确认包含 home_screen_default_ui.tsx；dist 构建产物已恢复，不纳入提交。
+- npx tsc --noEmit 受仓库缺失 dts/scripting.d.ts 阻塞，产生的 scripting/JSX 相关错误也存在于原有文件；记录为环境限制。
