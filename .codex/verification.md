@@ -203,3 +203,13 @@
 - 差异：git diff --check 通过；本地 dist 已恢复。
 - 类型：仓库缺少 dts/scripting.d.ts，不能完成有效的 TypeScript 诊断；现有项目文件同样受影响。
 - 遗留风险：需在 Scripting App 中从“主页”选择 RSS 阅读脚本，确认 ScrollView、按钮、链接和长列表在目标 iOS 版本上的实际渲染；主页默认 UI 依赖 RSS 组件已有网络/存储权限。
+
+## 2026-08-13 RSS 主页交互增强验证报告
+
+- 主页入口：默认导出 HomeScreenDefaultUI；配置存在时返回现有 FeedManagementPage，配置缺失时提供 RSS 设置链接。
+- 切换源：主页源列表选择后进入 ArticleListPage；文章列表末页通过“下一个源”进入下一源。
+- 分页：继续使用现有 Google Reader continuation 和 OPML offset/未读快照分页；主脚本已有上一页、下一页按钮。
+- 离屏已读：文章行 onDisappear 经过滚动状态保护后进入去重延迟队列，批量标记已读并更新当前源计数。
+- 生命周期：主页导入 index.tsx 不会执行普通脚本 Navigation.present/Script.exit；主页环境也不会执行 Widget.reloadAll。
+- 构建：npm run build 通过；dist 已恢复。
+- 遗留风险：滚动加载仍是现有按钮分页模式，不是自动追加下一页；真机需确认 Scripting 主页环境的 Navigation/List/ScrollView 行为。

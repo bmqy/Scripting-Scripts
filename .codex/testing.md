@@ -229,3 +229,14 @@
 - 差异检查：git diff --check 通过。
 - 类型检查：npx tsc --noEmit 未通过，原因是仓库缺少 dts/scripting.d.ts；因此出现的 scripting 模块、JSX 工厂及既有文件类型错误属于当前环境限制。
 - 设备验证：未连接 Scripting App/iOS 环境，尚未验证主页脚本选择、文章点击、刷新和系统浅色/深色主题的真机表现。
+
+## 2026-08-13 RSS 主页交互增强
+
+- 单元测试：仓库没有 test/lint/typecheck 脚本和 Scripting 运行时夹具，未伪造单元测试结果。
+- 冒烟构建：npm run build 通过，RSS 阅读和限号脚本打包成功。
+- 包内容：tar -tf dist/RSS阅读.scripting 确认包含 home_screen_default_ui.tsx、index.tsx 和 script.json。
+- 源码检查：确认 FeedManagementPage、ArticleListPage、onDisappear、下一页和下一个源逻辑均被主页入口复用。
+- 生命周期检查：确认 index.tsx 仅在 Script.env === index 时调用 run()。
+- 差异检查：git diff --check 通过。
+- 类型检查：npx tsc --noEmit 未通过，原因是缺少 dts/scripting.d.ts，且现有项目文件同样出现 scripting/JSX 运行时类型错误。
+- 设备验证：未连接 Scripting App/iOS，尚未实测主页源切换、分页滚动、离屏回调和多源末页切换。

@@ -1,18 +1,19 @@
 ﻿{
   "date": "2026-08-13",
   "executor": "Codex",
-  "task": "分析 Scripting App 主页默认 UI 能力，并为 RSS 阅读组件增加可选的主页默认 UI",
-  "module": "scripts/RSS阅读/home_screen_default_ui.tsx",
+  "task": "为 RSS 阅读主页默认 UI 增加源切换、分页/末页切源和离屏自动已读",
+  "module": "scripts/RSS阅读/home_screen_default_ui.tsx, scripts/RSS阅读/index.tsx",
   "currentImplementation": {
-    "homeEntry": "新增 home_screen_default_ui.tsx，默认导出函数组件，直接返回主页 UI，不调用 Navigation.present 或 Script.exit。",
-    "dataReuse": "widget.tsx 导出 ReaderData、loadData、articleLinkUrl 和 resolvePalette；仅在 Script.env === widget 时执行 Widget.present，避免主页导入产生副作用。",
-    "homeBehavior": "主页显示未读数、当前源、文章标题与摘要，支持文章链接、错误/空状态、打开设置和强制刷新。",
-    "refresh": "loadData 接受 forceRefresh 参数；小组件继续使用缓存策略，主页手动刷新绕过新鲜缓存。"
+    "homeEntry": "home_screen_default_ui.tsx 默认导出函数组件，配置完成后直接承载 index.tsx 导出的 FeedManagementPage；未配置时提供打开设置入口。",
+    "sourceSwitching": "FeedManagementPage 展示全部未读和各 RSS 源，选择源进入 ArticleListPage，文章列表末页可切换下一个源。",
+    "pagination": "ArticleListPage 使用 stream/contents 或 OPML offset/快照 continuation 分页，支持上一页、下一页和末页判断。",
+    "readState": "文章行 onDisappear 进入延迟去重队列，滚动确认后批量调用 markItemsAsRead，并同步当前源未读数和已读状态。",
+    "lifecycle": "index.tsx 仅在 Script.env === index 时执行 run，主页导入页面组件不会触发 Navigation.present 或 Script.exit。"
   },
   "similarPatterns": [
-    "widget.tsx 已有 ReaderData、文章链接和主题调色板，可作为主页入口的共享数据基础。",
-    "index.tsx 已通过 Link 展示文章链接，并通过 Script.createRunURLScheme 处理脚本跳转。",
-    "Scripting 官方 additional-entry-points 参考明确要求 home_screen_default_ui.tsx 默认导出函数组件。"
+    "FeedManagementPage 已有源列表、默认源保存、分页文章列表和下一个源导航。",
+    "ArticleListPage 已有 onDisappear、scrollPosition、延迟已读队列和未读数校准。",
+    "Scripting 官方 ScrollView visibility tracking 文档确认 scrollPosition、scrollTargetLayout 和 onDisappear/可见性模式。"
   ],
   "officialReferences": [
     "https://scriptingapp.github.io/llms.txt",
@@ -23,7 +24,7 @@
     "npm run build",
     "git diff --check",
     "npx tsc --noEmit --pretty false（受仓库缺少 dts/scripting.d.ts 阻塞）",
-    "检查 .scripting 包包含 home_screen_default_ui.tsx、script.json 和 widget.tsx",
+    "检查 .scripting 包包含 home_screen_default_ui.tsx、index.tsx 和 script.json",
     "在 Scripting App 主页选择 RSS 阅读脚本并执行设备端手动验证"
   ]
 }

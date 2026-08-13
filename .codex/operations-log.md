@@ -226,3 +226,15 @@
 - 更新 RSS script.json 版本为 1.1.0 和描述，并补充 README 使用说明。
 - npm run build 通过；构建包内确认包含 home_screen_default_ui.tsx；dist 构建产物已恢复，不纳入提交。
 - npx tsc --noEmit 受仓库缺失 dts/scripting.d.ts 阻塞，产生的 scripting/JSX 相关错误也存在于原有文件；记录为环境限制。
+
+## 2026-08-13 RSS 主页交互增强
+
+- 执行者：Codex。
+- 编辑前同步 origin/dev；main 未切换、未修改。
+- 核查发现 index.tsx 已实现 RSS 源切换、continuation 分页、末页切换下一个源，以及基于 onDisappear 的离屏已读队列。
+- 主页入口改为复用导出的 FeedManagementPage，避免复制请求、分页和已读状态逻辑。
+- index.tsx 的 run() 增加 Script.env === index 守卫，避免主页导入时启动普通脚本生命周期。
+- Widget.reloadAll() 统一增加 index/widget 环境守卫，主页环境只更新自身状态，不调用 Widget 专属刷新能力。
+- script.json 版本更新为 1.2.0，README 补充主页交互说明。
+- npm run build 通过，dist 构建产物已恢复，不纳入提交。
+- npx tsc --noEmit 仍受仓库缺失 dts/scripting.d.ts 阻塞，属于既有环境限制。

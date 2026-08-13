@@ -199,6 +199,10 @@ const ITEM_ID_PAGE_SIZE = 1000
 const GITHUB_REPOSITORY_URL = 'https://github.com/bmqy/Scripting-Scripts'
 const SCRIPT_VERSION = '1.0.0'
 
+function reloadWidgets() {
+  if (Script.env === 'index' || Script.env === 'widget') Widget.reloadAll()
+}
+
 function scriptingStorage() {
   return (globalThis as unknown as { Storage?: StorageStore }).Storage
 }
@@ -740,7 +744,7 @@ async function markItemsAsRead(settings: ReaderSettings, ids: string[]) {
   if (settings.mode === 'opml') {
     const count = await markOpmlArticlesRead(settings, ids)
     clearWidgetCache()
-    Widget.reloadAll()
+    reloadWidgets()
     return count
   }
 
@@ -1283,7 +1287,7 @@ function ArticleListPage({
   </ScrollView>
 }
 
-function FeedManagementPage({
+export function FeedManagementPage({
   settings,
   onDefaultChanged,
 }: {
@@ -1379,7 +1383,7 @@ function FeedManagementPage({
 
     setDefaultFeedId(feed.id)
     onDefaultChanged(nextSettings)
-    Widget.reloadAll()
+    reloadWidgets()
     setMessage('')
     setToastMessage(`已将“${feed.name}”设为小组件默认源。`)
   }
@@ -1423,7 +1427,7 @@ function FeedManagementPage({
         }
         return item
       }))
-      Widget.reloadAll()
+      reloadWidgets()
       setToastMessage(count ? `已将“${feed.name}”的 ${count} 篇文章标记为已读。` : `“${feed.name}”没有未读文章。`)
       void refreshUnreadCounts()
     } catch (error) {
@@ -1475,7 +1479,7 @@ function FeedManagementPage({
       }
       if (selectedFeed?.id === feed.id) setSelectedFeed(null)
       clearWidgetCache()
-      Widget.reloadAll()
+      reloadWidgets()
 
       if (!settingsSaved) {
         setToastMessage(`已删除“${feed.name}”，但默认源配置保存失败，请重新设置。`)
@@ -1737,7 +1741,7 @@ function SettingsPage() {
       setOpmlUrlInput(opmlSourceType === 'url' ? source : '')
       setOpmlFeeds(feeds)
       setAuthenticatedSettings(settings)
-      Widget.reloadAll()
+      reloadWidgets()
       setAccountToastMessage(`OPML 导入成功，已读取 ${feeds.length} 个订阅源。`)
     } catch (error) {
       setAccountToastMessage(error instanceof Error ? error.message : 'OPML 读取失败，请检查文件或 URL。')
@@ -1796,7 +1800,7 @@ function SettingsPage() {
       setAuthenticatedSettings(settings)
       setSourceMode('reader')
       setSiteIconUrl(readCachedSiteIconUrl(settings))
-      Widget.reloadAll()
+      reloadWidgets()
       setAccountToastMessage('账号登录成功，已保存账号配置。现在可以调整组件配置。')
     } catch (error) {
       setAccountToastMessage(error instanceof Error ? error.message : '接口测试失败，请检查 API 地址、用户名和 API 密码。')
@@ -1860,7 +1864,7 @@ function SettingsPage() {
       setAuthenticatedSettings(settings)
       setOpmlStateBackend(nextBackend)
       clearWidgetCache()
-      Widget.reloadAll()
+      reloadWidgets()
       setWidgetMessage('')
     } catch (error) {
       setWidgetMessage(error instanceof Error ? error.message : '迁移 OPML 已读状态失败。')
@@ -1883,7 +1887,7 @@ function SettingsPage() {
       setOpmlStateMaxItems(settings.opmlStateMaxItems)
       setOpmlStateMaxAgeDays(settings.opmlStateMaxAgeDays)
       clearWidgetCache()
-      Widget.reloadAll()
+      reloadWidgets()
       setWidgetMessage(removedCount > 0 ? '已清理超出上限的 OPML 已读状态。' : '')
     } catch (error) {
       setWidgetMessage(error instanceof Error ? error.message : '更新 OPML 已读状态上限失败。')
@@ -1914,7 +1918,7 @@ function SettingsPage() {
     }
 
     setAuthenticatedSettings(settings)
-    Widget.reloadAll()
+    reloadWidgets()
     setWidgetMessage('')
     setWidgetSavedToast(true)
   }
@@ -1936,7 +1940,7 @@ function SettingsPage() {
     setSiteIconUrl('')
     setAccountToastMessage('已退出登录。')
     setWidgetMessage('')
-    Widget.reloadAll()
+    reloadWidgets()
   }
 
   return <NavigationStack>
@@ -2343,7 +2347,7 @@ async function markArticleFromWidget(articleId: string) {
   try {
     await markItemsAsRead(settings, [articleId])
     clearWidgetCache()
-    Widget.reloadAll()
+    reloadWidgets()
   } catch (error) {
     console.error('主屏组件文章标记已读失败', error)
   }
@@ -2365,4 +2369,6 @@ async function run() {
   }
 }
 
-run()
+if (Script.env === 'index') {
+  run()
+}
