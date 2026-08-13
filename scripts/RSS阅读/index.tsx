@@ -1134,7 +1134,14 @@ function ArticleListPage({
   const isLastPage = Boolean(currentPage && !hasMorePages && pageIndex === pages.length - 1)
   const currentSourceTitle = navigationTitleText(feed.name, unreadCount)
   const sourceMenu = sourceOptions && onSourceSelected ? (
-    <Menu title={currentSourceTitle}>
+    <Menu
+      label={
+        <HStack alignment='center' spacing={4}>
+          <Text>{currentSourceTitle}</Text>
+          <Image systemName='chevron.down' foregroundStyle='secondaryLabel' imageScale='small' />
+        </HStack>
+      }
+    >
       {sourceOptions.map(option => (
         <Button
           key={option.id}

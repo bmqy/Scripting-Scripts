@@ -267,3 +267,10 @@
 - 依据 Scripting 官方 toolbar 文档，将主页模式的源选择 Menu 从 topBarTrailing 移至 toolbar.principal，使当前源标题本身承担切换入口。
 - 右侧保留文章筛选与刷新；普通脚本源管理页面行为不变。
 - npm run build 与 git diff --check 通过；dist 构建产物已恢复，不纳入提交。
+
+## 2026-08-14 RSS 标题可点击指示图标
+
+- 执行者：Codex。
+- 编辑前已同步 origin/dev；main 未修改，版本号保持 1.0.0。
+- 依据 Scripting 官方 Menu 文档，将 sourceMenu 改为自定义 label，在当前源标题右侧增加 chevron.down 图标。
+- npm run build 与 git diff --check 通过；dist 构建产物已恢复，不纳入提交。

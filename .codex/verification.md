@@ -230,3 +230,10 @@
 - 右侧操作：文章筛选 Menu 与刷新 Button 保持在 topBarTrailing。
 - 版本与构建：版本保持 1.0.0；npm run build 和 git diff --check 均通过；本地 dist 已恢复。
 - 遗留风险：未连接 Scripting App/iOS，需真机确认 principal Menu 的显示宽度、点击反馈及源列表较长时的布局。
+
+## 2026-08-14 RSS 标题可点击指示图标验证报告
+
+- API依据：Scripting 官方 Menu 文档支持 label 自定义标签视图，并支持 Image systemName 组合图标；来源：https://scriptingapp.github.io/zh/guide/Views/Menu/
+- UI行为：标题文字右侧显示 chevron.down，整个自定义 label 仍为源切换 Menu。
+- 构建与版本：npm run build、git diff --check 通过；版本保持 1.0.0；dist 已恢复。
+- 遗留风险：需要在 Scripting App/iOS 真机确认导航栏主区域的图标间距和长标题截断效果。
