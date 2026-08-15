@@ -311,3 +311,5 @@
 [2026-08-15 15:30 Asia/Shanghai] 本地验证：npm run build 通过；RSS 阅读脚本成功生成构建包。构建产物已恢复，不纳入提交。版本检查：scripts/RSS阅读/script.json=1.0.0，package.json=1.0.0。
 
 [2026-08-15 15:50 Asia/Shanghai] 本地验证：npm run build 通过；dist 构建产物已恢复。版本检查：scripts/RSS阅读/script.json=1.0.0，package.json=1.0.0。
+
+[2026-08-15 16:10 Asia/Shanghai] 发布验证：npm run build 通过；PACKAGE_VERSION=1.1.0，RSS_VERSION=1.1.0，LIMIT_VERSION=1.0.0；本地构建产物未纳入提交。

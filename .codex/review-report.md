@@ -308,3 +308,9 @@
 - 验证：npm run build、git diff --check 通过。
 - 遗留风险：真实设备和具体 FreshRSS 实例未联调。
 - 结论：源码审查通过，允许提交 dev。
+
+## [2026-08-15 16:10 Asia/Shanghai] 1.1.0 发布审查
+- 版本：package.json 与 RSS script.json 均为 1.1.0，限号组件保持 1.0.0。
+- 验证：npm run build、git diff --check 通过。
+- 分支：基于最新 dev，目标合并到 main。
+- 结论：允许发布。

@@ -280,3 +280,5 @@
 [2026-08-15 15:30 Asia/Shanghai] 功能验证：代码已将 App 内网页放入 NavigationStack 的 navigationDestination，页面使用 WebViewController 加载 URL，并在页面销毁时 dispose；目标是支持系统左滑导航返回。受限于当前环境没有连接 Scripting App 真机，左滑手势需在设备上回归确认。
 
 [2026-08-15 15:50 Asia/Shanghai] 功能验证：源下拉计数与全部未读计数增加本地即时更新和服务端重校准；未读列表中已读条目会移除。当前环境无法连接真实 Scripting App，需设备回归确认 FreshRSS 实例返回计数与界面一致。
+
+[2026-08-15 16:10 Asia/Shanghai] 发布核对：版本字段仅修改项目与 RSS 组件，未修改限号组件；dev 已同步远端，待提交后合并到 main。

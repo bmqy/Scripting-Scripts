@@ -315,3 +315,4 @@
 - npm run build 与 git diff --check 通过；dist 构建产物已恢复，不纳入提交。
 [2026-08-15 15:30 Asia/Shanghai] Codex: 使用 scripting-app-development 技能并查阅 Scripting 官方 WebView/NavigationStack 文档；将 App 内文章从 Safari.present 改为 NavigationStack navigationDestination + WebViewController，保留小组件直达文章的 Safari.present 路径。
 [2026-08-15 15:50 Asia/Shanghai] Codex: 排查并修复未读数同步；文章页标记已读后同步当前源与全部未读，父页面重新读取各源未读数并更新当前源快照，未读列表过滤页移除已读条目，空未读列表将当前计数归零。
+[2026-08-15 16:10 Asia/Shanghai] Codex: 按用户要求将 package.json 与 scripts/RSS阅读/script.json 版本从 1.0.0 提升到 1.1.0；scripts/限号/script.json 保持 1.0.0。npm run build 通过，dist 已恢复。准备提交 dev 并合并 main。

@@ -1,6 +1,6 @@
 {
   "name": "beijing-traffic-restriction-widget",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "北京限行小组件 - Scripting App小组件，用于显示北京当天的机动车限行尾号信息",
   "type": "module",
   "scripts": {
