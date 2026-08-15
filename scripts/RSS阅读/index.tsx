@@ -836,7 +836,7 @@ function ArticleListPage({
   hasNextFeed: boolean
   sourceOptions?: FeedOverview[]
   onSourceSelected?: (feed: FeedOverview) => void
-  onRefreshArticles?: () => void
+  onRefreshArticles?: () => Promise<void>
 }) {
   const isOpml = settings.mode === 'opml'
   const [pages, setPages] = useState<ArticlePage[]>([])
@@ -849,10 +849,10 @@ function ArticleListPage({
   const unreadCountRef = useRef(feed.unreadCount)
   const pageIndexRef = useRef(0)
   const articleFilterRef = useRef<ArticleFilter>('unread')
+  const markedReadIdsRef = useRef<string[]>([])
   const pendingReadIdsRef = useRef<string[]>([])
+  const readOperationsRef = useRef<Promise<void>[]>([])
   const [leadingTargetId, setLeadingTargetId] = useState<string | null>(null)
-  const [markedReadIds, setMarkedReadIds] = useState<string[]>([])
-  const [pendingReadIds, setPendingReadIds] = useState<string[]>([])
   const readQueueRef = useRef<string[]>([])
   const readFlushTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const scrollStateRef = useRef({
@@ -870,10 +870,6 @@ function ArticleListPage({
     articleFilterRef.current = articleFilter
   }, [articleFilter])
 
-  useEffect(() => {
-    pendingReadIdsRef.current = pendingReadIds
-  }, [pendingReadIds])
-
   const articleTargetIdForPage = (targetPageIndex: number, article: ReaderArticle, index: number) => (
     'article-' + targetPageIndex + '-' + (article.id || index)
   )
@@ -888,16 +884,20 @@ function ArticleListPage({
   }
 
   const markArticlesRead = async (articleIds: string[]) => {
-
-    const candidates = Array.from(new Set(articleIds.filter(id => !markedReadIds.includes(id) && !pendingReadIds.includes(id))))
+    const candidates = Array.from(new Set(articleIds.filter(id => (
+      !markedReadIdsRef.current.includes(id) && !pendingReadIdsRef.current.includes(id)
+    ))))
     if (candidates.length === 0) return
 
     const optimisticCount = candidates.length
-    setPendingReadIds((previous: string[]) => Array.from(new Set([...previous, ...candidates])))
+    pendingReadIdsRef.current = Array.from(new Set([...pendingReadIdsRef.current, ...candidates]))
     updateUnreadCount(unreadCountRef.current - optimisticCount)
+    const clearPendingReadIds = () => {
+      pendingReadIdsRef.current = pendingReadIdsRef.current.filter(id => !candidates.includes(id))
+    }
     try {
       await markItemsAsRead(settings, candidates)
-      setMarkedReadIds((previous: string[]) => Array.from(new Set([...previous, ...candidates])))
+      markedReadIdsRef.current = Array.from(new Set([...markedReadIdsRef.current, ...candidates]))
       setPages((previous: ArticlePage[]) => previous.map(page => ({
         ...page,
         items: page.items.map(article => candidates.includes(article.id || '')
@@ -915,15 +915,24 @@ function ArticleListPage({
       updateUnreadCount(unreadCountRef.current + optimisticCount)
       setMessage(error instanceof Error ? error.message : '标记文章已读失败。')
     } finally {
-      setPendingReadIds((previous: string[]) => previous.filter(id => !candidates.includes(id)))
+      clearPendingReadIds()
     }
+  }
+
+  const runMarkArticlesRead = (articleIds: string[]) => {
+    const operation = markArticlesRead(articleIds)
+    readOperationsRef.current = [...readOperationsRef.current, operation]
+    void operation.finally(() => {
+      readOperationsRef.current = readOperationsRef.current.filter(item => item !== operation)
+    })
+    return operation
   }
 
   const flushReadQueue = () => {
     readFlushTimerRef.current = null
     const ids = readQueueRef.current
     readQueueRef.current = []
-    if (ids.length > 0) void markArticlesRead(ids)
+    if (ids.length > 0) void runMarkArticlesRead(ids)
   }
 
   const queueReadArticles = (articleIds: string[]) => {
@@ -931,21 +940,19 @@ function ArticleListPage({
     if (ids.length === 0) return
     readQueueRef.current = Array.from(new Set([...readQueueRef.current, ...ids]))
     if (readFlushTimerRef.current !== null) clearTimeout(readFlushTimerRef.current)
-    readFlushTimerRef.current = setTimeout(flushReadQueue, 600)
+    readFlushTimerRef.current = setTimeout(flushReadQueue, 250)
   }
 
-  const discardQueuedReads = () => {
+  const flushReadQueueImmediately = () => {
     if (readFlushTimerRef.current !== null) clearTimeout(readFlushTimerRef.current)
     readFlushTimerRef.current = null
+    const ids = readQueueRef.current
     readQueueRef.current = []
+    return ids.length > 0 ? runMarkArticlesRead(ids) : Promise.resolve()
   }
 
   useEffect(() => () => {
-    if (readFlushTimerRef.current !== null) clearTimeout(readFlushTimerRef.current)
-    readFlushTimerRef.current = null
-    const queuedIds = readQueueRef.current
-    readQueueRef.current = []
-    if (queuedIds.length > 0) void markArticlesRead(queuedIds)
+    void flushReadQueueImmediately()
   }, [])
 
   const loadPage = async (
@@ -1019,8 +1026,8 @@ function ArticleListPage({
       .map(article => article.id)
       .filter((id): id is string => Boolean(id))
     if (articleIds.length === 0) return
-    discardQueuedReads()
-    void markArticlesRead(articleIds)
+    void flushReadQueueImmediately()
+    void runMarkArticlesRead(articleIds)
   }
 
   const handleLeadingTargetChanged = (value: string | number | null) => {
@@ -1043,14 +1050,13 @@ function ArticleListPage({
 
   const markArticleWhenTapped = (article: ReaderArticle) => {
     if (articleFilter === 'read' || article.isRead || !article.id) return
-    discardQueuedReads()
-    void markArticlesRead([article.id])
+    void flushReadQueueImmediately()
+    void runMarkArticlesRead([article.id])
   }
 
   const loadNextPage = () => {
     const pageToLoad = pages[pages.length - 1]
     if (!pageToLoad?.continuation || isLoadingRef.current) return
-    discardQueuedReads()
     void loadPage(pages.length, pageToLoad.continuation).then(isLoaded => {
       if (isLoaded) markPageAsRead(pageToLoad)
     })
@@ -1065,15 +1071,13 @@ function ArticleListPage({
   }
 
   const selectFilter = (nextFilter: ArticleFilter) => {
-    if (nextFilter === articleFilter || isLoading || pendingReadIds.length > 0) return
+    if (nextFilter === articleFilter || isLoading || pendingReadIdsRef.current.length > 0) return
     setArticleFilter(nextFilter)
     setPages([])
     setPageIndex(0)
     setLeadingTargetId(null)
     scrollStateRef.current.suppressDisappear = true
     scrollStateRef.current.hasUserScrolled = false
-    setMarkedReadIds([])
-    setPendingReadIds([])
     setMessage('')
     void loadPage(0, '', nextFilter)
   }
@@ -1084,6 +1088,35 @@ function ArticleListPage({
       return
     }
     void loadPage(0, '', articleFilter)
+  }
+
+  const waitForReadOperations = async () => {
+    while (readOperationsRef.current.length > 0) {
+      await Promise.all([...readOperationsRef.current])
+    }
+  }
+
+  const refreshArticles = async () => {
+    await flushReadQueueImmediately()
+    await waitForReadOperations()
+    if (onRefreshArticles) {
+      await onRefreshArticles()
+      return
+    }
+
+    setPages([])
+    setPageIndex(0)
+    setLeadingTargetId(null)
+    scrollStateRef.current.suppressDisappear = true
+    scrollStateRef.current.hasUserScrolled = false
+    setMessage('')
+    const isLoaded = await loadPage(0, '', articleFilter)
+    if (!isLoaded || isOpml) return
+    try {
+      updateUnreadCount(await loadUnreadCount(settings, feed.id))
+    } catch {
+      // 文章刷新成功但未读计数校准失败时，保留当前本地计数。
+    }
   }
 
   const emptyMessage = isOpml
@@ -1128,14 +1161,10 @@ function ArticleListPage({
       value: leadingTargetId,
       onChanged: handleLeadingTargetChanged,
     }}
+    refreshable={refreshArticles}
     toolbar={{
       principal: sourceMenu || undefined,
-      topBarTrailing: onRefreshArticles ? (
-        <HStack alignment='center' spacing={8}>
-          {filterMenu}
-          <Button title='刷新' action={onRefreshArticles} />
-        </HStack>
-      ) : filterMenu,
+      topBarTrailing: filterMenu,
     }}
   >
     <LazyVStack alignment='leading' spacing={10} scrollTargetLayout>
@@ -1341,13 +1370,7 @@ export function HomeReaderPage({ settings }: { settings: ReaderSettings }) {
     return <List
       navigationTitle='RSS 阅读'
       navigationBarTitleDisplayMode='inline'
-      toolbar={{
-        topBarTrailing: <Button
-          title='刷新'
-          disabled={isLoadingFeeds}
-          action={() => { void refreshFeeds(true) }}
-        />,
-      }}
+      refreshable={async () => { await refreshFeeds(true) }}
     >
       <Text>{message || (isLoadingFeeds ? '正在加载默认源...' : '没有可用的 RSS 源。')}</Text>
     </List>
@@ -1360,7 +1383,7 @@ export function HomeReaderPage({ settings }: { settings: ReaderSettings }) {
     feed={selectedFeed}
     sourceOptions={feeds}
     onSourceSelected={selectSource}
-    onRefreshArticles={() => { void refreshFeeds(true, true) }}
+    onRefreshArticles={async () => { await refreshFeeds(true, true) }}
     onUnreadCountChanged={onUnreadCountChanged}
     onNextFeed={selectNextFeed}
     hasNextFeed={selectedIndex >= 0 && selectedIndex < feeds.length - 1}
@@ -1576,13 +1599,7 @@ export function FeedManagementPage({
   return <List
     navigationTitle='RSS 源'
     navigationBarTitleDisplayMode='inline'
-    toolbar={{
-      topBarTrailing: <Button
-        title='刷新'
-        disabled={isLoadingFeeds || Boolean(busyFeedId)}
-        action={() => { void refresh(true) }}
-      />,
-    }}
+    refreshable={async () => { await refresh(true) }}
     navigationDestination={{
       isPresented: selectedFeed != null,
       onChanged: (isPresented) => {

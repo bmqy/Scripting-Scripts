@@ -282,3 +282,11 @@
 - 依据 Scripting ScrollView/LazyVStack 的滚动目标与生命周期行为，将页尾哨兵 onAppear 作为触底触发点。
 - 文章页改为连续渲染已加载页面，触底按 continuation 自动追加下一页；删除上一页/下一页按钮，保留最后一页切换下一个源。
 - npm run build 与 git diff --check 通过；dist 构建产物已恢复，不纳入提交。
+
+## 2026-08-15 RSS 已读队列与下拉刷新优化
+
+- 执行者：Codex。
+- 编辑前已同步 origin/dev；main 未修改，版本号保持 1.0.0。
+- 修复快速滚动时触底加载清空待读队列的问题；已读队列提交改为 250ms 批量、防重复引用集合和可等待的操作集合。
+- 文章页、默认源加载页和 RSS 源管理页移除右侧刷新按钮，改用 Scripting refreshable 下拉刷新；刷新前等待已读提交完成并校准未读数。
+- npm run build 与 git diff --check 通过；dist 构建产物已恢复，不纳入提交。

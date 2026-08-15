@@ -245,3 +245,11 @@
 - 交互：页尾触发下一页加载，加载中显示“正在加载下一页”；最后一页继续显示“下一个源”。
 - 已读：文章 onDisappear 和页尾批量标记逻辑保留，触底加载不会重置滚动状态。
 - 遗留风险：未做设备端验证，需确认 Scripting App 对 LazyVStack 页尾 onAppear 的触发时机及短列表连续自动加载行为。
+
+## 2026-08-15 RSS 已读队列与下拉刷新优化验证报告
+
+- API依据：Scripting 官方 refreshable 文档规定可刷新处理器类型为 `() => Promise<void>`，刷新控件会等待 Promise 完成；来源：https://scriptingapp.github.io/TestFlight/guide/Views/List/Refresable%20List/
+- 已读可靠性：触底加载不再调用清空队列的逻辑；快速滚动产生的 ID 会去重后批量提交，刷新会等待队列和在途提交完成。
+- 未读计数：标记成功后继续请求服务端未读数校准；刷新前先完成已读提交，减少必须手动再次刷新才能看到新计数的情况。
+- UI行为：右侧刷新按钮移除，文章滚动容器使用 refreshable；筛选菜单仍保留在右侧。
+- 遗留风险：未做真机验证，需确认当前 Scripting 版本对 ScrollView.refreshable 的下拉手势支持及网络慢速场景。

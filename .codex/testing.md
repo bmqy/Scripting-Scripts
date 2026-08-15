@@ -274,3 +274,12 @@
 - 功能静态检查：pages 按顺序连续渲染；页尾哨兵出现时调用 loadNextPage，使用 isLoadingRef 防止重复请求；无 continuation 时显示下一个源入口。
 - 差异检查：git diff --check 通过，dist/RSS阅读.scripting 已恢复。
 - 设备验证：未连接 Scripting App/iOS，尚未实测触底回调、短列表自动补页和网络失败后的重试体验。
+
+## 2026-08-15 RSS 已读队列与下拉刷新优化
+
+- 冒烟构建：npm run build 通过，RSS 阅读脚本成功打包。
+- 版本检查：scripts/RSS阅读/script.json 与 package.json 均为 1.0.0。
+- 已读静态检查：触底加载不再清空 readQueueRef；markedReadIdsRef/pendingReadIdsRef 同步去重；刷新等待 readOperationsRef 完成。
+- 刷新静态检查：ArticleListPage、HomeReaderPage 无选中源状态、FeedManagementPage 均使用 refreshable，不再提供右侧刷新按钮。
+- 差异检查：git diff --check 通过，dist/RSS阅读.scripting 已恢复。
+- 设备验证：未连接 Scripting App/iOS，尚未实测快速滚动、已读请求完成时机和下拉刷新指示器。
