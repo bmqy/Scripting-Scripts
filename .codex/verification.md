@@ -253,3 +253,11 @@
 - 未读计数：标记成功后继续请求服务端未读数校准；刷新前先完成已读提交，减少必须手动再次刷新才能看到新计数的情况。
 - UI行为：右侧刷新按钮移除，文章滚动容器使用 refreshable；筛选菜单仍保留在右侧。
 - 遗留风险：未做真机验证，需确认当前 Scripting 版本对 ScrollView.refreshable 的下拉手势支持及网络慢速场景。
+
+## 2026-08-15 RSS 源筛选入口移至左侧验证报告
+
+- API依据：Scripting 官方 toolbar 文档确认 topBarLeading 位于导航栏左侧，principal 位于中间区域；来源：https://scriptingapp.github.io/guide/Views/Toolbars/
+- 主页行为：当前源名称与下三角菜单位于左侧，中间固定显示 RSS 阅读，右侧仅保留文章筛选。
+- 普通页面：没有源选择回调时仍使用当前源名称作为详情页标题。
+- 构建与版本：npm run build、git diff --check 通过；版本保持 1.0.0；dist 已恢复。
+- 遗留风险：未做真机验证，需确认长源名称在左侧工具栏中的截断和点击区域。

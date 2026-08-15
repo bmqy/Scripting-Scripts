@@ -1130,6 +1130,7 @@ function ArticleListPage({
   const hasMorePages = Boolean(currentPage?.continuation)
   const isLastPage = Boolean(currentPage && !hasMorePages && pageIndex === pages.length - 1)
   const currentSourceTitle = navigationTitleText(feed.name, unreadCount)
+  const navigationBarTitle = sourceOptions && onSourceSelected ? 'RSS 阅读' : currentSourceTitle
   const sourceMenu = sourceOptions && onSourceSelected ? (
     <Menu
       label={
@@ -1155,7 +1156,7 @@ function ArticleListPage({
   </Menu>
 
   return <ScrollView
-    navigationTitle={currentSourceTitle}
+    navigationTitle={navigationBarTitle}
     navigationBarTitleDisplayMode='inline'
     scrollPosition={{
       value: leadingTargetId,
@@ -1163,7 +1164,7 @@ function ArticleListPage({
     }}
     refreshable={refreshArticles}
     toolbar={{
-      principal: sourceMenu || undefined,
+      topBarLeading: sourceMenu || undefined,
       topBarTrailing: filterMenu,
     }}
   >

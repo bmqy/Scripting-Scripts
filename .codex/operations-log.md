@@ -290,3 +290,11 @@
 - 修复快速滚动时触底加载清空待读队列的问题；已读队列提交改为 250ms 批量、防重复引用集合和可等待的操作集合。
 - 文章页、默认源加载页和 RSS 源管理页移除右侧刷新按钮，改用 Scripting refreshable 下拉刷新；刷新前等待已读提交完成并校准未读数。
 - npm run build 与 git diff --check 通过；dist 构建产物已恢复，不纳入提交。
+
+## 2026-08-15 RSS 源筛选入口移至左侧
+
+- 执行者：Codex。
+- 编辑前已同步 origin/dev；main 未修改，版本号保持 1.0.0。
+- 依据 Scripting 官方 toolbar 文档，将主页源菜单从 principal 调整为 topBarLeading；主页导航标题固定为 RSS 阅读。
+- 普通源管理详情页继续显示当前源标题，避免改变非主页场景。
+- npm run build 与 git diff --check 通过；dist 构建产物已恢复，不纳入提交。

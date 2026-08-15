@@ -283,3 +283,11 @@
 - 刷新静态检查：ArticleListPage、HomeReaderPage 无选中源状态、FeedManagementPage 均使用 refreshable，不再提供右侧刷新按钮。
 - 差异检查：git diff --check 通过，dist/RSS阅读.scripting 已恢复。
 - 设备验证：未连接 Scripting App/iOS，尚未实测快速滚动、已读请求完成时机和下拉刷新指示器。
+
+## 2026-08-15 RSS 源筛选入口移至左侧
+
+- 冒烟构建：npm run build 通过，RSS 阅读脚本成功打包。
+- 版本检查：scripts/RSS阅读/script.json 与 package.json 均为 1.0.0。
+- UI 静态检查：主页使用 topBarLeading 承载源菜单，navigationTitle 固定为 RSS 阅读，topBarTrailing 保留文章筛选。
+- 差异检查：git diff --check 通过，dist/RSS阅读.scripting 已恢复。
+- 设备验证：未连接 Scripting App/iOS，尚未实测左侧菜单宽度和中间标题布局。
