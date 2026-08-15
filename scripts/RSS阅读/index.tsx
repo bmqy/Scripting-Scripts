@@ -890,6 +890,12 @@ function ArticleListPage({
     articleFilterRef.current = articleFilter
   }, [articleFilter])
 
+  useEffect(() => {
+    if (unreadCountRef.current === feed.unreadCount) return
+    unreadCountRef.current = feed.unreadCount
+    setUnreadCount(feed.unreadCount)
+  }, [feed.id, feed.unreadCount])
+
   const articleTargetIdForPage = (targetPageIndex: number, article: ReaderArticle, index: number) => (
     'article-' + targetPageIndex + '-' + (article.id || index)
   )
@@ -920,9 +926,11 @@ function ArticleListPage({
       markedReadIdsRef.current = Array.from(new Set([...markedReadIdsRef.current, ...candidates]))
       setPages((previous: ArticlePage[]) => previous.map(page => ({
         ...page,
-        items: page.items.map(article => candidates.includes(article.id || '')
-          ? { ...article, isRead: true }
-          : article),
+        items: page.items
+          .map(article => candidates.includes(article.id || '')
+            ? { ...article, isRead: true }
+            : article)
+          .filter(article => articleFilterRef.current !== 'unread' || !candidates.includes(article.id || '')),
       })))
       if (!isOpml) {
         try {
@@ -987,6 +995,9 @@ function ArticleListPage({
     if (showLoading) setMessage('')
     try {
       const page = await loadArticlePage(settings, feed.id, filter, continuation)
+      if (index === 0 && filter === 'unread' && page.items.length === 0 && !page.continuation) {
+        updateUnreadCount(0)
+      }
       setPages((previous: ArticlePage[]) => {
         const next = index === 0 ? [] : previous.slice(0, index)
         next[index] = page
@@ -1341,6 +1352,8 @@ export function HomeReaderPage({ settings }: { settings: ReaderSettings }) {
   const [isLoadingFeeds, setIsLoadingFeeds] = useState(true)
   const [message, setMessage] = useState('')
   const isRefreshingRef = useRef(false)
+  const isRefreshingUnreadRef = useRef(false)
+  const unreadRefreshQueuedRef = useRef(false)
 
   const refreshFeeds = async (forceRefresh = false, remountArticles = false) => {
     if (isRefreshingRef.current) return
@@ -1375,13 +1388,39 @@ export function HomeReaderPage({ settings }: { settings: ReaderSettings }) {
     setMessage('')
   }
 
+  const refreshUnreadCounts = async () => {
+    if (isRefreshingUnreadRef.current) {
+      unreadRefreshQueuedRef.current = true
+      return
+    }
+
+    isRefreshingUnreadRef.current = true
+    try {
+      do {
+        unreadRefreshQueuedRef.current = false
+        const nextFeeds = await loadFeedOverview(settings)
+        setFeeds(nextFeeds)
+        setSelectedFeed(previous => previous
+          ? nextFeeds.find(feed => feed.id === previous.id) || nextFeeds[0] || null
+          : previous)
+      } while (unreadRefreshQueuedRef.current)
+    } catch {
+      // 标记已读成功后，未读数校准失败时保留本地即时更新结果。
+    } finally {
+      isRefreshingUnreadRef.current = false
+    }
+  }
+
   const onUnreadCountChanged = (feedId: string, delta: number) => {
-    setFeeds(previous => previous.map(feed => feed.id === feedId
-      ? { ...feed, unreadCount: Math.max(0, feed.unreadCount - delta) }
-      : feed))
-    setSelectedFeed(previous => previous && previous.id === feedId
-      ? { ...previous, unreadCount: Math.max(0, previous.unreadCount - delta) }
-      : previous)
+    const shouldUpdateAggregate = feedId !== READING_LIST_ID
+    const applyDelta = (feed: FeedOverview) => (
+      feed.id === feedId || (shouldUpdateAggregate && feed.id === READING_LIST_ID)
+        ? { ...feed, unreadCount: Math.max(0, feed.unreadCount - delta) }
+        : feed
+    )
+    setFeeds(previous => previous.map(applyDelta))
+    setSelectedFeed(previous => previous ? applyDelta(previous) : previous)
+    void refreshUnreadCounts()
   }
 
   const selectNextFeed = () => {
@@ -1528,14 +1567,24 @@ export function FeedManagementPage({
   }
 
   const onUnreadCountChanged = (feedId: string, delta: number) => {
-    setFeeds((previous: FeedOverview[]) => previous.map(item => item.id === feedId
-      ? { ...item, unreadCount: Math.max(0, item.unreadCount - delta) }
-      : item))
+    const shouldUpdateAggregate = feedId !== READING_LIST_ID
+    const applyDelta = (feed: FeedOverview) => (
+      feed.id === feedId || (shouldUpdateAggregate && feed.id === READING_LIST_ID)
+        ? { ...feed, unreadCount: Math.max(0, feed.unreadCount - delta) }
+        : feed
+    )
+    setFeeds((previous: FeedOverview[]) => previous.map(applyDelta))
+    setSelectedFeed(previous => previous ? applyDelta(previous) : previous)
+    void refreshUnreadCounts()
   }
 
   const refreshUnreadCounts = async () => {
     try {
-      setFeeds(await loadFeedOverview(settings))
+      const nextFeeds = await loadFeedOverview(settings)
+      setFeeds(nextFeeds)
+      setSelectedFeed(previous => previous
+        ? nextFeeds.find(feed => feed.id === previous.id) || nextFeeds[0] || null
+        : previous)
     } catch {
       // 标记已读成功后，未读数校准失败时保留本地即时更新结果。
     }

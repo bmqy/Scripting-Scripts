@@ -301,3 +301,10 @@
 - 验证：npm run build 通过，git diff --check 通过。
 - 遗留风险：未连接真实设备，需确认 WebView 在目标 Scripting App 版本上的左边缘返回手势。
 - 结论：源码审查通过，允许提交 dev。
+
+## [2026-08-15 15:50 Asia/Shanghai] 未读数同步修复审查
+- 技术：当前源变更同步到源计数和 reading-list 汇总；父页面重新读取所有源计数并同步 selectedFeed。
+- 边界：标记全部未读、单源文章、空未读列表、OPML 模式均保留现有路径。
+- 验证：npm run build、git diff --check 通过。
+- 遗留风险：真实设备和具体 FreshRSS 实例未联调。
+- 结论：源码审查通过，允许提交 dev。
