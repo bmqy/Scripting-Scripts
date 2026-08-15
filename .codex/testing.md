@@ -307,3 +307,5 @@
 - 功能静态检查：presentInAppBrowser 统一调用 Safari.present(url, false)，文章列表和组件文章链接均复用该函数。
 - 差异检查：git diff --check 通过，dist/RSS阅读.scripting 已恢复。
 - 设备验证：未连接 Scripting App/iOS，尚未实测从左侧边缘滑动关闭网页的具体手势表现。
+
+[2026-08-15 15:30 Asia/Shanghai] 本地验证：npm run build 通过；RSS 阅读脚本成功生成构建包。构建产物已恢复，不纳入提交。版本检查：scripts/RSS阅读/script.json=1.0.0，package.json=1.0.0。

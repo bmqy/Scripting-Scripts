@@ -21,8 +21,10 @@ import {
     Text,
     TextField,
     VStack,
+    WebView,
     Widget,
     useEffect,
+    useMemo,
     useRef,
     useState,
 } from 'scripting'
@@ -804,6 +806,22 @@ function presentInAppBrowser(url: string) {
   // 使用非全屏模态，让系统保留可交互关闭网页的手势。
   return safari.present(url, false)
 }
+function InAppArticlePage({ url }: { url: string }) {
+  const controller = useMemo(() => new WebViewController(), [])
+
+  useEffect(() => {
+    void controller.loadURL(url)
+    return () => controller.dispose()
+  }, [controller, url])
+
+  return <WebView
+    controller={controller}
+    navigationTitle='文章'
+    navigationBarTitleDisplayMode='inline'
+    frame={{ maxWidth: 'infinity', maxHeight: 'infinity' }}
+  />
+}
+
 const NAVIGATION_SOURCE_NAME_LIMIT = 10
 
 function navigationTitleText(sourceName: string, unreadCount: number) {
@@ -846,6 +864,7 @@ function ArticleListPage({
   const [message, setMessage] = useState('')
   const [articleFilter, setArticleFilter] = useState<ArticleFilter>('unread')
   const [unreadCount, setUnreadCount] = useState(feed.unreadCount)
+  const [selectedArticleUrl, setSelectedArticleUrl] = useState<string | null>(null)
   const isLoadingRef = useRef(false)
   const unreadCountRef = useRef(feed.unreadCount)
   const pageIndexRef = useRef(0)
@@ -1159,6 +1178,15 @@ function ArticleListPage({
   return <ScrollView
     navigationTitle={navigationBarTitle}
     navigationBarTitleDisplayMode='inline'
+    navigationDestination={{
+      isPresented: selectedArticleUrl != null,
+      onChanged: (isPresented) => {
+        if (!isPresented) setSelectedArticleUrl(null)
+      },
+      content: selectedArticleUrl
+        ? <InAppArticlePage url={selectedArticleUrl} />
+        : <Text>璇烽€夋嫨鏂囩珷</Text>,
+    }}
     scrollPosition={{
       value: leadingTargetId,
       onChanged: handleLeadingTargetChanged,
@@ -1261,15 +1289,10 @@ function ArticleListPage({
         </VStack>
 
         const targetId = articleTargetIdForPage(pageArrayIndex, article, index)
-        const openArticle = async () => {
+        const openArticle = () => {
           if (!article.url) return
-          try {
-            const presentation = presentInAppBrowser(article.url)
-            markArticleWhenTapped(article)
-            await presentation
-          } catch {
-            setMessage('无法打开文章详情，请检查 Scripting App 版本。')
-          }
+          markArticleWhenTapped(article)
+          setSelectedArticleUrl(article.url)
         }
         return <VStack
           key={targetId}

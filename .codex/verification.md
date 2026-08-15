@@ -276,3 +276,5 @@
 - 影响范围：文章列表打开文章、组件打开文章两处均通过同一辅助函数，未改变外部浏览器模式。
 - 构建与版本：npm run build、git diff --check 通过；版本保持 1.0.0；dist 已恢复。
 - 遗留风险：官方文档未明确承诺“左滑关闭”手势，需在目标 Scripting App/iOS 版本真机确认；若仍不支持，需要改用 WebViewController 或自定义导航页面。
+
+[2026-08-15 15:30 Asia/Shanghai] 功能验证：代码已将 App 内网页放入 NavigationStack 的 navigationDestination，页面使用 WebViewController 加载 URL，并在页面销毁时 dispose；目标是支持系统左滑导航返回。受限于当前环境没有连接 Scripting App 真机，左滑手势需在设备上回归确认。

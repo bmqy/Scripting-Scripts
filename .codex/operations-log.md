@@ -313,3 +313,4 @@
 - 依据 Scripting 官方 Safari.present 文档，将 App 内网页从 fullscreen=true 改为 fullscreen=false，以保留系统可交互关闭的模态呈现。
 - 文章列表与组件文章链接共用 presentInAppBrowser，因此两条入口同步生效。
 - npm run build 与 git diff --check 通过；dist 构建产物已恢复，不纳入提交。
+[2026-08-15 15:30 Asia/Shanghai] Codex: 使用 scripting-app-development 技能并查阅 Scripting 官方 WebView/NavigationStack 文档；将 App 内文章从 Safari.present 改为 NavigationStack navigationDestination + WebViewController，保留小组件直达文章的 Safari.present 路径。
