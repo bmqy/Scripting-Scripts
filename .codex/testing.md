@@ -266,3 +266,11 @@
 - 功能静态检查：标题菜单使用 Menu.label 自定义 HStack，包含当前源名称与 chevron.down 图标。
 - 差异检查：git diff --check 通过，dist/RSS阅读.scripting 已恢复。
 - 设备验证：未连接 Scripting App/iOS，尚未实测图标的真机尺寸与标题点击反馈。
+
+## 2026-08-15 RSS 滚动触底加载下一页
+
+- 冒烟构建：npm run build 通过，RSS 阅读脚本成功打包。
+- 版本检查：scripts/RSS阅读/script.json 与 package.json 均为 1.0.0。
+- 功能静态检查：pages 按顺序连续渲染；页尾哨兵出现时调用 loadNextPage，使用 isLoadingRef 防止重复请求；无 continuation 时显示下一个源入口。
+- 差异检查：git diff --check 通过，dist/RSS阅读.scripting 已恢复。
+- 设备验证：未连接 Scripting App/iOS，尚未实测触底回调、短列表自动补页和网络失败后的重试体验。

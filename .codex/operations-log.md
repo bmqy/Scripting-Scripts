@@ -274,3 +274,11 @@
 - 编辑前已同步 origin/dev；main 未修改，版本号保持 1.0.0。
 - 依据 Scripting 官方 Menu 文档，将 sourceMenu 改为自定义 label，在当前源标题右侧增加 chevron.down 图标。
 - npm run build 与 git diff --check 通过；dist 构建产物已恢复，不纳入提交。
+
+## 2026-08-15 RSS 滚动触底加载下一页
+
+- 执行者：Codex。
+- 编辑前已同步 origin/dev；main 未修改，版本号保持 1.0.0。
+- 依据 Scripting ScrollView/LazyVStack 的滚动目标与生命周期行为，将页尾哨兵 onAppear 作为触底触发点。
+- 文章页改为连续渲染已加载页面，触底按 continuation 自动追加下一页；删除上一页/下一页按钮，保留最后一页切换下一个源。
+- npm run build 与 git diff --check 通过；dist 构建产物已恢复，不纳入提交。

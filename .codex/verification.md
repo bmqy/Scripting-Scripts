@@ -237,3 +237,11 @@
 - UI行为：标题文字右侧显示 chevron.down，整个自定义 label 仍为源切换 Menu。
 - 构建与版本：npm run build、git diff --check 通过；版本保持 1.0.0；dist 已恢复。
 - 遗留风险：需要在 Scripting App/iOS 真机确认导航栏主区域的图标间距和长标题截断效果。
+
+## 2026-08-15 RSS 滚动触底加载下一页验证报告
+
+- API依据：Scripting 官方 ScrollView 文档确认 LazyVStack 可作为 scrollTargetLayout 内容容器，现有页尾哨兵采用项目已使用的 onAppear 生命周期回调；来源：https://scriptingapp.github.io/guide/Views/Scroll%20views/
+- 数据流：loadPage(index, continuation) 在 index 大于 0 时保留前序 pages 并追加新页，不再替换当前文章列表。
+- 交互：页尾触发下一页加载，加载中显示“正在加载下一页”；最后一页继续显示“下一个源”。
+- 已读：文章 onDisappear 和页尾批量标记逻辑保留，触底加载不会重置滚动状态。
+- 遗留风险：未做设备端验证，需确认 Scripting App 对 LazyVStack 页尾 onAppear 的触发时机及短列表连续自动加载行为。
