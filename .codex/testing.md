@@ -291,3 +291,11 @@
 - UI 静态检查：主页使用 topBarLeading 承载源菜单，navigationTitle 固定为 RSS 阅读，topBarTrailing 保留文章筛选。
 - 差异检查：git diff --check 通过，dist/RSS阅读.scripting 已恢复。
 - 设备验证：未连接 Scripting App/iOS，尚未实测左侧菜单宽度和中间标题布局。
+
+## 2026-08-15 RSS 源筛选显示未读数
+
+- 冒烟构建：npm run build 通过，RSS 阅读脚本成功打包。
+- 版本检查：scripts/RSS阅读/script.json 与 package.json 均为 1.0.0。
+- UI 静态检查：源选项标题显示“源名称（未读数）”，当前源显示“✓ 源名称（未读数）”。
+- 差异检查：git diff --check 通过，dist/RSS阅读.scripting 已恢复。
+- 设备验证：未连接 Scripting App/iOS，尚未实测长源名称和较大未读数下的菜单宽度。

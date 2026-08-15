@@ -1143,7 +1143,7 @@ function ArticleListPage({
       {sourceOptions.map(option => (
         <Button
           key={option.id}
-          title={option.id === feed.id ? `✓ ${option.name}` : option.name}
+          title={`${option.id === feed.id ? '✓ ' : ''}${option.name} (${Math.max(0, option.unreadCount)})`}
           action={() => onSourceSelected(option)}
         />
       ))}

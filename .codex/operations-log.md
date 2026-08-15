@@ -298,3 +298,10 @@
 - 依据 Scripting 官方 toolbar 文档，将主页源菜单从 principal 调整为 topBarLeading；主页导航标题固定为 RSS 阅读。
 - 普通源管理详情页继续显示当前源标题，避免改变非主页场景。
 - npm run build 与 git diff --check 通过；dist 构建产物已恢复，不纳入提交。
+
+## 2026-08-15 RSS 源筛选显示未读数
+
+- 执行者：Codex。
+- 编辑前已同步 origin/dev；main 未修改，版本号保持 1.0.0。
+- 复用 FeedOverview.unreadCount，在左侧源筛选 Menu 的每个选项中显示源名称与未读数；当前源保留勾选标记。
+- npm run build 与 git diff --check 通过；dist 构建产物已恢复，不纳入提交。
