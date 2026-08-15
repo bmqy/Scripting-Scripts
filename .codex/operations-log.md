@@ -305,3 +305,11 @@
 - 编辑前已同步 origin/dev；main 未修改，版本号保持 1.0.0。
 - 复用 FeedOverview.unreadCount，在左侧源筛选 Menu 的每个选项中显示源名称与未读数；当前源保留勾选标记。
 - npm run build 与 git diff --check 通过；dist 构建产物已恢复，不纳入提交。
+
+## 2026-08-15 RSS App 内网页手势关闭
+
+- 执行者：Codex。
+- 编辑前已同步 origin/dev；main 未修改，版本号保持 1.0.0。
+- 依据 Scripting 官方 Safari.present 文档，将 App 内网页从 fullscreen=true 改为 fullscreen=false，以保留系统可交互关闭的模态呈现。
+- 文章列表与组件文章链接共用 presentInAppBrowser，因此两条入口同步生效。
+- npm run build 与 git diff --check 通过；dist 构建产物已恢复，不纳入提交。

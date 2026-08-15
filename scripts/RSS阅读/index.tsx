@@ -801,7 +801,8 @@ type InAppSafariRuntime = {
 function presentInAppBrowser(url: string) {
   const safari = (globalThis as unknown as InAppSafariRuntime).Safari
   if (!safari?.present) throw new Error('当前 Scripting App 不支持内置浏览器。')
-  return safari.present(url, true)
+  // 使用非全屏模态，让系统保留可交互关闭网页的手势。
+  return safari.present(url, false)
 }
 const NAVIGATION_SOURCE_NAME_LIMIT = 10
 

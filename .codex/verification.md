@@ -268,3 +268,11 @@
 - 菜单行为：左侧源筛选菜单复用该字段渲染每个源的未读数，未引入额外请求或版本变更。
 - 构建与版本：npm run build、git diff --check 通过；版本保持 1.0.0；dist 已恢复。
 - 遗留风险：未做真机验证，需确认菜单长文本的系统截断行为。
+
+## 2026-08-15 RSS App 内网页手势关闭验证报告
+
+- API依据：Scripting 官方 Safari 文档确认 Safari.present(url, fullscreen?) 支持非全屏模态呈现，返回 Promise 直到网页视图关闭；来源：https://scriptingapp.github.io/guide/Device%20Capabilities/Safari/
+- 行为调整：App 内网页由全屏改为非全屏模态，保留系统导航/模态关闭交互的可能性。
+- 影响范围：文章列表打开文章、组件打开文章两处均通过同一辅助函数，未改变外部浏览器模式。
+- 构建与版本：npm run build、git diff --check 通过；版本保持 1.0.0；dist 已恢复。
+- 遗留风险：官方文档未明确承诺“左滑关闭”手势，需在目标 Scripting App/iOS 版本真机确认；若仍不支持，需要改用 WebViewController 或自定义导航页面。

@@ -299,3 +299,11 @@
 - UI 静态检查：源选项标题显示“源名称（未读数）”，当前源显示“✓ 源名称（未读数）”。
 - 差异检查：git diff --check 通过，dist/RSS阅读.scripting 已恢复。
 - 设备验证：未连接 Scripting App/iOS，尚未实测长源名称和较大未读数下的菜单宽度。
+
+## 2026-08-15 RSS App 内网页手势关闭
+
+- 冒烟构建：npm run build 通过，RSS 阅读脚本成功打包。
+- 版本检查：scripts/RSS阅读/script.json 与 package.json 均为 1.0.0。
+- 功能静态检查：presentInAppBrowser 统一调用 Safari.present(url, false)，文章列表和组件文章链接均复用该函数。
+- 差异检查：git diff --check 通过，dist/RSS阅读.scripting 已恢复。
+- 设备验证：未连接 Scripting App/iOS，尚未实测从左侧边缘滑动关闭网页的具体手势表现。
