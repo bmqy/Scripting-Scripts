@@ -28,6 +28,24 @@ if (fs.existsSync(cacheFile)) {
   }
 }
 
+// dev 分支的 RSS 阅读包需要与正式包并存，因此使用独立的包文件名。
+function isDevBranch() {
+  if (process.env.GITHUB_REF_NAME) return process.env.GITHUB_REF_NAME === 'dev';
+
+  try {
+    return execSync('git branch --show-current', { encoding: 'utf8' }).trim() === 'dev';
+  } catch (error) {
+    console.warn('Failed to detect current branch:', error.message);
+    return false;
+  }
+}
+
+const devBranch = isDevBranch();
+
+function getArtifactName(scriptName) {
+  return devBranch && scriptName === 'RSS阅读' ? `${scriptName}-dev` : scriptName;
+}
+
 // 计算目录的哈希值
 function calculateDirHash(dirPath) {
   const files = [];
@@ -143,8 +161,9 @@ function buildScript(scriptName, scriptPath) {
   }
   
   // 创建zip文件
-  const outputZip = path.join(distDir, `${scriptName}.zip`);
-  const outputScripting = path.join(distDir, `${scriptName}.scripting`);
+  const artifactName = getArtifactName(scriptName);
+  const outputZip = path.join(distDir, `${artifactName}.zip`);
+  const outputScripting = path.join(distDir, `${artifactName}.scripting`);
   console.log(`Output targets: ${outputZip}, ${outputScripting}`);
   
   // 根据操作系统使用不同的命令压缩文件

@@ -20,6 +20,7 @@ import {
   readCachedAuth,
   readCachedSiteIconUrl,
   READING_LIST_ID,
+  READER_SCRIPT_NAME,
   resolveSiteIconUrl,
   WIDGET_CACHE_KEY,
   writeCachedAuth,
@@ -91,8 +92,6 @@ const CACHE_KEY = WIDGET_CACHE_KEY
 const DISPLAY_ARTICLE_COUNT = 2
 const LARGE_DISPLAY_ARTICLE_COUNT = 7
 const OPML_SCAN_LIMIT = 100
-const WIDGET_NAME = 'RSS阅读'
-const READER_SCRIPT_NAME = 'RSS 阅读'
 const READER_ICON_SYSTEM_NAME = 'dot.radiowaves.left.and.right'
 const READER_ICON_BACKGROUND = '#38BDF8'
 
@@ -171,7 +170,7 @@ function serverName(endpoint: string) {
   try {
     return new URL(endpoint).hostname.replace(/^www\./, '')
   } catch {
-    return 'RSS 阅读'
+    return READER_SCRIPT_NAME
   }
 }
 
@@ -366,12 +365,12 @@ async function loadFreshData(settings: ReaderSettings): Promise<ReaderData> {
 }
 function missingConfigurationData(): ReaderData {
   return {
-    serverName: 'RSS 阅读',
+    serverName: READER_SCRIPT_NAME,
     sourceName: DEFAULT_FEED_NAME,
     unreadCount: 0,
     articles: [],
     updatedAt: Date.now(),
-    error: '请先在 Scripting App 中运行“RSS 阅读”脚本并完成 API 配置。',
+    error: `请先在 Scripting App 中运行“${READER_SCRIPT_NAME}”脚本并完成 API 配置。`,
   }
 }
 
@@ -462,7 +461,7 @@ function Header({
       ) : defaultIcon}
       {showName ? (
         <Text modifiers={modifiers().font(compact ? 'caption2' : 'subheadline').fontWeight('semibold').foregroundStyle(palette.headerName).lineLimit(1).minScaleFactor(0.76)}>
-          {data.sourceName || WIDGET_NAME}
+          {data.sourceName || READER_SCRIPT_NAME}
         </Text>
       ) : null}
       <Spacer minLength={2} />

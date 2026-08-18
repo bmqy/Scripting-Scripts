@@ -12,8 +12,8 @@
   "remoteResource": null,
   "icon": "dot.radiowaves.left.and.right",
   "localizedNames": {
-    "zh": "RSS 阅读",
-    "en": "RSS Reader"
+    "zh": "RSS 阅读 dev",
+    "en": "RSS Reader dev"
   },
   "description": "显示 Google Reader 兼容 RSS 平台的未读文章，也支持本地或线上 OPML 订阅源，可按订阅源筛选，并可分别设置 App、主屏组件与 Scripting 主页默认 UI 的文章打开方式",
   "localizedDescriptions": {
@@ -23,5 +23,5 @@
   "version": "1.1.0",
   "color": "rgba(56, 189, 248, 1)",
   "contributors": [],
-  "name": "RSS 阅读"
+  "name": "RSS 阅读 dev"
 }

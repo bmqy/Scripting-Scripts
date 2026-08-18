@@ -8,9 +8,7 @@ import {
   useState,
 } from 'scripting'
 import { HomeReaderPage } from './index'
-import { loadSettings, type ReaderSettings } from './config'
-
-const READER_SCRIPT_NAME = 'RSS 阅读'
+import { loadSettings, READER_SCRIPT_NAME, type ReaderSettings } from './config'
 
 function MissingSettingsView() {
   return (
@@ -20,7 +18,7 @@ function MissingSettingsView() {
       modifiers={modifiers().frame({ maxWidth: 'infinity', maxHeight: 'infinity', alignment: 'center' })}
     >
       <Text modifiers={modifiers().font('title2').fontWeight('bold')}>
-        RSS 阅读
+        {READER_SCRIPT_NAME}
       </Text>
       <Text
         font="body"
@@ -28,7 +26,7 @@ function MissingSettingsView() {
         multilineTextAlignment="center"
         modifiers={modifiers().frame({ maxWidth: 'infinity', alignment: 'center' })}
       >
-        请先运行 RSS 阅读脚本，完成 RSS 服务或 OPML 订阅配置。
+        请先运行 {READER_SCRIPT_NAME} 脚本，完成 RSS 服务或 OPML 订阅配置。
       </Text>
       <Link url={Script.createRunURLScheme(READER_SCRIPT_NAME, {})}>
         打开 RSS 设置

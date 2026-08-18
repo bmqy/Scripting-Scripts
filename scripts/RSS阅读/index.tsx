@@ -40,6 +40,7 @@ import {
     readCachedAuth,
     readCachedSiteIconUrl,
     READING_LIST_ID,
+    READER_SCRIPT_NAME,
     saveSettings,
     writeCachedSiteIconUrl,
     writeCachedAuth,
@@ -1161,7 +1162,7 @@ function ArticleListPage({
   const hasMorePages = Boolean(currentPage?.continuation)
   const isLastPage = Boolean(currentPage && !hasMorePages && pageIndex === pages.length - 1)
   const currentSourceTitle = navigationTitleText(feed.name, unreadCount)
-  const navigationBarTitle = sourceOptions && onSourceSelected ? 'RSS 阅读' : currentSourceTitle
+  const navigationBarTitle = sourceOptions && onSourceSelected ? READER_SCRIPT_NAME : currentSourceTitle
   const sourceMenu = sourceOptions && onSourceSelected ? (
     <Menu
       label={
@@ -1432,7 +1433,7 @@ export function HomeReaderPage({ settings }: { settings: ReaderSettings }) {
 
   if (!selectedFeed) {
     return <List
-      navigationTitle='RSS 阅读'
+      navigationTitle={READER_SCRIPT_NAME}
       navigationBarTitleDisplayMode='inline'
       refreshable={async () => { await refreshFeeds(true) }}
     >
@@ -2147,7 +2148,7 @@ function SettingsPage() {
         listRowInsets={{ top: 18, bottom: 12, leading: 0, trailing: 0 }}
         listRowSeparator="hidden"
       >
-        <Text font="largeTitle" fontWeight="bold">RSS 阅读</Text>
+        <Text font="largeTitle" fontWeight="bold">{READER_SCRIPT_NAME}</Text>
         <Link url={GITHUB_REPOSITORY_URL} buttonStyle="plain">
           <HStack alignment="lastTextBaseline" spacing={6} offset={{ x: 0, y: 3 }}>
             <Image
@@ -2429,7 +2430,7 @@ function SettingsPage() {
           font="footnote"
           foregroundStyle="secondaryLabel"
           listRowSeparator="hidden"
-        >主屏组件使用内置浏览器时，会先打开 RSS 阅读脚本，再在 App 内展示文章。</Text>
+        >主屏组件使用内置浏览器时，会先打开 {READER_SCRIPT_NAME} 脚本，再在 App 内展示文章。</Text>
         <HStack alignment="center" listRowSeparator="visible">
           <Text>外观模式</Text>
           <Spacer />

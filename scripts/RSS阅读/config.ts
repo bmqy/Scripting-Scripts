@@ -1,5 +1,8 @@
 import { type OpmlFeed } from './opml'
 
+// 开发分支使用独立名称，避免与正式版脚本和小组件混淆。
+export const READER_SCRIPT_NAME = 'RSS 阅读 dev'
+
 export type ReaderSettings = {
   mode: ReaderMode
   endpoint: string
