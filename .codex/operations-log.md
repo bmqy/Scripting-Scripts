@@ -316,3 +316,9 @@
 [2026-08-15 15:30 Asia/Shanghai] Codex: 使用 scripting-app-development 技能并查阅 Scripting 官方 WebView/NavigationStack 文档；将 App 内文章从 Safari.present 改为 NavigationStack navigationDestination + WebViewController，保留小组件直达文章的 Safari.present 路径。
 [2026-08-15 15:50 Asia/Shanghai] Codex: 排查并修复未读数同步；文章页标记已读后同步当前源与全部未读，父页面重新读取各源未读数并更新当前源快照，未读列表过滤页移除已读条目，空未读列表将当前计数归零。
 [2026-08-15 16:10 Asia/Shanghai] Codex: 按用户要求将 package.json 与 scripts/RSS阅读/script.json 版本从 1.0.0 提升到 1.1.0；scripts/限号/script.json 保持 1.0.0。npm run build 通过，dist 已恢复。准备提交 dev 并合并 main。
+
+[2026-09-21 通过本地时间] Codex: 编辑倒班排班前执行 git pull --ff-only origin dev；首次在沙箱中因 .git/FETCH_HEAD 权限失败，获提升权限后快进到 origin/dev，工作区原先干净。
+[2026-09-21 通过本地时间] Codex: 使用 scripting-app-development 技能，读取项目生命周期、Widget、Storage、DatePicker 和验证参考；查阅 Scripting 官方 llms.txt 及公开“小渔排班”资料。
+[2026-09-21 通过本地时间] Codex: 新增 scripts/倒班排班/schedule.ts、index.tsx、widget.tsx、script.json；核心逻辑使用自然日差和私有 Storage，设置页保存后刷新组件，Widget 在次日 00:05 请求刷新。
+[2026-09-21 通过本地时间] Codex: 重新构建最终中号布局；npm run build 通过，包内仍为 index.tsx、schedule.ts、script.json、widget.tsx；删除 dist/倒班排班.scripting 后 git diff --check 通过。
+[2026-09-21 通过本地时间] Codex: 纯逻辑严格 tsc 和日期断言通过；未连接 Scripting App/iOS，因此设备端 Widget Host E2E 仍标记为遗留风险。

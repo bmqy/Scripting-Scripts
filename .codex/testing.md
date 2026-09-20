@@ -313,3 +313,13 @@
 [2026-08-15 15:50 Asia/Shanghai] 本地验证：npm run build 通过；dist 构建产物已恢复。版本检查：scripts/RSS阅读/script.json=1.0.0，package.json=1.0.0。
 
 [2026-08-15 16:10 Asia/Shanghai] 发布验证：npm run build 通过；PACKAGE_VERSION=1.1.0，RSS_VERSION=1.1.0，LIMIT_VERSION=1.0.0；本地构建产物未纳入提交。
+
+## 2026-09-21 倒班排班小组件
+
+- 单元/纯逻辑：node --experimental-strip-types --input-type=module 断言跨月、跨年、向前一天、循环回到首项、班次字符串解析、非法配置回退和未来列表，结果 schedule assertions passed。
+- 类型检查：npx tsc --noEmit --target ESNext --module ESNext --strict --skipLibCheck scripts\\倒班排班\\schedule.ts 通过。
+- 冒烟构建：npm run build 通过；包内包含 index.tsx、schedule.ts、script.json、widget.tsx。
+- 元数据检查：script.json、.codex/structured-request.json、context-scan.json、context-question-1.json 均可解析。
+- 差异检查：git diff --check 通过；本地 dist/倒班排班.scripting 已删除，未纳入源码变更。
+- 设备验证：当前未连接 Scripting App/iOS，尚未完成真实 Widget 预览、主屏添加和锁屏家族回归。
+- 全仓库 TypeScript 检查：npx tsc --noEmit --pretty false 未通过，原因是仓库未提供 dts/scripting.d.ts，导致既有 scripting 模块/JSX 类型错误；新增 schedule.ts 单独严格检查通过。

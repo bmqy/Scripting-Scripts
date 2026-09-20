@@ -1,0 +1,27 @@
+{
+  "permissions": null,
+  "runInApp": false,
+  "entry": "index.tsx",
+  "iconImage": null,
+  "intentInputTypes": [],
+  "author": {
+    "name": "bmqy",
+    "email": "notice@bmqy.net",
+    "homepage": "https://bmqy.net"
+  },
+  "remoteResource": null,
+  "icon": "calendar.badge.clock",
+  "localizedNames": {
+    "zh": "倒班排班",
+    "en": "Shift Schedule"
+  },
+  "description": "按自定义倒班周期查看今天和未来日期的班次",
+  "localizedDescriptions": {
+    "zh": "按自定义倒班周期查看今天和未来日期的班次",
+    "en": "View today's and upcoming shifts from a custom rotation."
+  },
+  "version": "1.0.0",
+  "color": "rgba(224, 122, 95, 1)",
+  "contributors": [],
+  "name": "倒班排班"
+}

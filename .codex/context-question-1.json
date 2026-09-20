@@ -1,12 +1,13 @@
 {
-  "date": "2026-07-31",
+  "date": "2026-09-21",
   "executor": "Codex",
-  "question": "RSS 文章链接应如何从 Google Reader 兼容接口传递到小组件点击行为？",
+  "question": "倒班配置是否需要复杂的月历编辑或网络数据源，还是用周期基准即可覆盖当前需求？",
   "evidence": [
-    "scripts/RSS阅读/widget.tsx 的 StreamEntry 已声明 alternate[].href，但 toArticle 未映射该字段。",
-    "SmallWidget、MediumWidget、LargeWidget 都复用 ArticleRow，因此在 ArticleRow 统一处理即可覆盖三种尺寸。",
-    "Scripting 官方 Link 组件支持 url 属性和任意布局子节点，并明确支持在小组件中使用。"
+    "用户需求：按设置好的倒班日期显示未来日期班次。",
+    "scripts/限号/widget.tsx：现有项目按日期生成未来周数据。",
+    "公开应用资料：小渔排班支持自动/手动排班、日历样式和 Widget。"
   ],
-  "decision": "在 ReaderArticle 中增加可选 url；仅保留有效的 http/https alternate href；有链接时用 Link 包裹整行，无链接时保留原始布局。",
-  "validation": "npm run build；检查 git diff 和构建产物是否未被纳入源码变更。"
+  "decision": "使用起始日期 + 起始班次 + 可编辑循环列表的固定周期模型覆盖当前需求，预留未来扩展手工例外日期的空间。",
+  "validation": "npm run build；对纯日期计算做跨月、跨年和非法配置回退断言；设备端回归 Widget 家族。",
+  "remainingRisk": "真实设备上的 DatePicker、Widget 家族尺寸和系统色调模式仍需在 Scripting App/iOS 上手动回归。"
 }

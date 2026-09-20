@@ -1,0 +1,23 @@
+{
+  "date": "2026-09-21",
+  "executor": "Codex",
+  "task": "新增倒班排班小组件，按设置的起始日期与班次循环显示今天和未来日期班次",
+  "scope": {
+    "newScriptDirectory": "scripts/倒班排班",
+    "requiredFiles": ["index.tsx", "widget.tsx", "script.json"],
+    "sharedLogic": "schedule.ts",
+    "documentation": "README.md"
+  },
+  "acceptance": [
+    "支持设置起始日期、起始班次和至少两个自定义循环班次",
+    "按自然日计算未来日期班次，循环跨月和跨年仍保持正确",
+    "小号、中号、大号小组件提供清晰的今日重点与未来日期排班",
+    "小组件在次日 00:05 后请求刷新",
+    "npm run build 与 git diff --check 通过"
+  ],
+  "constraints": [
+    "遵循现有 Scripting App 目录结构和 Storage/Widget API 使用方式",
+    "不引入网络请求、定位或额外权限",
+    "本地构建产物不纳入本次源码提交"
+  ]
+}

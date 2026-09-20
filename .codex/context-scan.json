@@ -1,32 +1,45 @@
 ﻿{
-  "date": "2026-08-13",
+  "date": "2026-09-21",
   "executor": "Codex",
-  "task": "修正 RSS 阅读主页默认展示逻辑：默认源文章列表、右上角切换源与刷新、底部分页",
-  "module": "scripts/RSS阅读/home_screen_default_ui.tsx, scripts/RSS阅读/index.tsx",
+  "task": "新增倒班排班小组件",
+  "module": "scripts/倒班排班/index.tsx, scripts/倒班排班/widget.tsx, scripts/倒班排班/schedule.ts",
   "currentImplementation": {
-    "homeEntry": "home_screen_default_ui.tsx 默认导出函数组件，配置完成后承载 index.tsx 导出的 HomeReaderPage；未配置时提供打开设置入口。",
-    "defaultView": "HomeReaderPage 加载源列表后优先选择 settings.feedId 对应的默认源，直接渲染 ArticleListPage，不展示源管理列表。",
-    "sourceSwitching": "ArticleListPage 右上角提供切换源菜单；选择源只切换当前主页文章，不改变已保存的默认源。",
-    "refresh": "右上角刷新会重新加载源列表和未读数，并通过 session 重挂载当前 ArticleListPage 以重新加载文章。",
-    "pagination": "ArticleListPage 使用 stream/contents 或 OPML offset/快照 continuation 分页，底部提供上一页、下一页和末页切换下一个源。",
-    "readState": "文章行 onDisappear 进入延迟去重队列，滚动确认后批量调用 markItemsAsRead，并同步当前源未读数和已读状态。",
-    "lifecycle": "index.tsx 仅在 Script.env === index 时执行 run，主页导入页面组件不会触发 Navigation.present 或 Script.exit。"
+    "homeEntry": "index.tsx 是倒班排班的配置入口，widget.tsx 是主屏和锁屏小组件入口。",
+    "defaultView": "未保存配置时使用当天为起始日，默认循环为白班、夜班、休息。",
+    "sourceSwitching": "设置页用 DatePicker 选择起始日，用 Picker 选择起始班次，用 TextField 编辑循环列表。",
+    "refresh": "设置保存后调用 Widget.reloadAll；Widget.present 的 reloadPolicy 指向次日 00:05。",
+    "pagination": "大号组件显示未来 7 天，中号显示今日和后续 4 天，小号显示今日并提示明天。",
+    "readState": "不读取网络和敏感数据，只使用当前脚本私有 Storage 保存排班配置。",
+    "lifecycle": "index.tsx 使用 Navigation.present 展示设置页，关闭后 Script.exit；widget.tsx 在 Widget.present 前完成全部数据准备。",
+    "settings": "使用 Form、DatePicker、Picker 和 TextField 保存起始日期、起始班次和循环班次。",
+    "calculation": "使用 UTC 日序差计算自然日偏移，支持跨月、跨年和向过去日期查询。",
+    "widgetLayout": "按 Widget.family 分流，主屏采用温和纸张色背景、日历式排版和班次语义色。",
+    "refresh": "Widget.present 设置次日 00:05 的 reloadPolicy，设置页保存后调用 Widget.reloadAll。"
   },
   "similarPatterns": [
-    "FeedManagementPage 已有源列表、默认源保存、分页文章列表和下一个源导航。",
-    "ArticleListPage 已有 onDisappear、scrollPosition、延迟已读队列和未读数校准。",
-    "Scripting 官方 ScrollView visibility tracking 文档确认 scrollPosition、scrollTargetLayout 和 onDisappear/可见性模式。"
+    "scripts/限号/widget.tsx 已有今日重点、周条带和按 Widget.family 分流。",
+    "scripts/RSS阅读/index.tsx 已有 Form、Picker、TextField、Widget.reloadAll 设置流程。",
+    "scripts/RSS阅读/widget.tsx 已有 modifiers、widgetBackground、按尺寸拆分布局模式。",
+    "scripts/限号/widget.tsx 的今日重点、周条带和按 Widget.family 分流。",
+    "scripts/RSS阅读/index.tsx 的 Form、Picker、TextField、Widget.reloadAll 设置流程。"
   ],
   "officialReferences": [
     "https://scriptingapp.github.io/llms.txt",
     "https://scriptingapp.github.io/TestFlight/guide/Changelog/3.1.0/ScrollView%3A%20scroll%20position%20%26%20visibility%20tracking/",
-    "https://scriptingapp.github.io/guide/Views/Layout/LazyVStack/"
+    "https://scriptingapp.github.io/guide/Views/Layout/LazyVStack/",
+    "https://scriptingapp.github.io/guide/Widget/Widget%20Quick%20Start",
+    "https://scriptingapp.github.io/guide/Widget/Widget%20API",
+    "https://scriptingapp.github.io/guide/Utilities/Storage",
+    "https://scriptingapp.github.io/guide/Views/Controls/DatePicker/",
+    "https://scriptingapp.github.io/guide/Views/Button"
   ],
   "validationPlan": [
     "npm run build",
     "git diff --check",
     "npx tsc --noEmit --pretty false（受仓库缺少 dts/scripting.d.ts 阻塞）",
     "检查 .scripting 包包含 home_screen_default_ui.tsx、index.tsx 和 script.json",
-    "在 Scripting App 主页选择 RSS 阅读脚本并执行设备端手动验证"
+    "对 schedule.ts 执行跨月、跨年、向前日期和非法配置回退断言",
+    "检查 .scripting 包包含倒班排班的源码文件和 script.json",
+    "设备端添加 systemSmall/systemMedium/systemLarge 与锁屏组件，验证显示和次日刷新"
   ]
 }
