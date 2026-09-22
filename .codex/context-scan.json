@@ -8,12 +8,12 @@
     "defaultView": "未保存配置时使用当天为起始日，默认循环为白班、夜班、休息。",
     "sourceSwitching": "设置页用 DatePicker 选择起始日，用 Picker 选择起始班次，用 TextField 编辑循环列表。",
     "refresh": "设置保存后调用 Widget.reloadAll；Widget.present 的 reloadPolicy 指向次日 00:05。",
-    "pagination": "大号组件显示未来 7 天，中号显示今日和后续 4 天，小号显示今日并提示明天。",
+    "pagination": "小号只显示当天班次，中号按 7 列显示未来 7 天，大号按星期栏和日期格组成的当前月份日历网格显示排班。",
     "readState": "不读取网络和敏感数据，只使用当前脚本私有 Storage 保存排班配置。",
     "lifecycle": "index.tsx 使用 Navigation.present 展示设置页，关闭后 Script.exit；widget.tsx 在 Widget.present 前完成全部数据准备。",
     "settings": "使用 Form、DatePicker、Picker 和 TextField 保存起始日期、起始班次和循环班次。",
     "calculation": "使用 UTC 日序差计算自然日偏移，支持跨月、跨年和向过去日期查询。",
-    "widgetLayout": "按 Widget.family 分流，主屏采用温和纸张色背景、日历式排版和班次语义色。",
+    "widgetLayout": "按 Widget.family 分流，主屏采用温和纸张色背景、班次语义色和分尺寸布局：小号单日焦点、中号 7 天条带、大号当前月份日历网格。",
     "refresh": "Widget.present 设置次日 00:05 的 reloadPolicy，设置页保存后调用 Widget.reloadAll。"
   },
   "similarPatterns": [
@@ -40,6 +40,7 @@
     "检查 .scripting 包包含 home_screen_default_ui.tsx、index.tsx 和 script.json",
     "对 schedule.ts 执行跨月、跨年、向前日期和非法配置回退断言",
     "检查 .scripting 包包含倒班排班的源码文件和 script.json",
-    "设备端添加 systemSmall/systemMedium/systemLarge 与锁屏组件，验证显示和次日刷新"
+    "设备端添加 systemSmall/systemMedium/systemLarge 与锁屏组件，验证显示和次日刷新",
+    "静态检查三种主屏尺寸的显示范围和大号日历网格结构"
   ]
 }

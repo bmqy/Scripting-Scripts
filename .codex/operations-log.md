@@ -322,3 +322,10 @@
 [2026-09-21 通过本地时间] Codex: 新增 scripts/倒班排班/schedule.ts、index.tsx、widget.tsx、script.json；核心逻辑使用自然日差和私有 Storage，设置页保存后刷新组件，Widget 在次日 00:05 请求刷新。
 [2026-09-21 通过本地时间] Codex: 重新构建最终中号布局；npm run build 通过，包内仍为 index.tsx、schedule.ts、script.json、widget.tsx；删除 dist/倒班排班.scripting 后 git diff --check 通过。
 [2026-09-21 通过本地时间] Codex: 纯逻辑严格 tsc 和日期断言通过；未连接 Scripting App/iOS，因此设备端 Widget Host E2E 仍标记为遗留风险。
+
+[2026-09-22 通过本地时间] Codex: 编辑倒班排班布局前执行 git pull --ff-only origin dev；远端已快进包含自动构建产物，工作区随后保持干净。
+[2026-09-22 通过本地时间] Codex: 按用户要求将小号改为仅显示当天，中号改为未来 7 天横向日期条，大号改为带星期栏的 7 天日历网格；排班计算、设置页和锁屏尺寸保持不变。
+[2026-09-22 通过本地时间] Codex: npm run build 与 git diff --check 通过；本地 dist/倒班排班.scripting 构建产物已恢复，不纳入源码变更。
+[2026-09-22 通过本地时间] Codex: 复核“大号日历”语义后扩展为当前月份的周一至周日月历网格，使用既有 shiftDay 为每个日期格计算班次；中号仍只取未来 7 天。
+[2026-09-22 通过本地时间] Codex: 月历网格版本重新 npm run build 通过，dist/倒班排班.scripting 再次恢复，不纳入源码变更。
+[2026-09-22 通过本地时间] Codex: 复核 schedule.ts 的 shiftDay 参数顺序并修正月历日期调用；修正后 npm run build 通过，dist/倒班排班.scripting 已恢复。

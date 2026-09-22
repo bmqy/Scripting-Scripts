@@ -292,3 +292,14 @@
 - 生命周期：设置页在 Navigation.present 结束后 Script.exit；Widget.present 前完成数据读取，reloadPolicy 指向次日 00:05。
 - 遗留风险：未连接真机，仍需验证 DatePicker 交互、不同屏幕尺寸的文字截断、iOS 色调模式和系统实际刷新时点。
 - 类型检查限制：全仓库 tsc 结果受既有缺失 dts/scripting.d.ts 阻塞，不能作为运行时 API 验收；新增无运行时依赖的 schedule.ts 已单独严格通过。
+
+## [2026-09-22 通过本地时间] 倒班排班布局调整验证
+
+- 布局范围：小号删除明天提示，只保留今天的星期、日期和班次；中号按 7 列展示未来 7 天；大号改为月份标题、星期栏和日期/班次格的日历结构。
+- 构建：npm run build 成功；本地构建产物随后恢复。
+- 差异：git diff --check 通过。
+- 逻辑边界：未改动 schedule.ts，因此沿用上一轮已通过的跨月、跨年、向前日期和非法配置断言。
+- 遗留风险：当前未连接 Scripting App/iOS，无法证明真实 Widget Host 的尺寸适配、文字截断、色调外观和次日刷新。
+- 类型检查限制：全仓库 npx tsc --noEmit --pretty false 仍受缺少 dts/scripting.d.ts 和 JSX 运行时声明阻塞；该结果不等同于本次布局构建失败。
+- 最终 UI 结构：大号按当前月份生成完整周一至周日月历，使用空位补齐月初/月末周；日期格显示日号和班次，今天使用班次语义浅色高亮。
+- 最终代码核对：月历日期格调用 shiftDay(date, schedule)，与 schedule.ts 的现有接口顺序一致；最终构建通过。

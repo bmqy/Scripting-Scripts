@@ -323,3 +323,13 @@
 - 差异检查：git diff --check 通过；本地 dist/倒班排班.scripting 已删除，未纳入源码变更。
 - 设备验证：当前未连接 Scripting App/iOS，尚未完成真实 Widget 预览、主屏添加和锁屏家族回归。
 - 全仓库 TypeScript 检查：npx tsc --noEmit --pretty false 未通过，原因是仓库未提供 dts/scripting.d.ts，导致既有 scripting 模块/JSX 类型错误；新增 schedule.ts 单独严格检查通过。
+
+## 2026-09-22 倒班排班布局调整
+
+- 冒烟构建：npm run build 通过；倒班排班脚本重新打包成功。
+- UI 静态检查：小号仅渲染当天班次；中号渲染 days.slice(0, 7) 的未来 7 天；大号渲染星期栏与 7 个日期格组成的日历网格。
+- 差异检查：git diff --check 通过；本地 dist/倒班排班.scripting 已恢复，不纳入源码变更。
+- 设备验证：未连接 Scripting App/iOS，尚未实测三种主屏尺寸的真实系统排版、字体缩放和色调模式。
+- 全仓库类型检查：npx tsc --noEmit --pretty false 未通过，仍因仓库缺少 dts/scripting.d.ts 及 Scripting App JSX 运行时声明产生大量既有类型错误；本次布局通过 npm run build 验证。
+- 布局修正：大号最终为当前月份的周一至周日月历网格，每个有效日期格显示日号与班次，月初/月末空位留白。
+- 最终构建：修正 shiftDay 调用参数后再次执行 npm run build，结果通过。
