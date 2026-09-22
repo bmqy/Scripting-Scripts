@@ -339,3 +339,10 @@
 - 错误复现依据：用户提供的编辑器诊断集中指向 PALETTE 颜色传入 foregroundStyle/background 时的普通 string 类型。
 - 修复验证：调色板与颜色函数显式使用 ShapeStyle；npm run build 通过；git diff --check 通过。
 - 设备验证：未连接 Scripting App/iOS，尚未完成真实编辑器诊断清零和 Widget Host 回归。
+
+## 2026-09-22 倒班排班布局紧凑化
+
+- 中号：7 个日期列固定宽高，日期改为单独日号，避免 7 列自适应时宽度和高度漂移。
+- 大号：当前月日历格高度降为 29pt，星期栏、周行和说明使用统一 2pt/6pt 间距，减少月历超出 Widget 容器的风险。
+- 构建：npm run build、git diff --check 通过；dist 构建产物已恢复。
+- 设备验证：未连接 Scripting App/iOS，仍需真实 Widget Host 检查不同月份五周/六周布局和字体截断。

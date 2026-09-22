@@ -331,3 +331,5 @@
 [2026-09-22 通过本地时间] Codex: 复核 schedule.ts 的 shiftDay 参数顺序并修正月历日期调用；修正后 npm run build 通过，dist/倒班排班.scripting 已恢复。
 [2026-09-22 通过本地时间] Codex: 根据用户提供的 Scripting 编辑器诊断，定位 widget.tsx 的 PALETTE 属性被推断为普通 string，导致 foregroundStyle/background 参数不满足 ShapeStyle；参考官方 ShapeStyle 文档与仓库既有调色板写法，改为显式 ShapeStyle 类型。
 [2026-09-22 通过本地时间] Codex: 类型修复后 npm run build 通过，dist/倒班排班.scripting 已恢复，不纳入源码变更。
+[2026-09-22 通过本地时间] Codex: 根据用户反馈“排版混乱”收紧 Widget 布局；中号日期列固定 40x58 并合并标题说明，大号日期格固定 29、网格间距统一 2，减少月历垂直溢出与重复信息。
+[2026-09-22 通过本地时间] Codex: 使用 scripting-app-development Widget 参考与仓库限号组件的固定尺寸周条带模式；最终 npm run build 与 git diff --check 通过，dist 构建物已恢复。
