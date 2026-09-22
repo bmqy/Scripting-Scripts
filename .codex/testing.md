@@ -333,3 +333,9 @@
 - 全仓库类型检查：npx tsc --noEmit --pretty false 未通过，仍因仓库缺少 dts/scripting.d.ts 及 Scripting App JSX 运行时声明产生大量既有类型错误；本次布局通过 npm run build 验证。
 - 布局修正：大号最终为当前月份的周一至周日月历网格，每个有效日期格显示日号与班次，月初/月末空位留白。
 - 最终构建：修正 shiftDay 调用参数后再次执行 npm run build，结果通过。
+
+## 2026-09-22 倒班排班 ShapeStyle 类型修复
+
+- 错误复现依据：用户提供的编辑器诊断集中指向 PALETTE 颜色传入 foregroundStyle/background 时的普通 string 类型。
+- 修复验证：调色板与颜色函数显式使用 ShapeStyle；npm run build 通过；git diff --check 通过。
+- 设备验证：未连接 Scripting App/iOS，尚未完成真实编辑器诊断清零和 Widget Host 回归。

@@ -7,6 +7,7 @@ import {
   Widget,
   ZStack,
   modifiers,
+  type ShapeStyle,
 } from 'scripting'
 import {
   formatMonthDay,
@@ -18,7 +19,20 @@ import {
   type ShiftDay,
 } from './schedule'
 
-const PALETTE = {
+type ShiftPalette = {
+  background: ShapeStyle
+  card: ShapeStyle
+  ink: ShapeStyle
+  secondary: ShapeStyle
+  accent: ShapeStyle
+  accentSoft: ShapeStyle
+  night: ShapeStyle
+  nightSoft: ShapeStyle
+  rest: ShapeStyle
+  restSoft: ShapeStyle
+}
+
+const PALETTE: ShiftPalette = {
   background: '#F7F1E8',
   card: '#FFFDFC',
   ink: '#302A25',
@@ -31,13 +45,13 @@ const PALETTE = {
   restSoft: '#E2EBDD',
 }
 
-function shiftColor(shift: string) {
+function shiftColor(shift: string): ShapeStyle {
   if (/休|假/.test(shift)) return PALETTE.rest
   if (/夜|晚/.test(shift)) return PALETTE.night
   return PALETTE.accent
 }
 
-function shiftSoftColor(shift: string) {
+function shiftSoftColor(shift: string): ShapeStyle {
   if (/休|假/.test(shift)) return PALETTE.restSoft
   if (/夜|晚/.test(shift)) return PALETTE.nightSoft
   return PALETTE.accentSoft

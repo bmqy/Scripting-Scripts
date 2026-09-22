@@ -329,3 +329,5 @@
 [2026-09-22 通过本地时间] Codex: 复核“大号日历”语义后扩展为当前月份的周一至周日月历网格，使用既有 shiftDay 为每个日期格计算班次；中号仍只取未来 7 天。
 [2026-09-22 通过本地时间] Codex: 月历网格版本重新 npm run build 通过，dist/倒班排班.scripting 再次恢复，不纳入源码变更。
 [2026-09-22 通过本地时间] Codex: 复核 schedule.ts 的 shiftDay 参数顺序并修正月历日期调用；修正后 npm run build 通过，dist/倒班排班.scripting 已恢复。
+[2026-09-22 通过本地时间] Codex: 根据用户提供的 Scripting 编辑器诊断，定位 widget.tsx 的 PALETTE 属性被推断为普通 string，导致 foregroundStyle/background 参数不满足 ShapeStyle；参考官方 ShapeStyle 文档与仓库既有调色板写法，改为显式 ShapeStyle 类型。
+[2026-09-22 通过本地时间] Codex: 类型修复后 npm run build 通过，dist/倒班排班.scripting 已恢复，不纳入源码变更。

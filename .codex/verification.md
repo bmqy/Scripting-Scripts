@@ -303,3 +303,10 @@
 - 类型检查限制：全仓库 npx tsc --noEmit --pretty false 仍受缺少 dts/scripting.d.ts 和 JSX 运行时声明阻塞；该结果不等同于本次布局构建失败。
 - 最终 UI 结构：大号按当前月份生成完整周一至周日月历，使用空位补齐月初/月末周；日期格显示日号和班次，今天使用班次语义浅色高亮。
 - 最终代码核对：月历日期格调用 shiftDay(date, schedule)，与 schedule.ts 的现有接口顺序一致；最终构建通过。
+
+## [2026-09-22 通过本地时间] 倒班排班 ShapeStyle 类型修复验证
+
+- 类型契约：Scripting 官方 foregroundStyle/background 文档确认十六进制颜色属于 ShapeStyle；widget.tsx 现在用显式 ShapeStyle 调色板承接这些颜色。
+- 既有模式：scripts/限号/widget.tsx 与 scripts/RSS阅读/widget.tsx 已采用 ShapeStyle 调色板类型，本次按相同模式修复。
+- 构建：npm run build 成功，构建产物已恢复。
+- 遗留风险：当前环境没有 Scripting App 编辑器类型检查和 iOS Host 预览，需用户重新同步脚本确认编辑器诊断消失。
