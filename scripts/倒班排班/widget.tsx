@@ -46,8 +46,8 @@ const PALETTE: ShiftPalette = {
   nightSoft: '#E1E5F5',
   rest: '#758B73',
   restSoft: '#E2EBDD',
-  calendarAdjacent: '#8D8D8D',
-  calendarAdjacentSoft: '#E8E8E8',
+  calendarAdjacent: '#A8A8A8',
+  calendarAdjacentSoft: '#F2F2F2',
 }
 
 const MEDIUM_DAY_WIDTH = 40
@@ -136,8 +136,8 @@ function CalendarDayCell({ day, isAdjacentMonth }: CalendarCell) {
   return <VStack alignment="center" spacing={2} modifiers={modifiers()
     .padding({ top: 3, leading: 2, bottom: 3, trailing: 2 })
     .frame({ maxWidth: 'infinity', height: CALENDAR_DAY_HEIGHT, alignment: 'center' })
-    .background(isAdjacentMonth ? PALETTE.calendarAdjacentSoft : day.isToday ? shiftSoftColor(day.shift) : PALETTE.card)}>
-    <Text modifiers={modifiers().font(12).fontWeight(day.isToday ? 'bold' : isAdjacentMonth ? 'regular' : 'semibold').foregroundStyle(isAdjacentMonth ? PALETTE.calendarAdjacent : day.isToday ? PALETTE.ink : PALETTE.secondary).lineLimit(1).minScaleFactor(0.65)}>
+    .background(isAdjacentMonth ? PALETTE.calendarAdjacentSoft : day.isToday ? PALETTE.ink : PALETTE.card)}>
+    <Text modifiers={modifiers().font(12).fontWeight(day.isToday ? 'bold' : isAdjacentMonth ? 'regular' : 'semibold').foregroundStyle(isAdjacentMonth ? PALETTE.calendarAdjacent : day.isToday ? PALETTE.card : PALETTE.secondary).lineLimit(1).minScaleFactor(0.65)}>
       {day.date.getDate()}
     </Text>
     <Text modifiers={modifiers()
