@@ -4,6 +4,7 @@ import {
   Image,
   LazyVGrid,
   Spacer,
+  Script,
   Text,
   VStack,
   Widget,
@@ -274,4 +275,5 @@ Widget.present(<WidgetView days={days} schedule={schedule} />, {
     date: nextMidnight(),
   },
 })
+Script.exit()
 
