@@ -1,6 +1,7 @@
 import {
   HStack,
   Image,
+  LazyVGrid,
   Spacer,
   Text,
   VStack,
@@ -47,8 +48,13 @@ const PALETTE: ShiftPalette = {
 
 const MEDIUM_DAY_WIDTH = 40
 const MEDIUM_DAY_HEIGHT = 58
-const CALENDAR_DAY_HEIGHT = 30
+const CALENDAR_DAY_HEIGHT = 40
 const CALENDAR_GAP = 3
+const CALENDAR_COLUMNS = Array.from({ length: 7 }, () => ({
+  size: { type: 'flexible' as const, min: 0, max: 'infinity' as const },
+  spacing: CALENDAR_GAP,
+  alignment: 'center' as const,
+}))
 
 function shiftColor(shift: string): ShapeStyle {
   if (/休|假/.test(shift)) return PALETTE.rest
@@ -118,32 +124,24 @@ function MediumDayColumn({ day }: { day: ShiftDay }) {
 }
 
 function CalendarDayCell({ day }: { day: ShiftDay | null }) {
-  const columnFrame = {
-    axes: 'horizontal' as const,
-    count: 7,
-    span: 1,
-    spacing: CALENDAR_GAP,
-    alignment: 'center' as const,
-  }
-
   if (!day) {
-    return <VStack containerRelativeFrame={columnFrame} modifiers={modifiers().frame({ height: CALENDAR_DAY_HEIGHT, alignment: 'center' })} />
+    return <VStack modifiers={modifiers().frame({ maxWidth: 'infinity', height: CALENDAR_DAY_HEIGHT, alignment: 'center' })} />
   }
 
-  return <VStack containerRelativeFrame={columnFrame} alignment="center" spacing={1} modifiers={modifiers()
-    .padding({ top: 2, leading: 1, bottom: 2, trailing: 1 })
-    .frame({ height: CALENDAR_DAY_HEIGHT, alignment: 'center' })
+  return <VStack alignment="center" spacing={2} modifiers={modifiers()
+    .padding({ top: 3, leading: 2, bottom: 3, trailing: 2 })
+    .frame({ maxWidth: 'infinity', height: CALENDAR_DAY_HEIGHT, alignment: 'center' })
     .background(day.isToday ? shiftSoftColor(day.shift) : PALETTE.card)}>
-    <Text modifiers={modifiers().font(10).fontWeight(day.isToday ? 'bold' : 'semibold').foregroundStyle(day.isToday ? PALETTE.ink : PALETTE.secondary).lineLimit(1).minScaleFactor(0.55)}>
+    <Text modifiers={modifiers().font(12).fontWeight(day.isToday ? 'bold' : 'semibold').foregroundStyle(day.isToday ? PALETTE.ink : PALETTE.secondary).lineLimit(1).minScaleFactor(0.65)}>
       {day.date.getDate()}
     </Text>
     <Text modifiers={modifiers()
-      .font(9)
+      .font(10)
       .fontWeight('bold')
       .foregroundStyle(shiftColor(day.shift))
       .lineLimit(1)
-      .minScaleFactor(0.35)
-      .padding({ top: 1, leading: 2, bottom: 1, trailing: 2 })
+      .minScaleFactor(0.5)
+      .padding({ top: 2, leading: 3, bottom: 2, trailing: 3 })
       .background(day.isToday ? PALETTE.card : shiftSoftColor(day.shift))}>
       {day.shift}
     </Text>
@@ -165,20 +163,13 @@ function monthCalendarDays(schedule: ShiftSchedule, date: Date): Array<ShiftDay 
 
 function CalendarGrid({ days }: { days: Array<ShiftDay | null> }) {
   const weekdayLabels = ['一', '二', '三', '四', '五', '六', '日']
-  const weeks: Array<Array<ShiftDay | null>> = []
-  for (let index = 0; index < days.length; index += 7) {
-    weeks.push(days.slice(index, index + 7))
-  }
-
   return <VStack alignment="leading" spacing={CALENDAR_GAP} modifiers={modifiers().frame({ maxWidth: 'infinity', alignment: 'leading' })}>
-    <HStack alignment="center" spacing={0} modifiers={modifiers().frame({ maxWidth: 'infinity', alignment: 'leading' })}>
-      {weekdayLabels.map(label => <Text key={label} containerRelativeFrame={{ axes: 'horizontal', count: 7, span: 1, spacing: CALENDAR_GAP, alignment: 'center' }} modifiers={modifiers().font('caption2').foregroundStyle(PALETTE.secondary)}>
+    <LazyVGrid columns={CALENDAR_COLUMNS} alignment="center" spacing={CALENDAR_GAP}>
+      {weekdayLabels.map(label => <Text key={`weekday-${label}`} modifiers={modifiers().font('caption2').fontWeight('semibold').foregroundStyle(PALETTE.secondary).frame({ maxWidth: 'infinity', alignment: 'center' })}>
         {label}
       </Text>)}
-    </HStack>
-    {weeks.map((week, weekIndex) => <HStack key={`week-${weekIndex}`} alignment="center" spacing={0} modifiers={modifiers().frame({ maxWidth: 'infinity', alignment: 'leading' })}>
-      {week.map((day, dayIndex) => <CalendarDayCell key={`day-${weekIndex}-${dayIndex}`} day={day} />)}
-    </HStack>)}
+      {days.map((day, dayIndex) => <CalendarDayCell key={`day-${dayIndex}`} day={day} />)}
+    </LazyVGrid>
   </VStack>
 }
 
