@@ -136,7 +136,7 @@ function CalendarDayCell({ day, isAdjacentMonth }: CalendarCell) {
   return <VStack alignment="center" spacing={2} modifiers={modifiers()
     .padding({ top: 3, leading: 2, bottom: 3, trailing: 2 })
     .frame({ maxWidth: 'infinity', height: CALENDAR_DAY_HEIGHT, alignment: 'center' })
-    .background(isAdjacentMonth ? PALETTE.calendarAdjacentSoft : shiftSoftColor(day.shift))}>
+    .background(isAdjacentMonth ? PALETTE.calendarAdjacentSoft : day.isToday ? shiftSoftColor(day.shift) : PALETTE.card)}>
     <Text modifiers={modifiers().font(day.isToday ? 13 : 12).fontWeight(day.isToday ? 'bold' : isAdjacentMonth ? 'regular' : 'semibold').foregroundStyle(isAdjacentMonth ? PALETTE.calendarAdjacent : day.isToday ? shiftColor(day.shift) : PALETTE.secondary).lineLimit(1).minScaleFactor(0.65)}>
       {day.date.getDate()}
     </Text>
