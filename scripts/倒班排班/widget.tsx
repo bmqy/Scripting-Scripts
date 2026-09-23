@@ -239,18 +239,29 @@ function LargeWidget({ days, schedule }: { days: ShiftDay[]; schedule: ShiftSche
     .widgetBackground(PALETTE.background)}>
     <Header days={days} />
     <HStack alignment="center" spacing={8} modifiers={modifiers().frame({ maxWidth: 'infinity', alignment: 'leading' })}>
-      <VStack alignment="leading" spacing={1}>
-        <Text modifiers={modifiers().font('caption2').foregroundStyle(PALETTE.secondary).lineLimit(1)}>
-          月历排班
-        </Text>
-        <HStack alignment="center" spacing={5}>
-          <Button title="上月" systemImage="chevron.left" intent={ChangeCalendarMonthIntent(-1)} />
-          <Text modifiers={modifiers().font('title2').fontWeight('bold').foregroundStyle(PALETTE.ink).lineLimit(1)}>{monthTitle}</Text>
-          <Button title="下月" systemImage="chevron.right" intent={ChangeCalendarMonthIntent(1)} />
-        </HStack>
-      </VStack>
+      <Text modifiers={modifiers().font('caption2').foregroundStyle(PALETTE.secondary).lineLimit(1)}>
+        月历排班
+      </Text>
       <Spacer minLength={4} />
       <TodayBadge day={today} />
+    </HStack>
+    <HStack alignment="center" spacing={8} modifiers={modifiers().frame({ maxWidth: 'infinity', alignment: 'leading' })}>
+      <Text modifiers={modifiers().font('title2').fontWeight('bold').foregroundStyle(PALETTE.ink).lineLimit(1)}>{monthTitle}</Text>
+      <Spacer minLength={4} />
+      <HStack alignment="center" spacing={8}>
+        <Button intent={ChangeCalendarMonthIntent(-1)} buttonStyle="plain">
+          <HStack alignment="center" spacing={3}>
+            <Image systemName="chevron.left" font={11} foregroundStyle={PALETTE.accent} />
+            <Text modifiers={modifiers().font('caption').fontWeight('medium').foregroundStyle(PALETTE.accent)}>上月</Text>
+          </HStack>
+        </Button>
+        <Button intent={ChangeCalendarMonthIntent(1)} buttonStyle="plain">
+          <HStack alignment="center" spacing={3}>
+            <Text modifiers={modifiers().font('caption').fontWeight('medium').foregroundStyle(PALETTE.accent)}>下月</Text>
+            <Image systemName="chevron.right" font={11} foregroundStyle={PALETTE.accent} />
+          </HStack>
+        </Button>
+      </HStack>
     </HStack>
     <CalendarGrid days={monthCalendarDays(schedule, displayMonth)} />
     <Spacer minLength={2} />
