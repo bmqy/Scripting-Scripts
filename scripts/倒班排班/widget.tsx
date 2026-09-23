@@ -56,6 +56,7 @@ const PALETTE: ShiftPalette = {
 const MEDIUM_DAY_WIDTH = 40
 const MEDIUM_DAY_HEIGHT = 58
 const CALENDAR_DAY_HEIGHT = 40
+const COMPACT_CALENDAR_DAY_HEIGHT = 32
 const CALENDAR_GAP = 3
 const CALENDAR_COLUMNS = Array.from({ length: 7 }, () => ({
   size: { type: 'flexible' as const, min: 0, max: 'infinity' as const },
@@ -135,21 +136,21 @@ type CalendarCell = {
   isAdjacentMonth: boolean
 }
 
-function CalendarDayCell({ day, isAdjacentMonth }: CalendarCell) {
-  return <VStack alignment="center" spacing={2} modifiers={modifiers()
-    .padding({ top: 3, leading: 2, bottom: 3, trailing: 2 })
-    .frame({ maxWidth: 'infinity', height: CALENDAR_DAY_HEIGHT, alignment: 'center' })
+function CalendarDayCell({ day, isAdjacentMonth, compact }: CalendarCell & { compact: boolean }) {
+  return <VStack alignment="center" spacing={compact ? 1 : 2} modifiers={modifiers()
+    .padding({ top: compact ? 1 : 3, leading: 2, bottom: compact ? 1 : 3, trailing: 2 })
+    .frame({ maxWidth: 'infinity', height: compact ? COMPACT_CALENDAR_DAY_HEIGHT : CALENDAR_DAY_HEIGHT, alignment: 'center' })
     .background(isAdjacentMonth ? PALETTE.calendarAdjacentSoft : day.isToday ? shiftSoftColor(day.shift) : PALETTE.card)}>
-    <Text modifiers={modifiers().font(day.isToday ? 13 : 12).fontWeight(day.isToday ? 'bold' : isAdjacentMonth ? 'regular' : 'semibold').foregroundStyle(isAdjacentMonth ? PALETTE.calendarAdjacent : day.isToday ? shiftColor(day.shift) : PALETTE.secondary).lineLimit(1).minScaleFactor(0.65)}>
+    <Text modifiers={modifiers().font(compact ? (day.isToday ? 12 : 11) : day.isToday ? 13 : 12).fontWeight(day.isToday ? 'bold' : isAdjacentMonth ? 'regular' : 'semibold').foregroundStyle(isAdjacentMonth ? PALETTE.calendarAdjacent : day.isToday ? shiftColor(day.shift) : PALETTE.secondary).lineLimit(1).minScaleFactor(0.65)}>
       {day.date.getDate()}
     </Text>
     <Text modifiers={modifiers()
-      .font(10)
+      .font(compact ? 9 : 10)
       .fontWeight(isAdjacentMonth ? 'medium' : 'bold')
       .foregroundStyle(isAdjacentMonth ? PALETTE.calendarAdjacent : shiftColor(day.shift))
       .lineLimit(1)
       .minScaleFactor(0.5)
-      .padding({ top: 2, leading: 3, bottom: 2, trailing: 3 })
+      .padding({ top: compact ? 1 : 2, leading: compact ? 2 : 3, bottom: compact ? 1 : 2, trailing: compact ? 2 : 3 })
       .background(isAdjacentMonth ? PALETTE.card : day.isToday ? PALETTE.card : shiftSoftColor(day.shift))}>
       {day.shift}
     </Text>
@@ -171,14 +172,14 @@ function monthCalendarDays(schedule: ShiftSchedule, date: Date): CalendarCell[] 
   })
 }
 
-function CalendarGrid({ days }: { days: CalendarCell[] }) {
+function CalendarGrid({ days, compact = false }: { days: CalendarCell[]; compact?: boolean }) {
   const weekdayLabels = ['一', '二', '三', '四', '五', '六', '日']
-  return <VStack alignment="leading" spacing={CALENDAR_GAP} modifiers={modifiers().frame({ maxWidth: 'infinity', alignment: 'leading' })}>
-    <LazyVGrid columns={CALENDAR_COLUMNS} alignment="center" spacing={CALENDAR_GAP}>
+  return <VStack alignment="leading" spacing={compact ? 1 : CALENDAR_GAP} modifiers={modifiers().frame({ maxWidth: 'infinity', alignment: 'leading' })}>
+    <LazyVGrid columns={CALENDAR_COLUMNS} alignment="center" spacing={compact ? 1 : CALENDAR_GAP}>
       {weekdayLabels.map(label => <Text key={`weekday-${label}`} modifiers={modifiers().font('caption2').fontWeight('semibold').foregroundStyle(PALETTE.secondary).frame({ maxWidth: 'infinity', alignment: 'center' })}>
         {label}
       </Text>)}
-      {days.map(({ day, isAdjacentMonth }) => <CalendarDayCell key={day.dateKey} day={day} isAdjacentMonth={isAdjacentMonth} />)}
+      {days.map(({ day, isAdjacentMonth }) => <CalendarDayCell key={day.dateKey} day={day} isAdjacentMonth={isAdjacentMonth} compact={compact} />)}
     </LazyVGrid>
   </VStack>
 }
@@ -233,8 +234,10 @@ function LargeWidget({ days, schedule }: { days: ShiftDay[]; schedule: ShiftSche
   const monthOffset = readCalendarMonthOffset()
   const displayMonth = new Date(today.date.getFullYear(), today.date.getMonth() + monthOffset, 1)
   const monthTitle = `${displayMonth.getFullYear()}年${displayMonth.getMonth() + 1}月`
-  return <VStack alignment="leading" spacing={6} modifiers={modifiers()
-    .padding({ top: 13, leading: 14, bottom: 12, trailing: 14 })
+  const calendarDays = monthCalendarDays(schedule, displayMonth)
+  const compactMonth = calendarDays.length > 35
+  return <VStack alignment="leading" spacing={compactMonth ? 3 : 6} modifiers={modifiers()
+    .padding({ top: compactMonth ? 7 : 13, leading: 14, bottom: compactMonth ? 8 : 12, trailing: 14 })
     .frame({ maxWidth: 'infinity', maxHeight: 'infinity', alignment: 'leading' })
     .widgetBackground(PALETTE.background)}>
     <Header days={days} />
@@ -263,10 +266,10 @@ function LargeWidget({ days, schedule }: { days: ShiftDay[]; schedule: ShiftSche
         </Button>
       </HStack>
     </HStack>
-    <CalendarGrid days={monthCalendarDays(schedule, displayMonth)} />
-    <Spacer minLength={2} />
+    <CalendarGrid days={calendarDays} compact={compactMonth} />
+    {!compactMonth && <Spacer minLength={2} />}
     <Text modifiers={modifiers().font('caption2').foregroundStyle(PALETTE.secondary).lineLimit(1)}>
-      每日 00:05 更新 · 今日日期高亮
+      {compactMonth ? '每日 00:05 更新' : '每日 00:05 更新 · 今日日期高亮'}
     </Text>
   </VStack>
 }
