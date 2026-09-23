@@ -92,21 +92,6 @@ function Header({ days, compact = false }: { days: ShiftDay[]; compact?: boolean
   </HStack>
 }
 
-function TodayBadge({ day, compact = false }: { day: ShiftDay; compact?: boolean }) {
-  return <VStack alignment="trailing" spacing={1} modifiers={modifiers()
-    .padding(compact
-      ? { top: 3, leading: 7, bottom: 3, trailing: 7 }
-      : { top: 4, leading: 8, bottom: 4, trailing: 8 })
-    .background(shiftSoftColor(day.shift))}>
-    <Text modifiers={modifiers().font('caption2').foregroundStyle(PALETTE.secondary).lineLimit(1)}>
-      今天
-    </Text>
-    <Text modifiers={modifiers().font(compact ? 10 : 'caption').fontWeight('semibold').foregroundStyle(shiftColor(day.shift)).lineLimit(1).minScaleFactor(0.55)}>
-      {day.shift}
-    </Text>
-  </VStack>
-}
-
 function MediumDayColumn({ day }: { day: ShiftDay }) {
   return <VStack alignment="center" spacing={3} modifiers={modifiers()
     .padding({ top: 5, leading: 2, bottom: 5, trailing: 2 })
@@ -205,24 +190,11 @@ function SmallWidget({ days }: { days: ShiftDay[] }) {
 }
 
 function MediumWidget({ days }: { days: ShiftDay[] }) {
-  const today = days[0]
   return <VStack alignment="leading" spacing={6} modifiers={modifiers()
     .padding({ top: 10, leading: 14, bottom: 8, trailing: 14 })
     .frame({ maxWidth: 'infinity', maxHeight: 'infinity', alignment: 'leading' })
     .widgetBackground(PALETTE.background)}>
     <Header days={days} />
-    <HStack alignment="center" spacing={6} modifiers={modifiers().frame({ maxWidth: 'infinity', alignment: 'leading' })}>
-      <VStack alignment="leading" spacing={1}>
-        <Text modifiers={modifiers().font('caption2').foregroundStyle(PALETTE.secondary).lineLimit(1)}>
-          未来 7 天
-        </Text>
-        <Text modifiers={modifiers().font('footnote').fontWeight('semibold').foregroundStyle(PALETTE.ink).lineLimit(1)}>
-          从今天开始
-        </Text>
-      </VStack>
-      <Spacer minLength={2} />
-      <TodayBadge day={today} compact />
-    </HStack>
     <HStack alignment="center" spacing={3} modifiers={modifiers().frame({ maxWidth: 'infinity', height: MEDIUM_DAY_HEIGHT, alignment: 'center' })}>
       {days.slice(0, 7).map(day => <MediumDayColumn key={day.dateKey} day={day} />)}
     </HStack>
@@ -241,13 +213,6 @@ function LargeWidget({ days, schedule }: { days: ShiftDay[]; schedule: ShiftSche
     .frame({ maxWidth: 'infinity', maxHeight: 'infinity', alignment: 'leading' })
     .widgetBackground(PALETTE.background)}>
     <Header days={days} />
-    <HStack alignment="center" spacing={8} modifiers={modifiers().frame({ maxWidth: 'infinity', alignment: 'leading' })}>
-      <Text modifiers={modifiers().font('caption2').foregroundStyle(PALETTE.secondary).lineLimit(1)}>
-        月历排班
-      </Text>
-      <Spacer minLength={4} />
-      <TodayBadge day={today} />
-    </HStack>
     <HStack alignment="center" spacing={8} modifiers={modifiers().frame({ maxWidth: 'infinity', alignment: 'leading' })}>
       <Text modifiers={modifiers().font('title2').fontWeight('bold').foregroundStyle(PALETTE.ink).lineLimit(1)}>{monthTitle}</Text>
       <Spacer minLength={4} />
