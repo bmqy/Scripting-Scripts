@@ -1,4 +1,5 @@
 import {
+  Button,
   HStack,
   Image,
   LazyVGrid,
@@ -20,6 +21,8 @@ import {
   type ShiftSchedule,
   type ShiftDay,
 } from './schedule'
+import { ChangeCalendarMonthIntent } from './app_intents'
+import { readCalendarMonthOffset } from './calendar_navigation'
 
 type ShiftPalette = {
   background: ShapeStyle
@@ -201,15 +204,34 @@ function MediumWidget({ days }: { days: ShiftDay[] }) {
 
 function LargeWidget({ days, schedule }: { days: ShiftDay[]; schedule: ShiftSchedule }) {
   const today = days[0]
-  const monthTitle = `${today.date.getFullYear()}年${today.date.getMonth() + 1}月`
-  const calendarDays = monthCalendarDays(schedule, today.date)
+  const monthOffset = readCalendarMonthOffset()
+  const displayMonth = new Date(today.date.getFullYear(), today.date.getMonth() + monthOffset, 1)
+  const monthTitle = `${displayMonth.getFullYear()}年${displayMonth.getMonth() + 1}月`
+  const calendarDays = monthCalendarDays(schedule, displayMonth)
   const compactMonth = calendarDays.length > 35
   return <VStack alignment="leading" spacing={compactMonth ? 3 : 6} modifiers={modifiers()
     .padding({ top: compactMonth ? 7 : 13, leading: 14, bottom: compactMonth ? 8 : 12, trailing: 14 })
     .frame({ maxWidth: 'infinity', maxHeight: 'infinity', alignment: 'leading' })
     .widgetBackground(PALETTE.background)}>
     <Header days={days} />
-    <Text modifiers={modifiers().font('title2').fontWeight('bold').foregroundStyle(PALETTE.ink).lineLimit(1)}>{monthTitle}</Text>
+    <HStack alignment="center" spacing={8} modifiers={modifiers().frame({ maxWidth: 'infinity', alignment: 'leading' })}>
+      <Text modifiers={modifiers().font('title2').fontWeight('bold').foregroundStyle(PALETTE.ink).lineLimit(1)}>{monthTitle}</Text>
+      <Spacer minLength={4} />
+      <HStack alignment="center" spacing={8}>
+        <Button intent={ChangeCalendarMonthIntent(-1)} buttonStyle="plain">
+          <HStack alignment="center" spacing={3}>
+            <Image systemName="chevron.left" font={11} foregroundStyle={PALETTE.accent} />
+            <Text modifiers={modifiers().font('caption').fontWeight('medium').foregroundStyle(PALETTE.accent)}>上月</Text>
+          </HStack>
+        </Button>
+        <Button intent={ChangeCalendarMonthIntent(1)} buttonStyle="plain">
+          <HStack alignment="center" spacing={3}>
+            <Text modifiers={modifiers().font('caption').fontWeight('medium').foregroundStyle(PALETTE.accent)}>下月</Text>
+            <Image systemName="chevron.right" font={11} foregroundStyle={PALETTE.accent} />
+          </HStack>
+        </Button>
+      </HStack>
+    </HStack>
     <CalendarGrid days={calendarDays} compact={compactMonth} />
     {!compactMonth && <Spacer minLength={2} />}
     <Text modifiers={modifiers().font('caption2').foregroundStyle(PALETTE.secondary).lineLimit(1)}>
