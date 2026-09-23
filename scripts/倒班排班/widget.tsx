@@ -118,13 +118,21 @@ function MediumDayColumn({ day }: { day: ShiftDay }) {
 }
 
 function CalendarDayCell({ day }: { day: ShiftDay | null }) {
-  if (!day) {
-    return <VStack modifiers={modifiers().frame({ maxWidth: 'infinity', height: CALENDAR_DAY_HEIGHT, alignment: 'center' })} />
+  const columnFrame = {
+    axes: 'horizontal' as const,
+    count: 7,
+    span: 1,
+    spacing: CALENDAR_GAP,
+    alignment: 'center' as const,
   }
 
-  return <VStack alignment="center" spacing={1} modifiers={modifiers()
+  if (!day) {
+    return <VStack containerRelativeFrame={columnFrame} modifiers={modifiers().frame({ height: CALENDAR_DAY_HEIGHT, alignment: 'center' })} />
+  }
+
+  return <VStack containerRelativeFrame={columnFrame} alignment="center" spacing={1} modifiers={modifiers()
     .padding({ top: 2, leading: 1, bottom: 2, trailing: 1 })
-    .frame({ maxWidth: 'infinity', height: CALENDAR_DAY_HEIGHT, alignment: 'center' })
+    .frame({ height: CALENDAR_DAY_HEIGHT, alignment: 'center' })
     .background(day.isToday ? shiftSoftColor(day.shift) : PALETTE.card)}>
     <Text modifiers={modifiers().font(10).fontWeight(day.isToday ? 'bold' : 'semibold').foregroundStyle(day.isToday ? PALETTE.ink : PALETTE.secondary).lineLimit(1).minScaleFactor(0.55)}>
       {day.date.getDate()}
@@ -163,12 +171,12 @@ function CalendarGrid({ days }: { days: Array<ShiftDay | null> }) {
   }
 
   return <VStack alignment="leading" spacing={CALENDAR_GAP} modifiers={modifiers().frame({ maxWidth: 'infinity', alignment: 'leading' })}>
-    <HStack alignment="center" spacing={CALENDAR_GAP} modifiers={modifiers().frame({ maxWidth: 'infinity', alignment: 'leading' })}>
-      {weekdayLabels.map(label => <Text key={label} modifiers={modifiers().font('caption2').foregroundStyle(PALETTE.secondary).frame({ maxWidth: 'infinity', alignment: 'center' })}>
+    <HStack alignment="center" spacing={0} modifiers={modifiers().frame({ maxWidth: 'infinity', alignment: 'leading' })}>
+      {weekdayLabels.map(label => <Text key={label} containerRelativeFrame={{ axes: 'horizontal', count: 7, span: 1, spacing: CALENDAR_GAP, alignment: 'center' }} modifiers={modifiers().font('caption2').foregroundStyle(PALETTE.secondary)}>
         {label}
       </Text>)}
     </HStack>
-    {weeks.map((week, weekIndex) => <HStack key={`week-${weekIndex}`} alignment="center" spacing={CALENDAR_GAP} modifiers={modifiers().frame({ maxWidth: 'infinity', alignment: 'leading' })}>
+    {weeks.map((week, weekIndex) => <HStack key={`week-${weekIndex}`} alignment="center" spacing={0} modifiers={modifiers().frame({ maxWidth: 'infinity', alignment: 'leading' })}>
       {week.map((day, dayIndex) => <CalendarDayCell key={`day-${weekIndex}-${dayIndex}`} day={day} />)}
     </HStack>)}
   </VStack>
