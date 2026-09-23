@@ -1,4 +1,5 @@
 import {
+  Button,
   HStack,
   Image,
   LazyVGrid,
@@ -19,6 +20,8 @@ import {
   type ShiftSchedule,
   type ShiftDay,
 } from './schedule'
+import { ChangeCalendarMonthIntent } from './app_intents'
+import { readCalendarMonthOffset } from './calendar_navigation'
 
 type ShiftPalette = {
   background: ShapeStyle
@@ -227,7 +230,9 @@ function MediumWidget({ days }: { days: ShiftDay[] }) {
 
 function LargeWidget({ days, schedule }: { days: ShiftDay[]; schedule: ShiftSchedule }) {
   const today = days[0]
-  const monthTitle = `${today.date.getFullYear()}年${today.date.getMonth() + 1}月`
+  const monthOffset = readCalendarMonthOffset()
+  const displayMonth = new Date(today.date.getFullYear(), today.date.getMonth() + monthOffset, 1)
+  const monthTitle = `${displayMonth.getFullYear()}年${displayMonth.getMonth() + 1}月`
   return <VStack alignment="leading" spacing={6} modifiers={modifiers()
     .padding({ top: 13, leading: 14, bottom: 12, trailing: 14 })
     .frame({ maxWidth: 'infinity', maxHeight: 'infinity', alignment: 'leading' })
@@ -236,14 +241,18 @@ function LargeWidget({ days, schedule }: { days: ShiftDay[]; schedule: ShiftSche
     <HStack alignment="center" spacing={8} modifiers={modifiers().frame({ maxWidth: 'infinity', alignment: 'leading' })}>
       <VStack alignment="leading" spacing={1}>
         <Text modifiers={modifiers().font('caption2').foregroundStyle(PALETTE.secondary).lineLimit(1)}>
-          本月排班
+          月历排班
         </Text>
-        <Text modifiers={modifiers().font('title2').fontWeight('bold').foregroundStyle(PALETTE.ink).lineLimit(1)}>{monthTitle}</Text>
+        <HStack alignment="center" spacing={5}>
+          <Button title="上月" systemImage="chevron.left" intent={ChangeCalendarMonthIntent(-1)} />
+          <Text modifiers={modifiers().font('title2').fontWeight('bold').foregroundStyle(PALETTE.ink).lineLimit(1)}>{monthTitle}</Text>
+          <Button title="下月" systemImage="chevron.right" intent={ChangeCalendarMonthIntent(1)} />
+        </HStack>
       </VStack>
       <Spacer minLength={4} />
       <TodayBadge day={today} />
     </HStack>
-    <CalendarGrid days={monthCalendarDays(schedule, today.date)} />
+    <CalendarGrid days={monthCalendarDays(schedule, displayMonth)} />
     <Spacer minLength={2} />
     <Text modifiers={modifiers().font('caption2').foregroundStyle(PALETTE.secondary).lineLimit(1)}>
       每日 00:05 更新 · 今日日期高亮
