@@ -31,6 +31,8 @@ type ShiftPalette = {
   nightSoft: ShapeStyle
   rest: ShapeStyle
   restSoft: ShapeStyle
+  calendarAdjacent: ShapeStyle
+  calendarAdjacentSoft: ShapeStyle
 }
 
 const PALETTE: ShiftPalette = {
@@ -44,6 +46,8 @@ const PALETTE: ShiftPalette = {
   nightSoft: '#E1E5F5',
   rest: '#758B73',
   restSoft: '#E2EBDD',
+  calendarAdjacent: '#8D8D8D',
+  calendarAdjacentSoft: '#E8E8E8',
 }
 
 const MEDIUM_DAY_WIDTH = 40
@@ -123,52 +127,55 @@ function MediumDayColumn({ day }: { day: ShiftDay }) {
   </VStack>
 }
 
-function CalendarDayCell({ day }: { day: ShiftDay | null }) {
-  if (!day) {
-    return <VStack modifiers={modifiers().frame({ maxWidth: 'infinity', height: CALENDAR_DAY_HEIGHT, alignment: 'center' })} />
-  }
+type CalendarCell = {
+  day: ShiftDay
+  isAdjacentMonth: boolean
+}
 
+function CalendarDayCell({ day, isAdjacentMonth }: CalendarCell) {
   return <VStack alignment="center" spacing={2} modifiers={modifiers()
     .padding({ top: 3, leading: 2, bottom: 3, trailing: 2 })
     .frame({ maxWidth: 'infinity', height: CALENDAR_DAY_HEIGHT, alignment: 'center' })
-    .background(day.isToday ? shiftSoftColor(day.shift) : PALETTE.card)}>
-    <Text modifiers={modifiers().font(12).fontWeight(day.isToday ? 'bold' : 'semibold').foregroundStyle(day.isToday ? PALETTE.ink : PALETTE.secondary).lineLimit(1).minScaleFactor(0.65)}>
+    .background(isAdjacentMonth ? PALETTE.calendarAdjacentSoft : day.isToday ? shiftSoftColor(day.shift) : PALETTE.card)}>
+    <Text modifiers={modifiers().font(12).fontWeight(day.isToday ? 'bold' : isAdjacentMonth ? 'regular' : 'semibold').foregroundStyle(isAdjacentMonth ? PALETTE.calendarAdjacent : day.isToday ? PALETTE.ink : PALETTE.secondary).lineLimit(1).minScaleFactor(0.65)}>
       {day.date.getDate()}
     </Text>
     <Text modifiers={modifiers()
       .font(10)
-      .fontWeight('bold')
-      .foregroundStyle(shiftColor(day.shift))
+      .fontWeight(isAdjacentMonth ? 'medium' : 'bold')
+      .foregroundStyle(isAdjacentMonth ? PALETTE.calendarAdjacent : shiftColor(day.shift))
       .lineLimit(1)
       .minScaleFactor(0.5)
       .padding({ top: 2, leading: 3, bottom: 2, trailing: 3 })
-      .background(day.isToday ? PALETTE.card : shiftSoftColor(day.shift))}>
+      .background(isAdjacentMonth ? PALETTE.card : day.isToday ? PALETTE.card : shiftSoftColor(day.shift))}>
       {day.shift}
     </Text>
   </VStack>
 }
 
-function monthCalendarDays(schedule: ShiftSchedule, date: Date): Array<ShiftDay | null> {
+function monthCalendarDays(schedule: ShiftSchedule, date: Date): CalendarCell[] {
   const firstDay = new Date(date.getFullYear(), date.getMonth(), 1)
   const firstWeekday = (firstDay.getDay() + 6) % 7
   const daysInMonth = new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate()
   const cellCount = Math.ceil((firstWeekday + daysInMonth) / 7) * 7
 
   return Array.from({ length: cellCount }, (_, index) => {
-    const dayNumber = index - firstWeekday + 1
-    if (dayNumber < 1 || dayNumber > daysInMonth) return null
-    return shiftDay(new Date(date.getFullYear(), date.getMonth(), dayNumber), schedule)
+    const cellDate = new Date(date.getFullYear(), date.getMonth(), index - firstWeekday + 1)
+    return {
+      day: shiftDay(cellDate, schedule),
+      isAdjacentMonth: cellDate.getMonth() !== date.getMonth() || cellDate.getFullYear() !== date.getFullYear(),
+    }
   })
 }
 
-function CalendarGrid({ days }: { days: Array<ShiftDay | null> }) {
+function CalendarGrid({ days }: { days: CalendarCell[] }) {
   const weekdayLabels = ['一', '二', '三', '四', '五', '六', '日']
   return <VStack alignment="leading" spacing={CALENDAR_GAP} modifiers={modifiers().frame({ maxWidth: 'infinity', alignment: 'leading' })}>
     <LazyVGrid columns={CALENDAR_COLUMNS} alignment="center" spacing={CALENDAR_GAP}>
       {weekdayLabels.map(label => <Text key={`weekday-${label}`} modifiers={modifiers().font('caption2').fontWeight('semibold').foregroundStyle(PALETTE.secondary).frame({ maxWidth: 'infinity', alignment: 'center' })}>
         {label}
       </Text>)}
-      {days.map((day, dayIndex) => <CalendarDayCell key={`day-${dayIndex}`} day={day} />)}
+      {days.map(({ day, isAdjacentMonth }) => <CalendarDayCell key={day.dateKey} day={day} isAdjacentMonth={isAdjacentMonth} />)}
     </LazyVGrid>
   </VStack>
 }
