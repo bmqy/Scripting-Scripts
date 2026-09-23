@@ -1,7 +1,7 @@
-﻿{
-  "date": "2026-09-21",
+{
+  "date": "2026-09-23",
   "executor": "Codex",
-  "task": "新增倒班排班小组件",
+  "task": "美化倒班排班小组件的 systemMedium 和 systemLarge 布局",
   "module": "scripts/倒班排班/index.tsx, scripts/倒班排班/widget.tsx, scripts/倒班排班/schedule.ts",
   "currentImplementation": {
     "homeEntry": "index.tsx 是倒班排班的配置入口，widget.tsx 是主屏和锁屏小组件入口。",
@@ -13,7 +13,7 @@
     "lifecycle": "index.tsx 使用 Navigation.present 展示设置页，关闭后 Script.exit；widget.tsx 在 Widget.present 前完成全部数据准备。",
     "settings": "使用 Form、DatePicker、Picker 和 TextField 保存起始日期、起始班次和循环班次。",
     "calculation": "使用 UTC 日序差计算自然日偏移，支持跨月、跨年和向过去日期查询。",
-    "widgetLayout": "按 Widget.family 分流，主屏采用温和纸张色背景、班次语义色和分尺寸布局：小号单日焦点、中号 7 天条带、大号当前月份日历网格。",
+    "widgetLayout": "按 Widget.family 分流，主屏采用温和纸张色背景、班次语义色和分尺寸布局：小号单日焦点；中号为带今日徽标、统一卡片列和班次色块的 7 天条带；大号为带今日状态块、统一日期卡片和底部更新时间的当前月份日历网格。",
     "refresh": "Widget.present 设置次日 00:05 的 reloadPolicy，设置页保存后调用 Widget.reloadAll。"
   },
   "similarPatterns": [
@@ -41,6 +41,8 @@
     "对 schedule.ts 执行跨月、跨年、向前日期和非法配置回退断言",
     "检查 .scripting 包包含倒班排班的源码文件和 script.json",
     "设备端添加 systemSmall/systemMedium/systemLarge 与锁屏组件，验证显示和次日刷新",
-    "静态检查三种主屏尺寸的显示范围和大号日历网格结构"
+    "静态检查三种主屏尺寸的显示范围和大号日历网格结构",
+    "预览重点检查中号 7 列是否横向完整、大号月历与今日状态块是否不重叠"
   ]
 }
+

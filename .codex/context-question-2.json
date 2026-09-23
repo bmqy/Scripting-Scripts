@@ -1,0 +1,15 @@
+{
+  "date": "2026-09-23",
+  "executor": "Codex",
+  "question": "在不改变排班计算和设置流程的前提下，哪些视觉调整能直接解决中号生硬、大号层级混乱？",
+  "priority": "high",
+  "evidence": [
+    "用户附图：中号 7 个日期块存在明显的矩形分割，大号月历内容集中在上半部且今日状态与月份标题竞争视觉焦点。",
+    "scripts/倒班排班/widget.tsx：中号只有一行说明和 7 个固定列，大号将月份、今日班次、月历和更新时间平铺在同一层级。",
+    "scripting-app-development Widget 参考：Widget.present 前准备数据，布局需按 Widget.family 适配并检查固定尺寸和溢出。"
+  ],
+  "decision": "只调整 widget.tsx 的信息层级、固定尺寸、背景层次和底部弹性空间；继续复用现有 palette、modifiers、Widget.family 分流与 schedule.ts 数据结构。",
+  "validation": "npm run build；git diff --check；静态检查 medium 的 7 列总宽度和 large 的月历格结构；若可用则在 Scripting App 预览中复核两种尺寸。",
+  "remainingRisk": "当前环境未连接 Scripting App/iOS，无法在真实 Widget Host 上确认系统字体、色调模式和不同月份 6 周网格的最终渲染。"
+}
+

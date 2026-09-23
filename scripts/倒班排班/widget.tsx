@@ -47,8 +47,8 @@ const PALETTE: ShiftPalette = {
 
 const MEDIUM_DAY_WIDTH = 40
 const MEDIUM_DAY_HEIGHT = 58
-const CALENDAR_DAY_HEIGHT = 29
-const CALENDAR_GAP = 2
+const CALENDAR_DAY_HEIGHT = 30
+const CALENDAR_GAP = 3
 
 function shiftColor(shift: string): ShapeStyle {
   if (/休|假/.test(shift)) return PALETTE.rest
@@ -78,18 +78,40 @@ function Header({ days, compact = false }: { days: ShiftDay[]; compact?: boolean
   </HStack>
 }
 
+function TodayBadge({ day, compact = false }: { day: ShiftDay; compact?: boolean }) {
+  return <VStack alignment="trailing" spacing={1} modifiers={modifiers()
+    .padding(compact
+      ? { top: 3, leading: 7, bottom: 3, trailing: 7 }
+      : { top: 4, leading: 8, bottom: 4, trailing: 8 })
+    .background(shiftSoftColor(day.shift))}>
+    <Text modifiers={modifiers().font('caption2').foregroundStyle(PALETTE.secondary).lineLimit(1)}>
+      今天
+    </Text>
+    <Text modifiers={modifiers().font(compact ? 10 : 'caption').fontWeight('semibold').foregroundStyle(shiftColor(day.shift)).lineLimit(1).minScaleFactor(0.55)}>
+      {day.shift}
+    </Text>
+  </VStack>
+}
+
 function MediumDayColumn({ day }: { day: ShiftDay }) {
   return <VStack alignment="center" spacing={3} modifiers={modifiers()
-    .frame({ width: MEDIUM_DAY_WIDTH, height: MEDIUM_DAY_HEIGHT, alignment: 'center' })
     .padding({ top: 5, leading: 2, bottom: 5, trailing: 2 })
+    .frame({ width: MEDIUM_DAY_WIDTH, height: MEDIUM_DAY_HEIGHT, alignment: 'center' })
     .background(day.isToday ? shiftSoftColor(day.shift) : PALETTE.card)}>
-    <Text modifiers={modifiers().font('caption2').fontWeight(day.isToday ? 'bold' : 'regular').foregroundStyle(day.isToday ? PALETTE.ink : PALETTE.secondary).lineLimit(1)}>
+    <Text modifiers={modifiers().font('caption2').fontWeight(day.isToday ? 'bold' : 'semibold').foregroundStyle(day.isToday ? PALETTE.ink : PALETTE.secondary).lineLimit(1)}>
       {day.weekday.replace('周', '')}
     </Text>
-    <Text modifiers={modifiers().font(11).foregroundStyle(PALETTE.secondary).lineLimit(1).minScaleFactor(0.6)}>
+    <Text modifiers={modifiers().font(13).fontWeight(day.isToday ? 'semibold' : 'regular').foregroundStyle(PALETTE.ink).lineLimit(1).minScaleFactor(0.6)}>
       {day.date.getDate()}
     </Text>
-    <Text modifiers={modifiers().font(11).fontWeight('semibold').foregroundStyle(shiftColor(day.shift)).lineLimit(1).minScaleFactor(0.4)}>
+    <Text modifiers={modifiers()
+      .font(10)
+      .fontWeight('semibold')
+      .foregroundStyle(shiftColor(day.shift))
+      .lineLimit(1)
+      .minScaleFactor(0.4)
+      .padding({ top: 2, leading: 3, bottom: 2, trailing: 3 })
+      .background(day.isToday ? PALETTE.card : shiftSoftColor(day.shift))}>
       {day.shift}
     </Text>
   </VStack>
@@ -101,13 +123,20 @@ function CalendarDayCell({ day }: { day: ShiftDay | null }) {
   }
 
   return <VStack alignment="center" spacing={1} modifiers={modifiers()
-    .frame({ maxWidth: 'infinity', height: CALENDAR_DAY_HEIGHT, alignment: 'center' })
     .padding({ top: 2, leading: 1, bottom: 2, trailing: 1 })
-    .background(day.isToday ? shiftSoftColor(day.shift) : PALETTE.background)}>
-    <Text modifiers={modifiers().font('caption2').fontWeight(day.isToday ? 'bold' : 'regular').foregroundStyle(day.isToday ? PALETTE.ink : PALETTE.secondary).lineLimit(1).minScaleFactor(0.55)}>
+    .frame({ maxWidth: 'infinity', height: CALENDAR_DAY_HEIGHT, alignment: 'center' })
+    .background(day.isToday ? shiftSoftColor(day.shift) : PALETTE.card)}>
+    <Text modifiers={modifiers().font(10).fontWeight(day.isToday ? 'bold' : 'semibold').foregroundStyle(day.isToday ? PALETTE.ink : PALETTE.secondary).lineLimit(1).minScaleFactor(0.55)}>
       {day.date.getDate()}
     </Text>
-    <Text modifiers={modifiers().font(9).fontWeight('bold').foregroundStyle(shiftColor(day.shift)).lineLimit(1).minScaleFactor(0.35)}>
+    <Text modifiers={modifiers()
+      .font(9)
+      .fontWeight('bold')
+      .foregroundStyle(shiftColor(day.shift))
+      .lineLimit(1)
+      .minScaleFactor(0.35)
+      .padding({ top: 1, leading: 2, bottom: 1, trailing: 2 })
+      .background(day.isToday ? PALETTE.card : shiftSoftColor(day.shift))}>
       {day.shift}
     </Text>
   </VStack>
@@ -166,19 +195,23 @@ function SmallWidget({ days }: { days: ShiftDay[] }) {
 }
 
 function MediumWidget({ days }: { days: ShiftDay[] }) {
+  const today = days[0]
   return <VStack alignment="leading" spacing={6} modifiers={modifiers()
-    .padding({ top: 12, leading: 14, bottom: 10, trailing: 14 })
+    .padding({ top: 10, leading: 14, bottom: 8, trailing: 14 })
     .frame({ maxWidth: 'infinity', maxHeight: 'infinity', alignment: 'leading' })
     .widgetBackground(PALETTE.background)}>
     <Header days={days} />
-    <HStack alignment="lastTextBaseline" spacing={6} modifiers={modifiers().frame({ maxWidth: 'infinity', alignment: 'leading' })}>
-      <Text modifiers={modifiers().font('caption').fontWeight('semibold').foregroundStyle(PALETTE.ink)}>
-        未来 7 天
-      </Text>
+    <HStack alignment="center" spacing={6} modifiers={modifiers().frame({ maxWidth: 'infinity', alignment: 'leading' })}>
+      <VStack alignment="leading" spacing={1}>
+        <Text modifiers={modifiers().font('caption2').foregroundStyle(PALETTE.secondary).lineLimit(1)}>
+          未来 7 天
+        </Text>
+        <Text modifiers={modifiers().font('footnote').fontWeight('semibold').foregroundStyle(PALETTE.ink).lineLimit(1)}>
+          从今天开始
+        </Text>
+      </VStack>
       <Spacer minLength={2} />
-      <Text modifiers={modifiers().font('caption2').foregroundStyle(PALETTE.secondary)}>
-        今天已高亮
-      </Text>
+      <TodayBadge day={today} compact />
     </HStack>
     <HStack alignment="center" spacing={3} modifiers={modifiers().frame({ maxWidth: 'infinity', height: MEDIUM_DAY_HEIGHT, alignment: 'center' })}>
       {days.slice(0, 7).map(day => <MediumDayColumn key={day.dateKey} day={day} />)}
@@ -190,18 +223,22 @@ function LargeWidget({ days, schedule }: { days: ShiftDay[]; schedule: ShiftSche
   const today = days[0]
   const monthTitle = `${today.date.getFullYear()}年${today.date.getMonth() + 1}月`
   return <VStack alignment="leading" spacing={6} modifiers={modifiers()
-    .padding({ top: 12, leading: 14, bottom: 11, trailing: 14 })
+    .padding({ top: 13, leading: 14, bottom: 12, trailing: 14 })
     .frame({ maxWidth: 'infinity', maxHeight: 'infinity', alignment: 'leading' })
     .widgetBackground(PALETTE.background)}>
     <Header days={days} />
-    <HStack alignment="lastTextBaseline" spacing={8}>
-      <Text modifiers={modifiers().font('title2').fontWeight('bold').foregroundStyle(PALETTE.ink)}>{monthTitle}</Text>
+    <HStack alignment="center" spacing={8} modifiers={modifiers().frame({ maxWidth: 'infinity', alignment: 'leading' })}>
+      <VStack alignment="leading" spacing={1}>
+        <Text modifiers={modifiers().font('caption2').foregroundStyle(PALETTE.secondary).lineLimit(1)}>
+          本月排班
+        </Text>
+        <Text modifiers={modifiers().font('title2').fontWeight('bold').foregroundStyle(PALETTE.ink).lineLimit(1)}>{monthTitle}</Text>
+      </VStack>
       <Spacer minLength={4} />
-      <Text modifiers={modifiers().font('caption').fontWeight('semibold').foregroundStyle(shiftColor(today.shift)).lineLimit(1)}>
-        今天 · {today.shift}
-      </Text>
+      <TodayBadge day={today} />
     </HStack>
     <CalendarGrid days={monthCalendarDays(schedule, today.date)} />
+    <Spacer minLength={2} />
     <Text modifiers={modifiers().font('caption2').foregroundStyle(PALETTE.secondary).lineLimit(1)}>
       每日 00:05 更新 · 今日日期高亮
     </Text>
@@ -243,3 +280,4 @@ Widget.present(<WidgetView days={days} schedule={schedule} />, {
     date: nextMidnight(),
   },
 })
+
