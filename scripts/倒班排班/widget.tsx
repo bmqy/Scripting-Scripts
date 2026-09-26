@@ -21,7 +21,7 @@ import {
   type ShiftSchedule,
   type ShiftDay,
 } from './schedule'
-import { ChangeCalendarMonthIntent } from './app_intents'
+import { NextCalendarMonthIntent, PreviousCalendarMonthIntent } from './app_intents'
 import { readCalendarMonthOffset } from './calendar_navigation'
 
 type ShiftPalette = {
@@ -218,13 +218,13 @@ function LargeWidget({ days, schedule }: { days: ShiftDay[]; schedule: ShiftSche
       <Text modifiers={modifiers().font('title2').fontWeight('bold').foregroundStyle(PALETTE.ink).lineLimit(1)}>{monthTitle}</Text>
       <Spacer minLength={4} />
       <HStack alignment="center" spacing={8}>
-        <Button intent={ChangeCalendarMonthIntent(-1)} buttonStyle="plain">
+        <Button intent={PreviousCalendarMonthIntent(undefined)} buttonStyle="plain">
           <HStack alignment="center" spacing={3}>
             <Image systemName="chevron.left" font={11} foregroundStyle={PALETTE.accent} />
             <Text modifiers={modifiers().font('caption').fontWeight('medium').foregroundStyle(PALETTE.accent)}>上月</Text>
           </HStack>
         </Button>
-        <Button intent={ChangeCalendarMonthIntent(1)} buttonStyle="plain">
+        <Button intent={NextCalendarMonthIntent(undefined)} buttonStyle="plain">
           <HStack alignment="center" spacing={3}>
             <Text modifiers={modifiers().font('caption').fontWeight('medium').foregroundStyle(PALETTE.accent)}>下月</Text>
             <Image systemName="chevron.right" font={11} foregroundStyle={PALETTE.accent} />

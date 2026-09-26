@@ -1,12 +1,19 @@
 import { AppIntentManager, AppIntentProtocol, Widget } from 'scripting'
 import { readCalendarMonthOffset, writeCalendarMonthOffset } from './calendar_navigation'
 
-export const ChangeCalendarMonthIntent = AppIntentManager.register({
-  name: 'ChangeShiftCalendarMonth',
+function changeCalendarMonth(direction: -1 | 1) {
+  writeCalendarMonthOffset(readCalendarMonthOffset() + direction)
+  Widget.reloadAll()
+}
+
+export const PreviousCalendarMonthIntent = AppIntentManager.register({
+  name: 'PreviousShiftCalendarMonth',
   protocol: AppIntentProtocol.AppIntent,
-  perform: async (monthDelta: number) => {
-    const direction = monthDelta < 0 ? -1 : 1
-    writeCalendarMonthOffset(readCalendarMonthOffset() + direction)
-    Widget.reloadAll()
-  },
+  perform: async (_params: undefined) => changeCalendarMonth(-1),
+})
+
+export const NextCalendarMonthIntent = AppIntentManager.register({
+  name: 'NextShiftCalendarMonth',
+  protocol: AppIntentProtocol.AppIntent,
+  perform: async (_params: undefined) => changeCalendarMonth(1),
 })
