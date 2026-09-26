@@ -14,6 +14,11 @@ export type ShiftDay = {
   isToday: boolean
 }
 
+export type CalendarCell = {
+  day: ShiftDay
+  isAdjacentMonth: boolean
+}
+
 type StorageStore = {
   get<T = unknown>(key: string): T | string | null | undefined
   set(key: string, value: unknown): boolean | void
@@ -143,6 +148,21 @@ export function upcomingDays(schedule: ShiftSchedule, count = 7, today = new Dat
     const date = new Date(start)
     date.setDate(start.getDate() + index)
     return shiftDay(date, schedule, start)
+  })
+}
+
+export function monthCalendarDays(schedule: ShiftSchedule, date: Date): CalendarCell[] {
+  const firstDay = new Date(date.getFullYear(), date.getMonth(), 1)
+  const firstWeekday = (firstDay.getDay() + 6) % 7
+  const daysInMonth = new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate()
+  const cellCount = Math.ceil((firstWeekday + daysInMonth) / 7) * 7
+
+  return Array.from({ length: cellCount }, (_, index) => {
+    const cellDate = new Date(date.getFullYear(), date.getMonth(), index - firstWeekday + 1)
+    return {
+      day: shiftDay(cellDate, schedule),
+      isAdjacentMonth: cellDate.getMonth() !== date.getMonth() || cellDate.getFullYear() !== date.getFullYear(),
+    }
   })
 }
 

@@ -2,23 +2,100 @@ import {
   Button,
   DatePicker,
   Form,
+  HStack,
+  LazyVGrid,
+  NavigationLink,
   Picker,
   Navigation,
   NavigationStack,
+  ScrollView,
   Script,
   Section,
+  Spacer,
   Text,
   TextField,
   Widget,
   useState,
+  VStack,
+  modifiers,
+  type ShapeStyle,
 } from 'scripting'
 import {
   dateKey,
   loadSchedule,
+  monthCalendarDays,
   normalizeSchedule,
   parseShiftNames,
   saveSchedule,
+  shiftDay,
+  type ShiftSchedule,
 } from './schedule'
+
+const MONTH_GRID_COLUMNS = Array.from({ length: 7 }, () => ({
+  size: { type: 'flexible' as const, min: 0, max: 'infinity' as const },
+  spacing: 4,
+  alignment: 'center' as const,
+}))
+
+function shiftColor(shift: string): ShapeStyle {
+  if (/休|假/.test(shift)) return '#758B73'
+  if (/夜|晚/.test(shift)) return '#6675A6'
+  return '#D86F55'
+}
+
+function shiftBackground(shift: string): ShapeStyle {
+  if (/休|假/.test(shift)) return '#E2EBDD'
+  if (/夜|晚/.test(shift)) return '#E1E5F5'
+  return '#F7D9CF'
+}
+
+function MonthCalendarPage({ schedule }: { schedule: ShiftSchedule }) {
+  const now = new Date()
+  const [monthTimestamp, setMonthTimestamp] = useState(new Date(now.getFullYear(), now.getMonth(), 1).getTime())
+  const displayMonth = new Date(monthTimestamp)
+  const days = monthCalendarDays(schedule, displayMonth)
+  const monthTitle = `${displayMonth.getFullYear()}年${displayMonth.getMonth() + 1}月`
+  const today = shiftDay(now, schedule)
+  const weekdays = ['一', '二', '三', '四', '五', '六', '日']
+
+  const changeMonth = (amount: number) => {
+    setMonthTimestamp(new Date(displayMonth.getFullYear(), displayMonth.getMonth() + amount, 1).getTime())
+  }
+
+  const returnToCurrentMonth = () => {
+    const current = new Date()
+    setMonthTimestamp(new Date(current.getFullYear(), current.getMonth(), 1).getTime())
+  }
+
+  return <NavigationStack>
+    <ScrollView navigationTitle="月历排班" navigationBarTitleDisplayMode="inline">
+      <VStack alignment="leading" spacing={18} modifiers={modifiers().padding(16)}>
+        <HStack alignment="center" spacing={8}>
+          <Button title="‹ 上月" buttonStyle="borderless" action={() => changeMonth(-1)} />
+          <Spacer />
+          <Text font="title2" fontWeight="bold" foregroundStyle="#302A25">{monthTitle}</Text>
+          <Spacer />
+          <Button title="下月 ›" buttonStyle="borderless" action={() => changeMonth(1)} />
+        </HStack>
+        <LazyVGrid columns={MONTH_GRID_COLUMNS} alignment="center" spacing={4}>
+          {weekdays.map(day => <Text key={`weekday-${day}`} font="caption" fontWeight="semibold" foregroundStyle="#8B8177" frame={{ maxWidth: 'infinity', alignment: 'center' }}>{day}</Text>)}
+          {days.map(({ day, isAdjacentMonth }) => <VStack key={day.dateKey} alignment="center" spacing={5} modifiers={modifiers()
+            .padding({ top: 6, leading: 2, bottom: 6, trailing: 2 })
+            .frame({ maxWidth: 'infinity', height: 68, alignment: 'center' })
+            .background(isAdjacentMonth ? '#F2F2F2' : day.isToday ? shiftBackground(day.shift) : '#FFFDFC')}>
+            <Text font="callout" fontWeight={day.isToday ? 'bold' : isAdjacentMonth ? 'regular' : 'medium'} foregroundStyle={isAdjacentMonth ? '#A8A8A8' : day.isToday ? shiftColor(day.shift) : '#8B8177'}>{day.date.getDate()}</Text>
+            <Text font="caption" fontWeight="semibold" foregroundStyle={isAdjacentMonth ? '#A8A8A8' : shiftColor(day.shift)} padding={{ top: 2, leading: 4, bottom: 2, trailing: 4 }} background={isAdjacentMonth ? '#FFFDFC' : day.isToday ? '#FFFDFC' : shiftBackground(day.shift)} lineLimit={1} minScaleFactor={0.65}>{day.shift}</Text>
+          </VStack>)}
+        </LazyVGrid>
+        <HStack alignment="center" spacing={6}>
+          <Text font="footnote" foregroundStyle="#8B8177">今天：{today.shift}</Text>
+          <Spacer />
+          <Button title="回到本月" buttonStyle="bordered" action={returnToCurrentMonth} />
+        </HStack>
+      </VStack>
+    </ScrollView>
+  </NavigationStack>
+}
 
 function SettingsPage() {
   const current = loadSchedule()
@@ -102,9 +179,18 @@ function SettingsPage() {
         </Text>
         <Button title="保存排班并刷新小组件" buttonStyle="borderedProminent" action={save} />
       </Section>
+      <Section header={<Text>排班查询</Text>}>
+        <NavigationLink destination={<MonthCalendarPage schedule={current} />}>
+          <HStack alignment="center" spacing={10}>
+            <Text foregroundStyle="#D86F55">月历排班</Text>
+            <Spacer />
+            <Text font="footnote" foregroundStyle="secondaryLabel">在 App 内翻看其他月份</Text>
+          </HStack>
+        </NavigationLink>
+      </Section>
       <Section>
         <Text font="footnote" foregroundStyle="secondaryLabel">
-          小组件采用日历式排版：小号突出今天，中号显示近期班次，大号显示未来 7 天。
+          小号突出今天，中号显示未来 7 天，大号显示当月月历；翻月请在 App 内查看。
         </Text>
       </Section>
     </Form>

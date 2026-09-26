@@ -15,10 +15,10 @@
     "zh": "倒班排班",
     "en": "Shift Schedule"
   },
-  "description": "按自定义倒班周期查看今天和未来日期的班次",
+  "description": "查看自定义倒班排班，支持在 App 内翻阅月历",
   "localizedDescriptions": {
-    "zh": "按自定义倒班周期查看今天和未来日期的班次",
-    "en": "View today's and upcoming shifts from a custom rotation."
+    "zh": "查看自定义倒班排班，支持在 App 内翻阅月历",
+    "en": "View a custom shift schedule and browse months in the app."
   },
   "version": "1.0.0",
   "color": "rgba(224, 122, 95, 1)",

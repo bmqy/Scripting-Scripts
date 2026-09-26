@@ -1,5 +1,4 @@
 import {
-  Button,
   HStack,
   Image,
   LazyVGrid,
@@ -20,9 +19,8 @@ import {
   upcomingDays,
   type ShiftSchedule,
   type ShiftDay,
+  monthCalendarDays,
 } from './schedule'
-import { NextCalendarMonthIntent, PreviousCalendarMonthIntent } from './app_intents'
-import { readCalendarMonthOffset } from './calendar_navigation'
 
 type ShiftPalette = {
   background: ShapeStyle
@@ -117,12 +115,7 @@ function MediumDayColumn({ day }: { day: ShiftDay }) {
   </VStack>
 }
 
-type CalendarCell = {
-  day: ShiftDay
-  isAdjacentMonth: boolean
-}
-
-function CalendarDayCell({ day, isAdjacentMonth, compact }: CalendarCell & { compact: boolean }) {
+function CalendarDayCell({ day, isAdjacentMonth, compact }: { day: ShiftDay; isAdjacentMonth: boolean; compact: boolean }) {
   return <VStack alignment="center" spacing={compact ? 1 : 2} modifiers={modifiers()
     .padding({ top: compact ? 1 : 3, leading: 2, bottom: compact ? 1 : 3, trailing: 2 })
     .frame({ maxWidth: 'infinity', height: compact ? COMPACT_CALENDAR_DAY_HEIGHT : CALENDAR_DAY_HEIGHT, alignment: 'center' })
@@ -143,22 +136,7 @@ function CalendarDayCell({ day, isAdjacentMonth, compact }: CalendarCell & { com
   </VStack>
 }
 
-function monthCalendarDays(schedule: ShiftSchedule, date: Date): CalendarCell[] {
-  const firstDay = new Date(date.getFullYear(), date.getMonth(), 1)
-  const firstWeekday = (firstDay.getDay() + 6) % 7
-  const daysInMonth = new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate()
-  const cellCount = Math.ceil((firstWeekday + daysInMonth) / 7) * 7
-
-  return Array.from({ length: cellCount }, (_, index) => {
-    const cellDate = new Date(date.getFullYear(), date.getMonth(), index - firstWeekday + 1)
-    return {
-      day: shiftDay(cellDate, schedule),
-      isAdjacentMonth: cellDate.getMonth() !== date.getMonth() || cellDate.getFullYear() !== date.getFullYear(),
-    }
-  })
-}
-
-function CalendarGrid({ days, compact = false }: { days: CalendarCell[]; compact?: boolean }) {
+function CalendarGrid({ days, compact = false }: { days: { day: ShiftDay; isAdjacentMonth: boolean }[]; compact?: boolean }) {
   const weekdayLabels = ['一', '二', '三', '四', '五', '六', '日']
   return <VStack alignment="leading" spacing={compact ? 1 : CALENDAR_GAP} modifiers={modifiers().frame({ maxWidth: 'infinity', alignment: 'leading' })}>
     <LazyVGrid columns={CALENDAR_COLUMNS} alignment="center" spacing={compact ? 1 : CALENDAR_GAP}>
@@ -203,9 +181,7 @@ function MediumWidget({ days }: { days: ShiftDay[] }) {
 }
 
 function LargeWidget({ days, schedule }: { days: ShiftDay[]; schedule: ShiftSchedule }) {
-  const today = days[0]
-  const monthOffset = readCalendarMonthOffset()
-  const displayMonth = new Date(today.date.getFullYear(), today.date.getMonth() + monthOffset, 1)
+  const displayMonth = new Date(days[0].date.getFullYear(), days[0].date.getMonth(), 1)
   const monthTitle = `${displayMonth.getFullYear()}年${displayMonth.getMonth() + 1}月`
   const calendarDays = monthCalendarDays(schedule, displayMonth)
   const compactMonth = calendarDays.length > 35
@@ -214,23 +190,8 @@ function LargeWidget({ days, schedule }: { days: ShiftDay[]; schedule: ShiftSche
     .frame({ maxWidth: 'infinity', maxHeight: 'infinity', alignment: 'leading' })
     .widgetBackground(PALETTE.background)}>
     <Header days={days} />
-    <HStack alignment="center" spacing={8} modifiers={modifiers().frame({ maxWidth: 'infinity', alignment: 'leading' })}>
+    <HStack alignment="center" modifiers={modifiers().frame({ maxWidth: 'infinity', alignment: 'leading' })}>
       <Text modifiers={modifiers().font('title2').fontWeight('bold').foregroundStyle(PALETTE.ink).lineLimit(1)}>{monthTitle}</Text>
-      <Spacer minLength={4} />
-      <HStack alignment="center" spacing={8}>
-        <Button intent={PreviousCalendarMonthIntent(undefined)} buttonStyle="plain">
-          <HStack alignment="center" spacing={3}>
-            <Image systemName="chevron.left" font={11} foregroundStyle={PALETTE.accent} />
-            <Text modifiers={modifiers().font('caption').fontWeight('medium').foregroundStyle(PALETTE.accent)}>上月</Text>
-          </HStack>
-        </Button>
-        <Button intent={NextCalendarMonthIntent(undefined)} buttonStyle="plain">
-          <HStack alignment="center" spacing={3}>
-            <Text modifiers={modifiers().font('caption').fontWeight('medium').foregroundStyle(PALETTE.accent)}>下月</Text>
-            <Image systemName="chevron.right" font={11} foregroundStyle={PALETTE.accent} />
-          </HStack>
-        </Button>
-      </HStack>
     </HStack>
     <CalendarGrid days={calendarDays} compact={compactMonth} />
     {!compactMonth && <Spacer minLength={2} />}
