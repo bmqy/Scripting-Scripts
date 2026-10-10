@@ -57,8 +57,8 @@ const MEDIUM_DAY_HEIGHT = 58
 const CALENDAR_DAY_HEIGHT = 40
 const COMPACT_CALENDAR_DAY_HEIGHT = 32
 const CALENDAR_COLUMN_GAP = 3
-const CALENDAR_ROW_GAP = 5
-const COMPACT_CALENDAR_ROW_GAP = 2
+const CALENDAR_ROW_GAP = 10
+const COMPACT_CALENDAR_ROW_GAP = 6
 const CALENDAR_COLUMNS = Array.from({ length: 7 }, () => ({
   size: { type: 'flexible' as const, min: 0, max: 'infinity' as const },
   spacing: CALENDAR_COLUMN_GAP,
