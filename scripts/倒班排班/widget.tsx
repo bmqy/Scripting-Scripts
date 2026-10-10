@@ -28,7 +28,8 @@ type ShiftPalette = {
   ink: ShapeStyle
   secondary: ShapeStyle
   accent: ShapeStyle
-  accentSoft: ShapeStyle
+  day: ShapeStyle
+  daySoft: ShapeStyle
   night: ShapeStyle
   nightSoft: ShapeStyle
   lateNight: ShapeStyle
@@ -45,11 +46,12 @@ const PALETTE: ShiftPalette = {
   ink: '#302A25',
   secondary: '#8B8177',
   accent: '#D86F55',
-  accentSoft: '#F7D9CF',
-  night: '#80549E',
-  nightSoft: '#EEE2F4',
-  lateNight: '#347C9C',
-  lateNightSoft: '#DCEEF4',
+  day: '#B87517',
+  daySoft: '#F7E8C8',
+  night: '#425786',
+  nightSoft: '#E2E8F4',
+  lateNight: '#347B7D',
+  lateNightSoft: '#DCEFED',
   rest: '#758B73',
   restSoft: '#E2EBDD',
   calendarAdjacent: '#A8A8A8',
@@ -73,14 +75,14 @@ function shiftColor(shift: string): ShapeStyle {
   if (/休|假/.test(shift)) return PALETTE.rest
   if (/下夜/.test(shift)) return PALETTE.lateNight
   if (/夜|晚/.test(shift)) return PALETTE.night
-  return PALETTE.accent
+  return PALETTE.day
 }
 
 function shiftSoftColor(shift: string): ShapeStyle {
   if (/休|假/.test(shift)) return PALETTE.restSoft
   if (/下夜/.test(shift)) return PALETTE.lateNightSoft
   if (/夜|晚/.test(shift)) return PALETTE.nightSoft
-  return PALETTE.accentSoft
+  return PALETTE.daySoft
 }
 
 function Header({ days, compact = false }: { days: ShiftDay[]; compact?: boolean }) {
