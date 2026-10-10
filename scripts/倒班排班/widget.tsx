@@ -31,6 +31,8 @@ type ShiftPalette = {
   accentSoft: ShapeStyle
   night: ShapeStyle
   nightSoft: ShapeStyle
+  lateNight: ShapeStyle
+  lateNightSoft: ShapeStyle
   rest: ShapeStyle
   restSoft: ShapeStyle
   calendarAdjacent: ShapeStyle
@@ -44,8 +46,10 @@ const PALETTE: ShiftPalette = {
   secondary: '#8B8177',
   accent: '#D86F55',
   accentSoft: '#F7D9CF',
-  night: '#6675A6',
-  nightSoft: '#E1E5F5',
+  night: '#80549E',
+  nightSoft: '#EEE2F4',
+  lateNight: '#347C9C',
+  lateNightSoft: '#DCEEF4',
   rest: '#758B73',
   restSoft: '#E2EBDD',
   calendarAdjacent: '#A8A8A8',
@@ -67,12 +71,14 @@ const CALENDAR_COLUMNS = Array.from({ length: 7 }, () => ({
 
 function shiftColor(shift: string): ShapeStyle {
   if (/休|假/.test(shift)) return PALETTE.rest
+  if (/下夜/.test(shift)) return PALETTE.lateNight
   if (/夜|晚/.test(shift)) return PALETTE.night
   return PALETTE.accent
 }
 
 function shiftSoftColor(shift: string): ShapeStyle {
   if (/休|假/.test(shift)) return PALETTE.restSoft
+  if (/下夜/.test(shift)) return PALETTE.lateNightSoft
   if (/夜|晚/.test(shift)) return PALETTE.nightSoft
   return PALETTE.accentSoft
 }

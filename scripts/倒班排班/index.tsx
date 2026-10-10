@@ -39,13 +39,15 @@ const MONTH_GRID_COLUMNS = Array.from({ length: 7 }, () => ({
 
 function shiftColor(shift: string): ShapeStyle {
   if (/休|假/.test(shift)) return '#758B73'
-  if (/夜|晚/.test(shift)) return '#6675A6'
+  if (/下夜/.test(shift)) return '#347C9C'
+  if (/夜|晚/.test(shift)) return '#80549E'
   return '#D86F55'
 }
 
 function shiftBackground(shift: string): ShapeStyle {
   if (/休|假/.test(shift)) return '#E2EBDD'
-  if (/夜|晚/.test(shift)) return '#E1E5F5'
+  if (/下夜/.test(shift)) return '#DCEEF4'
+  if (/夜|晚/.test(shift)) return '#EEE2F4'
   return '#F7D9CF'
 }
 
