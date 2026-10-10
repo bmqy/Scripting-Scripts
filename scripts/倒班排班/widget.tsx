@@ -57,8 +57,8 @@ const MEDIUM_DAY_HEIGHT = 58
 const CALENDAR_DAY_HEIGHT = 40
 const COMPACT_CALENDAR_DAY_HEIGHT = 32
 const CALENDAR_COLUMN_GAP = 3
-const CALENDAR_ROW_GAP = 10
-const COMPACT_CALENDAR_ROW_GAP = 6
+const CALENDAR_ROW_GAP = 11
+const COMPACT_CALENDAR_ROW_GAP = 7
 const CALENDAR_COLUMNS = Array.from({ length: 7 }, () => ({
   size: { type: 'flexible' as const, min: 0, max: 'infinity' as const },
   spacing: CALENDAR_COLUMN_GAP,
@@ -186,13 +186,14 @@ function LargeWidget({ days, schedule }: { days: ShiftDay[]; schedule: ShiftSche
   const displayMonth = new Date(days[0].date.getFullYear(), days[0].date.getMonth(), 1)
   const calendarDays = monthCalendarDays(schedule, displayMonth)
   const compactMonth = calendarDays.length > 35
-  return <VStack alignment="leading" spacing={compactMonth ? 4 : 8} modifiers={modifiers()
-    .padding({ top: compactMonth ? 7 : 13, leading: 14, bottom: compactMonth ? 8 : 12, trailing: 14 })
+  return <VStack alignment="leading" spacing={0} modifiers={modifiers()
+    .padding({ top: compactMonth ? 8 : 12, leading: 14, bottom: compactMonth ? 8 : 12, trailing: 14 })
     .frame({ maxWidth: 'infinity', maxHeight: 'infinity', alignment: 'leading' })
     .widgetBackground(PALETTE.background)}>
     <Header days={days} />
+    <Spacer minLength={2} />
     <CalendarGrid days={calendarDays} compact={compactMonth} />
-    {!compactMonth && <Spacer minLength={2} />}
+    <Spacer minLength={2} />
     <Text modifiers={modifiers().font('caption2').foregroundStyle(PALETTE.secondary).lineLimit(1)}>
       {compactMonth ? '每日 00:05 更新' : '每日 00:05 更新 · 今日日期高亮'}
     </Text>
