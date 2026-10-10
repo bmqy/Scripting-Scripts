@@ -54,12 +54,14 @@ const PALETTE: ShiftPalette = {
 
 const MEDIUM_DAY_WIDTH = 40
 const MEDIUM_DAY_HEIGHT = 58
-const CALENDAR_DAY_HEIGHT = 40
-const COMPACT_CALENDAR_DAY_HEIGHT = 32
-const CALENDAR_GAP = 3
+const CALENDAR_DAY_HEIGHT = 44
+const COMPACT_CALENDAR_DAY_HEIGHT = 34
+const CALENDAR_COLUMN_GAP = 3
+const CALENDAR_ROW_GAP = 5
+const COMPACT_CALENDAR_ROW_GAP = 2
 const CALENDAR_COLUMNS = Array.from({ length: 7 }, () => ({
   size: { type: 'flexible' as const, min: 0, max: 'infinity' as const },
-  spacing: CALENDAR_GAP,
+  spacing: CALENDAR_COLUMN_GAP,
   alignment: 'center' as const,
 }))
 
@@ -138,8 +140,8 @@ function CalendarDayCell({ day, isAdjacentMonth, compact }: { day: ShiftDay; isA
 
 function CalendarGrid({ days, compact = false }: { days: { day: ShiftDay; isAdjacentMonth: boolean }[]; compact?: boolean }) {
   const weekdayLabels = ['一', '二', '三', '四', '五', '六', '日']
-  return <VStack alignment="leading" spacing={compact ? 1 : CALENDAR_GAP} modifiers={modifiers().frame({ maxWidth: 'infinity', alignment: 'leading' })}>
-    <LazyVGrid columns={CALENDAR_COLUMNS} alignment="center" spacing={compact ? 1 : CALENDAR_GAP}>
+  return <VStack alignment="leading" modifiers={modifiers().frame({ maxWidth: 'infinity', alignment: 'leading' })}>
+    <LazyVGrid columns={CALENDAR_COLUMNS} alignment="center" spacing={compact ? COMPACT_CALENDAR_ROW_GAP : CALENDAR_ROW_GAP}>
       {weekdayLabels.map(label => <Text key={`weekday-${label}`} modifiers={modifiers().font('caption2').fontWeight('semibold').foregroundStyle(PALETTE.secondary).frame({ maxWidth: 'infinity', alignment: 'center' })}>
         {label}
       </Text>)}
@@ -182,17 +184,13 @@ function MediumWidget({ days }: { days: ShiftDay[] }) {
 
 function LargeWidget({ days, schedule }: { days: ShiftDay[]; schedule: ShiftSchedule }) {
   const displayMonth = new Date(days[0].date.getFullYear(), days[0].date.getMonth(), 1)
-  const monthTitle = `${displayMonth.getFullYear()}年${displayMonth.getMonth() + 1}月`
   const calendarDays = monthCalendarDays(schedule, displayMonth)
   const compactMonth = calendarDays.length > 35
-  return <VStack alignment="leading" spacing={compactMonth ? 3 : 6} modifiers={modifiers()
+  return <VStack alignment="leading" spacing={compactMonth ? 4 : 8} modifiers={modifiers()
     .padding({ top: compactMonth ? 7 : 13, leading: 14, bottom: compactMonth ? 8 : 12, trailing: 14 })
     .frame({ maxWidth: 'infinity', maxHeight: 'infinity', alignment: 'leading' })
     .widgetBackground(PALETTE.background)}>
     <Header days={days} />
-    <HStack alignment="center" modifiers={modifiers().frame({ maxWidth: 'infinity', alignment: 'leading' })}>
-      <Text modifiers={modifiers().font('title2').fontWeight('bold').foregroundStyle(PALETTE.ink).lineLimit(1)}>{monthTitle}</Text>
-    </HStack>
     <CalendarGrid days={calendarDays} compact={compactMonth} />
     {!compactMonth && <Spacer minLength={2} />}
     <Text modifiers={modifiers().font('caption2').foregroundStyle(PALETTE.secondary).lineLimit(1)}>
