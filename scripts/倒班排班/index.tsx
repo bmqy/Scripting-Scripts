@@ -3,7 +3,6 @@ import {
   DatePicker,
   Form,
   HStack,
-  LazyVGrid,
   NavigationLink,
   Picker,
   Navigation,
@@ -31,11 +30,7 @@ import {
   type ShiftSchedule,
 } from './schedule'
 
-const MONTH_GRID_COLUMNS = Array.from({ length: 7 }, () => ({
-  size: { type: 'flexible' as const, min: 0, max: 'infinity' as const },
-  spacing: 4,
-  alignment: 'center' as const,
-}))
+const MONTH_COLUMN_GAP = 4
 
 function shiftColor(shift: string): ShapeStyle {
   if (/休|假/.test(shift)) return '#758B73'
@@ -59,6 +54,7 @@ function MonthCalendarPage({ schedule }: { schedule: ShiftSchedule }) {
   const monthTitle = `${displayMonth.getFullYear()}年${displayMonth.getMonth() + 1}月`
   const today = shiftDay(now, schedule)
   const weekdays = ['一', '二', '三', '四', '五', '六', '日']
+  const weeks = Array.from({ length: Math.ceil(days.length / 7) }, (_, index) => days.slice(index * 7, index * 7 + 7))
 
   const changeMonth = (amount: number) => {
     setMonthTimestamp(new Date(displayMonth.getFullYear(), displayMonth.getMonth() + amount, 1).getTime())
@@ -79,16 +75,20 @@ function MonthCalendarPage({ schedule }: { schedule: ShiftSchedule }) {
           <Spacer />
           <Button title="下月 ›" buttonStyle="borderless" action={() => changeMonth(1)} />
         </HStack>
-        <LazyVGrid columns={MONTH_GRID_COLUMNS} alignment="center" spacing={4}>
-          {weekdays.map(day => <Text key={`weekday-${day}`} font="caption" fontWeight="semibold" foregroundStyle="#8B8177" frame={{ maxWidth: 'infinity', alignment: 'center' }}>{day}</Text>)}
-          {days.map(({ day, isAdjacentMonth }) => <VStack key={day.dateKey} alignment="center" spacing={5} modifiers={modifiers()
-            .padding({ top: 6, leading: 2, bottom: 6, trailing: 2 })
-            .frame({ maxWidth: 'infinity', height: 68, alignment: 'center' })
-            .background(isAdjacentMonth ? '#F2F2F2' : day.isToday ? shiftBackground(day.shift) : '#FFFDFC')}>
-            <Text font="callout" fontWeight={day.isToday ? 'bold' : isAdjacentMonth ? 'regular' : 'medium'} foregroundStyle={isAdjacentMonth ? '#A8A8A8' : day.isToday ? shiftColor(day.shift) : '#8B8177'}>{day.date.getDate()}</Text>
-            <Text font="caption" fontWeight="semibold" foregroundStyle={isAdjacentMonth ? '#A8A8A8' : shiftColor(day.shift)} padding={{ top: 2, leading: 4, bottom: 2, trailing: 4 }} background={isAdjacentMonth ? '#FFFDFC' : day.isToday ? '#FFFDFC' : shiftBackground(day.shift)} lineLimit={1} minScaleFactor={0.65}>{day.shift}</Text>
-          </VStack>)}
-        </LazyVGrid>
+        <VStack spacing={MONTH_COLUMN_GAP} modifiers={modifiers().frame({ maxWidth: 'infinity' })}>
+          <HStack spacing={MONTH_COLUMN_GAP} modifiers={modifiers().frame({ maxWidth: 'infinity' })}>
+            {weekdays.map(day => <Text key={`weekday-${day}`} font="caption" fontWeight="semibold" foregroundStyle="#8B8177" frame={{ maxWidth: 'infinity', alignment: 'center' }}>{day}</Text>)}
+          </HStack>
+          {weeks.map((week, weekIndex) => <HStack key={`week-${weekIndex}`} spacing={MONTH_COLUMN_GAP} modifiers={modifiers().frame({ maxWidth: 'infinity' })}>
+            {week.map(({ day, isAdjacentMonth }) => <VStack key={day.dateKey} alignment="center" spacing={5} modifiers={modifiers()
+              .padding({ top: 6, leading: 2, bottom: 6, trailing: 2 })
+              .frame({ maxWidth: 'infinity', height: 68, alignment: 'center' })
+              .background(isAdjacentMonth ? '#F2F2F2' : day.isToday ? shiftBackground(day.shift) : '#FFFDFC')}>
+              <Text font="callout" fontWeight={day.isToday ? 'bold' : isAdjacentMonth ? 'regular' : 'medium'} foregroundStyle={isAdjacentMonth ? '#A8A8A8' : day.isToday ? shiftColor(day.shift) : '#8B8177'}>{day.date.getDate()}</Text>
+              <Text font="caption" fontWeight="semibold" foregroundStyle={isAdjacentMonth ? '#A8A8A8' : shiftColor(day.shift)} padding={{ top: 2, leading: 4, bottom: 2, trailing: 4 }} background={isAdjacentMonth ? '#FFFDFC' : day.isToday ? '#FFFDFC' : shiftBackground(day.shift)} lineLimit={1} minScaleFactor={0.65}>{day.shift}</Text>
+            </VStack>)}
+          </HStack>)}
+        </VStack>
         <HStack alignment="center" spacing={6}>
           <Text font="footnote" foregroundStyle="#8B8177">今天：{today.shift}</Text>
           <Spacer />

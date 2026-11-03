@@ -1,7 +1,6 @@
 import {
   HStack,
   Image,
-  LazyVGrid,
   Spacer,
   Script,
   Text,
@@ -65,11 +64,6 @@ const COMPACT_CALENDAR_DAY_HEIGHT = 32
 const CALENDAR_COLUMN_GAP = 3
 const CALENDAR_ROW_GAP = 11
 const COMPACT_CALENDAR_ROW_GAP = 7
-const CALENDAR_COLUMNS = Array.from({ length: 7 }, () => ({
-  size: { type: 'flexible' as const, min: 0, max: 'infinity' as const },
-  spacing: CALENDAR_COLUMN_GAP,
-  alignment: 'center' as const,
-}))
 
 function shiftColor(shift: string): ShapeStyle {
   if (/休|假/.test(shift)) return PALETTE.rest
@@ -146,15 +140,20 @@ function CalendarDayCell({ day, isAdjacentMonth, compact }: { day: ShiftDay; isA
   </VStack>
 }
 
+// 小组件内不使用 LazyVGrid：惰性网格在 WidgetKit 渲染管线里可能无法产出内容，
+// 这里用固定 7 列的 VStack + HStack 行网格，保证任何系统版本都能渲染。
 function CalendarGrid({ days, compact = false }: { days: { day: ShiftDay; isAdjacentMonth: boolean }[]; compact?: boolean }) {
   const weekdayLabels = ['一', '二', '三', '四', '五', '六', '日']
-  return <VStack alignment="leading" modifiers={modifiers().frame({ maxWidth: 'infinity', alignment: 'leading' })}>
-    <LazyVGrid columns={CALENDAR_COLUMNS} alignment="center" spacing={compact ? COMPACT_CALENDAR_ROW_GAP : CALENDAR_ROW_GAP}>
+  const rows = Array.from({ length: Math.ceil(days.length / 7) }, (_, index) => days.slice(index * 7, index * 7 + 7))
+  return <VStack alignment="leading" spacing={compact ? COMPACT_CALENDAR_ROW_GAP : CALENDAR_ROW_GAP} modifiers={modifiers().frame({ maxWidth: 'infinity', alignment: 'leading' })}>
+    <HStack alignment="center" spacing={CALENDAR_COLUMN_GAP} modifiers={modifiers().frame({ maxWidth: 'infinity' })}>
       {weekdayLabels.map(label => <Text key={`weekday-${label}`} modifiers={modifiers().font('caption2').fontWeight('semibold').foregroundStyle(PALETTE.secondary).frame({ maxWidth: 'infinity', alignment: 'center' })}>
         {label}
       </Text>)}
-      {days.map(({ day, isAdjacentMonth }) => <CalendarDayCell key={day.dateKey} day={day} isAdjacentMonth={isAdjacentMonth} compact={compact} />)}
-    </LazyVGrid>
+    </HStack>
+    {rows.map((row, rowIndex) => <HStack key={`week-${rowIndex}`} alignment="center" spacing={CALENDAR_COLUMN_GAP} modifiers={modifiers().frame({ maxWidth: 'infinity' })}>
+      {row.map(({ day, isAdjacentMonth }) => <CalendarDayCell key={day.dateKey} day={day} isAdjacentMonth={isAdjacentMonth} compact={compact} />)}
+    </HStack>)}
   </VStack>
 }
 
@@ -235,13 +234,26 @@ function WidgetView({ days, schedule }: { days: ShiftDay[]; schedule: ShiftSched
   return <MediumWidget days={days} />
 }
 
+// 兜底视图：只用最基础的组件，任何尺寸都能渲染，避免复杂布局失败时小组件空成占位图。
+function FallbackWidget({ day }: { day: ShiftDay }) {
+  return <VStack alignment="leading" spacing={6} modifiers={modifiers().padding(14).frame({ maxWidth: 'infinity', maxHeight: 'infinity', alignment: 'leading' }).widgetBackground(PALETTE.background)}>
+    <Text modifiers={modifiers().font('footnote').fontWeight('semibold').foregroundStyle(PALETTE.ink).lineLimit(1)}>倒班排班</Text>
+    <Text modifiers={modifiers().font('largeTitle').fontWeight('bold').foregroundStyle(shiftColor(day.shift)).lineLimit(1).minScaleFactor(0.5)}>{day.shift}</Text>
+    <Text modifiers={modifiers().font('caption').foregroundStyle(PALETTE.secondary).lineLimit(1)}>{day.weekday} · {formatMonthDay(day.date)}</Text>
+  </VStack>
+}
+
 const schedule = loadSchedule()
 const days = upcomingDays(schedule, 7)
-Widget.present(<WidgetView days={days} schedule={schedule} />, {
-  reloadPolicy: {
-    policy: 'after',
-    date: nextMidnight(),
-  },
-})
+const reloadPolicy = {
+  policy: 'after' as const,
+  date: nextMidnight(),
+}
+
+try {
+  Widget.present(<WidgetView days={days} schedule={schedule} />, { reloadPolicy })
+} catch {
+  Widget.present(<FallbackWidget day={days[0]} />, { reloadPolicy })
+}
 Script.exit()
 
