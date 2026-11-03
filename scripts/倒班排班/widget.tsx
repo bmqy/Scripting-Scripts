@@ -149,14 +149,14 @@ function SmallWidget({ day, tomorrow, schedule, theme }: { day: ShiftDay; tomorr
 // 中号：今日概览 + 本周七天 + 循环图例。
 function MediumWidget({ today, week, schedule, theme }: { today: ShiftDay; week: ShiftDay[]; schedule: ShiftSchedule; theme: ShiftTheme }) {
   const rest = isRestShift(today.shift)
-  return <VStack alignment="leading" spacing={9} modifiers={modifiers()
-    .padding(13)
+  return <VStack alignment="leading" spacing={8} modifiers={modifiers()
+    .padding(12)
     .frame({ maxWidth: 'infinity', maxHeight: 'infinity', alignment: 'leading' })
     .widgetBackground(theme.background)}>
     <HStack alignment="center" spacing={6} modifiers={modifiers().frame({ maxWidth: 'infinity' })}>
       <VStack alignment="leading" spacing={2}>
         <Text modifiers={modifiers().font(9.5).fontWeight('medium').foregroundStyle(theme.secondary).lineLimit(1)}>{formatDateLabel(today.date)}</Text>
-        <Text modifiers={modifiers().font(17).fontWeight('bold').foregroundStyle(theme.ink).lineLimit(1).minScaleFactor(0.7)}>{rest ? '今日 · 休息日' : `今日 · ${today.shift}`}</Text>
+        <Text modifiers={modifiers().font(16).fontWeight('bold').foregroundStyle(theme.ink).lineLimit(1).minScaleFactor(0.7)}>{rest ? '今日 · 休息日' : `今日 · ${today.shift}`}</Text>
       </VStack>
       <Spacer />
       <Text modifiers={modifiers().font(11).fontWeight('semibold').foregroundStyle(theme.secondary).lineLimit(1)}>{formatMonthTitle(today.date)}</Text>
@@ -171,8 +171,8 @@ function MediumWidget({ today, week, schedule, theme }: { today: ShiftDay; week:
 function WeekCell({ day, schedule, theme }: { day: ShiftDay; schedule: ShiftSchedule; theme: ShiftTheme }) {
   const rest = isRestShift(day.shift)
   return <VStack alignment="center" spacing={4} modifiers={modifiers()
-    .padding({ top: 8, bottom: 8 })
-    .frame({ maxWidth: 'infinity', height: 68 })
+    .padding({ top: 6, bottom: 6 })
+    .frame({ maxWidth: 'infinity', height: 62 })
     .background(cellFill(day.shift, day.isToday, false, schedule, theme))
     .clipShape({ rounded: 12 })}>
     <Text modifiers={modifiers().font(8.5).fontWeight('medium').foregroundStyle(day.isToday ? theme.todayInk : theme.secondary).lineLimit(1)}>{formatWeekday(day.date)}</Text>
