@@ -20,7 +20,7 @@
     "zh": "排查桌面小组件空白：只显示运行环境信息",
     "en": "Diagnose blank Home Screen widgets by showing runtime information only."
   },
-  "version": "1.0.0",
+  "version": "1.0.1",
   "color": "rgba(47, 111, 237, 1)",
   "contributors": [],
   "name": "小组件自检"
