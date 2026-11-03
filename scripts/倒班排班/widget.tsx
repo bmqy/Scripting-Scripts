@@ -107,6 +107,7 @@ const MEDIUM_GAP = 5
 const MEDIUM_STRIP_HEIGHT = 62
 const LARGE_PADDING = 13
 const LARGE_GAP = 3
+const LARGE_LIST_GAP = 5
 
 // 给十六进制色值套透明度；本身就是 RGBA 的色值按原样返回。
 function withAlpha(hex: string, alpha: number) {
@@ -214,8 +215,51 @@ function WeekCell({ day, schedule, theme, width, height }: { day: ShiftDay; sche
   </VStack>
 }
 
-// 大号：当月 6 行月历 + 今日班次胶囊 + 循环图例。
-function LargeWidget({ today, schedule, theme, box }: { today: ShiftDay; schedule: ShiftSchedule; theme: ShiftTheme; box: Box }) {
+// 大号（默认）：未来七天逐行列表。节点数只有月历的三分之一左右，主屏渲染更稳。
+function LargeListWidget({ today, days, schedule, theme, box }: { today: ShiftDay; days: ShiftDay[]; schedule: ShiftSchedule; theme: ShiftTheme; box: Box }) {
+  const width = Math.max(140, box.width - LARGE_PADDING * 2)
+  const rest = isRestShift(today.shift)
+  const rows = days.slice(0, 7)
+  const listHeight = Math.max(120, box.height - LARGE_PADDING * 2 - 46 - 14 - 12)
+  const rowHeight = Math.max(26, Math.floor((listHeight - LARGE_LIST_GAP * 6) / 7))
+  return <VStack alignment="leading" spacing={LARGE_LIST_GAP} modifiers={modifiers()
+    .padding(LARGE_PADDING)
+    .frame({ width: box.width, height: box.height, alignment: 'leading' })
+    .widgetBackground(style(theme.background))}>
+    <HStack alignment="center" modifiers={modifiers().frame({ width, alignment: 'leading' })}>
+      <VStack alignment="leading" spacing={2}>
+        <Text modifiers={modifiers().font(20).fontWeight('bold').foregroundStyle(style(theme.ink)).lineLimit(1).minScaleFactor(0.7)}>{formatMonthTitle(today.date)}</Text>
+        <Text modifiers={modifiers().font(10).fontWeight('medium').foregroundStyle(style(theme.secondary)).lineLimit(1)}>{formatTodayTitle(today.date)}</Text>
+      </VStack>
+      <Spacer />
+      <Text modifiers={modifiers().font(9).fontWeight('medium').foregroundStyle(style(theme.secondary)).lineLimit(1).padding({ trailing: 8 })}>今日</Text>
+      <HStack alignment="center" spacing={4} modifiers={modifiers()
+        .padding({ top: 5, leading: 9, bottom: 5, trailing: 9 })
+        .background(style(shiftTint(today.shift, schedule, theme)))}>
+        <Text modifiers={modifiers().font(13).fontWeight('bold').foregroundStyle(style(theme.todayInk)).lineLimit(1).minScaleFactor(0.6)}>{rest ? '休息' : today.shift}</Text>
+      </HStack>
+    </HStack>
+    {rows.map(day => <DayRow key={day.dateKey} day={day} schedule={schedule} theme={theme} width={width} height={rowHeight} />)}
+    <Text modifiers={modifiers().font(8.5).fontWeight('medium').foregroundStyle(style(theme.secondary)).lineLimit(1).frame({ width, alignment: 'leading' })}>{`${schedule.shifts.length}天循环 · ${schedule.shifts.join(' / ')}`}</Text>
+  </VStack>
+}
+
+function DayRow({ day, schedule, theme, width, height }: { day: ShiftDay; schedule: ShiftSchedule; theme: ShiftTheme; width: number; height: number }) {
+  const rest = isRestShift(day.shift)
+  return <HStack alignment="center" spacing={8} modifiers={modifiers()
+    .padding({ leading: 10, trailing: 10 })
+    .frame({ width, height, alignment: 'leading' })
+    .background(style(cellFill(day.shift, day.isToday, false, schedule, theme)))}>
+    <Text modifiers={modifiers().font(11).fontWeight('semibold').foregroundStyle(style(day.isToday ? theme.todayInk : theme.secondary)).frame({ width: 32, alignment: 'leading' })}>{formatWeekday(day.date)}</Text>
+    <Text modifiers={modifiers().font(12).fontWeight(day.isToday ? 'bold' : 'medium').foregroundStyle(style(day.isToday ? theme.todayInk : theme.ink)).lineLimit(1)}>{formatMonthDay(day.date)}</Text>
+    <Spacer />
+    {day.isToday ? <Text modifiers={modifiers().font(9).fontWeight('semibold').foregroundStyle(style(theme.todayInk))}>今天</Text> : null}
+    <Text modifiers={modifiers().font(13).fontWeight('bold').foregroundStyle(style(shiftTextColor(day.shift, day.isToday, false, schedule, theme))).lineLimit(1).minScaleFactor(0.6)}>{rest ? '休息' : day.shift}</Text>
+  </HStack>
+}
+
+// 大号（可选）：当月 6 行月历 + 今日班次胶囊 + 循环图例。节点多，部分设备主屏渲染不出来。
+function LargeMonthWidget({ today, schedule, theme, box }: { today: ShiftDay; schedule: ShiftSchedule; theme: ShiftTheme; box: Box }) {
   const cells = monthGridDays(schedule, today.date)
   const rows = Array.from({ length: 6 }, (_, index) => cells.slice(index * 7, index * 7 + 7))
   const rest = isRestShift(today.shift)
@@ -314,7 +358,12 @@ function WidgetView({ today, days, week, schedule, theme }: { today: ShiftDay; d
   if (family === 'accessoryRectangular') return <AccessoryRectangularWidget day={today} schedule={schedule} theme={theme} />
   const box = boxFor(family)
   if (family === 'systemSmall') return <SmallWidget day={today} tomorrow={days[1] ?? today} schedule={schedule} theme={theme} box={box} />
-  if (family === 'systemLarge' || family === 'systemExtraLarge') return <LargeWidget today={today} schedule={schedule} theme={theme} box={box} />
+  if (family === 'systemLarge' || family === 'systemExtraLarge') {
+    // 列表布局节点少、主屏渲染稳；月历布局信息全，但需要设备扛得住。
+    return schedule.largeLayout === 'month'
+      ? <LargeMonthWidget today={today} schedule={schedule} theme={theme} box={box} />
+      : <LargeListWidget today={today} days={days} schedule={schedule} theme={theme} box={box} />
+  }
   return <MediumWidget today={today} week={week} schedule={schedule} theme={theme} box={box} />
 }
 

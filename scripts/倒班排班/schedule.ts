@@ -1,10 +1,14 @@
 export type ShiftStyle = 'aurora' | 'editorial' | 'soft'
 
+// 大号小组件两种排版：列表更轻（推荐），月历信息更全但节点多得多。
+export type LargeLayout = 'list' | 'month'
+
 export type ShiftSchedule = {
   anchorDate: string
   anchorShiftIndex: number
   shifts: string[]
   style: ShiftStyle
+  largeLayout: LargeLayout
 }
 
 export type ShiftDay = {
@@ -32,6 +36,8 @@ const WEEKDAYS = ['周日', '周一', '周二', '周三', '周四', '周五', '�
 const DEFAULT_SHIFTS = ['白班', '夜班', '休息']
 const STYLES: ShiftStyle[] = ['aurora', 'editorial', 'soft']
 const DEFAULT_STYLE: ShiftStyle = 'editorial'
+const LAYOUTS: LargeLayout[] = ['list', 'month']
+const DEFAULT_LARGE_LAYOUT: LargeLayout = 'list'
 
 function storage() {
   return (globalThis as unknown as { Storage?: StorageStore }).Storage
@@ -71,6 +77,7 @@ export function defaultSchedule(reference = new Date()): ShiftSchedule {
     anchorShiftIndex: 0,
     shifts: [...DEFAULT_SHIFTS],
     style: DEFAULT_STYLE,
+    largeLayout: DEFAULT_LARGE_LAYOUT,
   }
 }
 
@@ -84,12 +91,14 @@ export function normalizeSchedule(value?: Partial<ShiftSchedule> | null, referen
     ? Math.min(Math.max(Math.trunc(value.anchorShiftIndex), 0), normalizedShifts.length - 1)
     : 0
   const style = STYLES.includes(value?.style as ShiftStyle) ? value!.style as ShiftStyle : DEFAULT_STYLE
+  const largeLayout = LAYOUTS.includes(value?.largeLayout as LargeLayout) ? value!.largeLayout as LargeLayout : DEFAULT_LARGE_LAYOUT
 
   return {
     anchorDate: validDateKey(value?.anchorDate) ? value!.anchorDate : fallback.anchorDate,
     anchorShiftIndex,
     shifts: normalizedShifts,
     style,
+    largeLayout,
   }
 }
 

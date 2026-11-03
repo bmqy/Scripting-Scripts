@@ -27,18 +27,25 @@ import {
   parseShiftNames,
   saveSchedule,
   shiftDay,
+  type LargeLayout,
   type ShiftSchedule,
   type ShiftStyle,
 } from './schedule'
 
 const MONTH_COLUMN_GAP = 4
 // 与 script.json 的 version 保持一致，方便确认 App 里跑的是哪一版。
-const SCRIPT_VERSION = '1.1.0'
+const SCRIPT_VERSION = '1.2.0'
 
 const STYLE_OPTIONS: { value: ShiftStyle; label: string }[] = [
   { value: 'aurora', label: '极光' },
   { value: 'editorial', label: '简约' },
   { value: 'soft', label: '柔和' },
+]
+
+// 大号组件布局：列表节点少、主屏稳定；月历信息全，但节点数约为三倍。
+const LAYOUT_OPTIONS: { value: LargeLayout; label: string }[] = [
+  { value: 'list', label: '列表' },
+  { value: 'month', label: '月历' },
 ]
 
 // 运行时的 ShapeStyle 接受颜色字符串，这里统一收口，避免编辑器的类型告警。
@@ -119,6 +126,7 @@ function SettingsPage() {
   const [sequenceInput, setSequenceInput] = useState(current.shifts.join('、'))
   const [anchorShiftIndex, setAnchorShiftIndex] = useState(current.anchorShiftIndex)
   const [styleIndex, setStyleIndex] = useState(Math.max(0, STYLE_OPTIONS.findIndex(option => option.value === current.style)))
+  const [layoutIndex, setLayoutIndex] = useState(Math.max(0, LAYOUT_OPTIONS.findIndex(option => option.value === current.largeLayout)))
   const [message, setMessage] = useState('')
   const parsedShifts = parseShiftNames(sequenceInput)
   const pickerShifts = parsedShifts.length >= 2 ? parsedShifts : current.shifts
@@ -129,6 +137,7 @@ function SettingsPage() {
       anchorShiftIndex,
       shifts: parsedShifts,
       style: STYLE_OPTIONS[styleIndex].value,
+      largeLayout: LAYOUT_OPTIONS[layoutIndex].value,
     })
     const saved = saveSchedule(next)
     if (!saved) {
@@ -215,6 +224,17 @@ function SettingsPage() {
         >
           {STYLE_OPTIONS.map((option, index) => <Text tag={index} key={option.value}>{option.label}</Text>)}
         </Picker>
+        <Picker
+          title="大号布局"
+          value={layoutIndex}
+          onChanged={setLayoutIndex}
+          pickerStyle="segmented"
+        >
+          {LAYOUT_OPTIONS.map((option, index) => <Text tag={index} key={option.value}>{option.label}</Text>)}
+        </Picker>
+        <Text font="footnote" foregroundStyle="secondaryLabel" listRowSeparator="hidden">
+          列表布局节点少、主屏显示更稳定；月历布局信息更全，若主屏只显示占位骨架请切回列表。
+        </Text>
         <Text font="footnote" foregroundStyle="secondaryLabel" listRowSeparator="hidden">
           选择风格后点上方“保存排班并刷新小组件”生效。
         </Text>
@@ -231,7 +251,7 @@ function SettingsPage() {
       </Section>
       <Section>
         <Text font="footnote" foregroundStyle="secondaryLabel">
-          小号突出今天，中号显示本周与循环图例，大号显示当月 6 行月历；翻月请在 App 内查看。
+          小号突出今天，中号显示本周与循环图例，大号显示未来七天列表或当月月历；翻月请在 App 内查看。
         </Text>
         <Text font="footnote" foregroundStyle="secondaryLabel" listRowSeparator="hidden">
           版本 {SCRIPT_VERSION}
