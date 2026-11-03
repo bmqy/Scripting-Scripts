@@ -28,9 +28,16 @@ import {
   saveSchedule,
   shiftDay,
   type ShiftSchedule,
+  type ShiftStyle,
 } from './schedule'
 
 const MONTH_COLUMN_GAP = 4
+
+const STYLE_OPTIONS: { value: ShiftStyle; label: string }[] = [
+  { value: 'aurora', label: '极光' },
+  { value: 'editorial', label: '简约' },
+  { value: 'soft', label: '柔和' },
+]
 
 function shiftColor(shift: string): ShapeStyle {
   if (/休|假/.test(shift)) return '#758B73'
@@ -104,6 +111,7 @@ function SettingsPage() {
   const [anchorTimestamp, setAnchorTimestamp] = useState(new Date(`${current.anchorDate}T12:00:00`).getTime())
   const [sequenceInput, setSequenceInput] = useState(current.shifts.join('、'))
   const [anchorShiftIndex, setAnchorShiftIndex] = useState(current.anchorShiftIndex)
+  const [styleIndex, setStyleIndex] = useState(Math.max(0, STYLE_OPTIONS.findIndex(option => option.value === current.style)))
   const [message, setMessage] = useState('')
   const parsedShifts = parseShiftNames(sequenceInput)
   const pickerShifts = parsedShifts.length >= 2 ? parsedShifts : current.shifts
@@ -113,6 +121,7 @@ function SettingsPage() {
       anchorDate: dateKey(new Date(anchorTimestamp)),
       anchorShiftIndex,
       shifts: parsedShifts,
+      style: STYLE_OPTIONS[styleIndex].value,
     })
     const saved = saveSchedule(next)
     if (!saved) {
@@ -190,9 +199,32 @@ function SettingsPage() {
           </HStack>
         </NavigationLink>
       </Section>
+      <Section header={<Text>外观</Text>}>
+        <Picker
+          title="配色风格"
+          value={styleIndex}
+          onChanged={setStyleIndex}
+          pickerStyle="segmented"
+        >
+          {STYLE_OPTIONS.map((option, index) => <Text tag={index} key={option.value}>{option.label}</Text>)}
+        </Picker>
+        <Text font="footnote" foregroundStyle="secondaryLabel" listRowSeparator="hidden">
+          选择风格后点上方“保存排班并刷新小组件”生效。
+        </Text>
+      </Section>
+      <Section header={<Text>组件预览</Text>}>
+        <HStack alignment="center" spacing={8}>
+          <Button title="小号" buttonStyle="bordered" action={() => { void Widget.preview({ family: 'systemSmall' }) }} />
+          <Button title="中号" buttonStyle="bordered" action={() => { void Widget.preview({ family: 'systemMedium' }) }} />
+          <Button title="大号" buttonStyle="bordered" action={() => { void Widget.preview({ family: 'systemLarge' }) }} />
+        </HStack>
+        <Text font="footnote" foregroundStyle="secondaryLabel" listRowSeparator="hidden">
+          App 内预览只用于检查排版；主屏显示异常时请以此判断是脚本问题还是小组件配置问题。
+        </Text>
+      </Section>
       <Section>
         <Text font="footnote" foregroundStyle="secondaryLabel">
-          小号突出今天，中号显示未来 7 天，大号显示当月月历；翻月请在 App 内查看。
+          小号突出今天，中号显示本周与循环图例，大号显示当月 6 行月历；翻月请在 App 内查看。
         </Text>
       </Section>
     </Form>
@@ -204,4 +236,7 @@ async function run() {
   Script.exit()
 }
 
-run()
+// 小组件环境只会执行 widget.tsx，这里加一道保险，避免入口页在组件进程里被误执行。
+if (Script.env !== 'widget') {
+  run()
+}

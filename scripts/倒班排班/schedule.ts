@@ -1,7 +1,10 @@
+export type ShiftStyle = 'aurora' | 'editorial' | 'soft'
+
 export type ShiftSchedule = {
   anchorDate: string
   anchorShiftIndex: number
   shifts: string[]
+  style: ShiftStyle
 }
 
 export type ShiftDay = {
@@ -27,6 +30,8 @@ type StorageStore = {
 const STORAGE_KEY = 'shift-schedule-v1'
 const WEEKDAYS = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
 const DEFAULT_SHIFTS = ['白班', '夜班', '休息']
+const STYLES: ShiftStyle[] = ['aurora', 'editorial', 'soft']
+const DEFAULT_STYLE: ShiftStyle = 'editorial'
 
 function storage() {
   return (globalThis as unknown as { Storage?: StorageStore }).Storage
@@ -65,6 +70,7 @@ export function defaultSchedule(reference = new Date()): ShiftSchedule {
     anchorDate: dateKey(reference),
     anchorShiftIndex: 0,
     shifts: [...DEFAULT_SHIFTS],
+    style: DEFAULT_STYLE,
   }
 }
 
@@ -77,11 +83,13 @@ export function normalizeSchedule(value?: Partial<ShiftSchedule> | null, referen
   const anchorShiftIndex = typeof value?.anchorShiftIndex === 'number' && Number.isFinite(value.anchorShiftIndex)
     ? Math.min(Math.max(Math.trunc(value.anchorShiftIndex), 0), normalizedShifts.length - 1)
     : 0
+  const style = STYLES.includes(value?.style as ShiftStyle) ? value!.style as ShiftStyle : DEFAULT_STYLE
 
   return {
     anchorDate: validDateKey(value?.anchorDate) ? value!.anchorDate : fallback.anchorDate,
     anchorShiftIndex,
     shifts: normalizedShifts,
+    style,
   }
 }
 
@@ -166,8 +174,55 @@ export function monthCalendarDays(schedule: ShiftSchedule, date: Date): Calendar
   })
 }
 
+// 固定 6 行 42 格：与原生版一致，前后月补位，避免大号组件在 5/6 周之间跳动。
+export function monthGridDays(schedule: ShiftSchedule, date: Date): CalendarCell[] {
+  const firstDay = new Date(date.getFullYear(), date.getMonth(), 1)
+  const lead = (firstDay.getDay() + 6) % 7
+
+  return Array.from({ length: 42 }, (_, index) => {
+    const cellDate = new Date(date.getFullYear(), date.getMonth(), index - lead + 1)
+    return {
+      day: shiftDay(cellDate, schedule),
+      isAdjacentMonth: cellDate.getMonth() !== date.getMonth() || cellDate.getFullYear() !== date.getFullYear(),
+    }
+  })
+}
+
+// 当前自然周（周一至周日），中号组件顶部使用。
+export function weekDays(schedule: ShiftSchedule, reference = new Date()): ShiftDay[] {
+  const start = dayStart(reference)
+  const offset = (start.getDay() + 6) % 7
+  const monday = new Date(start)
+  monday.setDate(start.getDate() - offset)
+  return Array.from({ length: 7 }, (_, index) => {
+    const date = new Date(monday)
+    date.setDate(monday.getDate() + index)
+    return shiftDay(date, schedule, start)
+  })
+}
+
+export function isRestShift(shift: string) {
+  return /休|假/.test(shift)
+}
+
 export function formatMonthDay(date: Date) {
   return `${date.getMonth() + 1}/${date.getDate()}`
+}
+
+export function formatWeekday(date: Date) {
+  return WEEKDAYS[date.getDay()].replace('周', '')
+}
+
+export function formatMonthTitle(date: Date) {
+  return `${date.getFullYear()}年${date.getMonth() + 1}月`
+}
+
+export function formatDateLabel(date: Date) {
+  return `${date.getMonth() + 1}月${date.getDate()}日·${WEEKDAYS[date.getDay()]}`
+}
+
+export function formatTodayTitle(date: Date) {
+  return `${date.getMonth() + 1}月${date.getDate()}日·星期${formatWeekday(date)}`
 }
 
 export function nextMidnight(reference = new Date()) {
