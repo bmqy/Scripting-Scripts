@@ -32,6 +32,8 @@ import {
 } from './schedule'
 
 const MONTH_COLUMN_GAP = 4
+// 与 script.json 的 version 保持一致，方便确认 App 里跑的是哪一版。
+const SCRIPT_VERSION = '1.1.0'
 
 const STYLE_OPTIONS: { value: ShiftStyle; label: string }[] = [
   { value: 'aurora', label: '极光' },
@@ -230,6 +232,9 @@ function SettingsPage() {
       <Section>
         <Text font="footnote" foregroundStyle="secondaryLabel">
           小号突出今天，中号显示本周与循环图例，大号显示当月 6 行月历；翻月请在 App 内查看。
+        </Text>
+        <Text font="footnote" foregroundStyle="secondaryLabel" listRowSeparator="hidden">
+          版本 {SCRIPT_VERSION}
         </Text>
       </Section>
     </Form>

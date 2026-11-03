@@ -20,7 +20,7 @@
     "zh": "查看自定义倒班排班，支持在 App 内翻阅月历",
     "en": "View a custom shift schedule and browse months in the app."
   },
-  "version": "1.0.0",
+  "version": "1.1.0",
   "color": "rgba(224, 122, 95, 1)",
   "contributors": [],
   "name": "倒班排班"
