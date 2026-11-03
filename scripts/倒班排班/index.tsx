@@ -39,18 +39,23 @@ const STYLE_OPTIONS: { value: ShiftStyle; label: string }[] = [
   { value: 'soft', label: '柔和' },
 ]
 
+// 运行时的 ShapeStyle 接受颜色字符串，这里统一收口，避免编辑器的类型告警。
+function paint(color: string): ShapeStyle {
+  return color as unknown as ShapeStyle
+}
+
 function shiftColor(shift: string): ShapeStyle {
-  if (/休|假/.test(shift)) return '#758B73'
-  if (/下夜/.test(shift)) return '#347B7D'
-  if (/夜|晚/.test(shift)) return '#425786'
-  return '#B87517'
+  if (/休|假/.test(shift)) return paint('#758B73')
+  if (/下夜/.test(shift)) return paint('#347B7D')
+  if (/夜|晚/.test(shift)) return paint('#425786')
+  return paint('#B87517')
 }
 
 function shiftBackground(shift: string): ShapeStyle {
-  if (/休|假/.test(shift)) return '#E2EBDD'
-  if (/下夜/.test(shift)) return '#DCEFED'
-  if (/夜|晚/.test(shift)) return '#E2E8F4'
-  return '#F7E8C8'
+  if (/休|假/.test(shift)) return paint('#E2EBDD')
+  if (/下夜/.test(shift)) return paint('#DCEFED')
+  if (/夜|晚/.test(shift)) return paint('#E2E8F4')
+  return paint('#F7E8C8')
 }
 
 function MonthCalendarPage({ schedule }: { schedule: ShiftSchedule }) {
@@ -78,26 +83,26 @@ function MonthCalendarPage({ schedule }: { schedule: ShiftSchedule }) {
         <HStack alignment="center" spacing={8}>
           <Button title="‹ 上月" buttonStyle="borderless" action={() => changeMonth(-1)} />
           <Spacer />
-          <Text font="title2" fontWeight="bold" foregroundStyle="#302A25">{monthTitle}</Text>
+          <Text font="title2" fontWeight="bold" foregroundStyle={paint('#302A25')}>{monthTitle}</Text>
           <Spacer />
           <Button title="下月 ›" buttonStyle="borderless" action={() => changeMonth(1)} />
         </HStack>
         <VStack spacing={MONTH_COLUMN_GAP} modifiers={modifiers().frame({ maxWidth: 'infinity' })}>
           <HStack spacing={MONTH_COLUMN_GAP} modifiers={modifiers().frame({ maxWidth: 'infinity' })}>
-            {weekdays.map(day => <Text key={`weekday-${day}`} font="caption" fontWeight="semibold" foregroundStyle="#8B8177" frame={{ maxWidth: 'infinity', alignment: 'center' }}>{day}</Text>)}
+            {weekdays.map(day => <Text key={`weekday-${day}`} font="caption" fontWeight="semibold" foregroundStyle={paint('#8B8177')} frame={{ maxWidth: 'infinity', alignment: 'center' }}>{day}</Text>)}
           </HStack>
           {weeks.map((week, weekIndex) => <HStack key={`week-${weekIndex}`} spacing={MONTH_COLUMN_GAP} modifiers={modifiers().frame({ maxWidth: 'infinity' })}>
             {week.map(({ day, isAdjacentMonth }) => <VStack key={day.dateKey} alignment="center" spacing={5} modifiers={modifiers()
               .padding({ top: 6, leading: 2, bottom: 6, trailing: 2 })
               .frame({ maxWidth: 'infinity', height: 68, alignment: 'center' })
-              .background(isAdjacentMonth ? '#F2F2F2' : day.isToday ? shiftBackground(day.shift) : '#FFFDFC')}>
-              <Text font="callout" fontWeight={day.isToday ? 'bold' : isAdjacentMonth ? 'regular' : 'medium'} foregroundStyle={isAdjacentMonth ? '#A8A8A8' : day.isToday ? shiftColor(day.shift) : '#8B8177'}>{day.date.getDate()}</Text>
-              <Text font="caption" fontWeight="semibold" foregroundStyle={isAdjacentMonth ? '#A8A8A8' : shiftColor(day.shift)} padding={{ top: 2, leading: 4, bottom: 2, trailing: 4 }} background={isAdjacentMonth ? '#FFFDFC' : day.isToday ? '#FFFDFC' : shiftBackground(day.shift)} lineLimit={1} minScaleFactor={0.65}>{day.shift}</Text>
+              .background(isAdjacentMonth ? paint('#F2F2F2') : day.isToday ? shiftBackground(day.shift) : paint('#FFFDFC'))}>
+              <Text font="callout" fontWeight={day.isToday ? 'bold' : isAdjacentMonth ? 'regular' : 'medium'} foregroundStyle={isAdjacentMonth ? paint('#A8A8A8') : day.isToday ? shiftColor(day.shift) : paint('#8B8177')}>{day.date.getDate()}</Text>
+              <Text font="caption" fontWeight="semibold" foregroundStyle={isAdjacentMonth ? paint('#A8A8A8') : shiftColor(day.shift)} padding={{ top: 2, leading: 4, bottom: 2, trailing: 4 }} background={isAdjacentMonth ? paint('#FFFDFC') : day.isToday ? paint('#FFFDFC') : shiftBackground(day.shift)} lineLimit={1} minScaleFactor={0.65}>{day.shift}</Text>
             </VStack>)}
           </HStack>)}
         </VStack>
         <HStack alignment="center" spacing={6}>
-          <Text font="footnote" foregroundStyle="#8B8177">今天：{today.shift}</Text>
+          <Text font="footnote" foregroundStyle={paint('#8B8177')}>今天：{today.shift}</Text>
           <Spacer />
           <Button title="回到本月" buttonStyle="bordered" action={returnToCurrentMonth} />
         </HStack>
@@ -193,7 +198,7 @@ function SettingsPage() {
       <Section header={<Text>排班查询</Text>}>
         <NavigationLink destination={<MonthCalendarPage schedule={current} />}>
           <HStack alignment="center" spacing={10}>
-            <Text foregroundStyle="#D86F55">月历排班</Text>
+            <Text foregroundStyle={paint('#D86F55')}>月历排班</Text>
             <Spacer />
             <Text font="footnote" foregroundStyle="secondaryLabel">在 App 内翻看其他月份</Text>
           </HStack>
