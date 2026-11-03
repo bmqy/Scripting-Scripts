@@ -134,8 +134,9 @@ function SmallWidget({ day, tomorrow, schedule, theme }: { day: ShiftDay; tomorr
     <Spacer />
     <HStack alignment="center" spacing={6} modifiers={modifiers()
       .padding({ top: 8, leading: 9, bottom: 8, trailing: 9 })
-      .frame({ maxWidth: 'infinity' })}
-      background={<RoundedRectangle cornerRadius={10} fill={theme.card} />}>
+      .frame({ maxWidth: 'infinity' })
+      .background(theme.card)
+      .clipShape({ rounded: 10 })}>
       <Circle fill={shiftTint(tomorrow.shift, schedule, theme)} frame={{ width: 7, height: 7 }} />
       <Text modifiers={modifiers().font(10).fontWeight('medium').foregroundStyle(theme.secondary)}>明天</Text>
       <Text modifiers={modifiers().font(13).fontWeight('semibold').foregroundStyle(theme.ink).lineLimit(1).minScaleFactor(0.6)}>{tomorrow.shift}</Text>
@@ -171,8 +172,9 @@ function WeekCell({ day, schedule, theme }: { day: ShiftDay; schedule: ShiftSche
   const rest = isRestShift(day.shift)
   return <VStack alignment="center" spacing={4} modifiers={modifiers()
     .padding({ top: 8, bottom: 8 })
-    .frame({ maxWidth: 'infinity', height: 68 })}
-    background={<RoundedRectangle cornerRadius={12} fill={cellFill(day.shift, day.isToday, false, schedule, theme)} />}>
+    .frame({ maxWidth: 'infinity', height: 68 })
+    .background(cellFill(day.shift, day.isToday, false, schedule, theme))
+    .clipShape({ rounded: 12 })}>
     <Text modifiers={modifiers().font(8.5).fontWeight('medium').foregroundStyle(day.isToday ? theme.todayInk : theme.secondary).lineLimit(1)}>{formatWeekday(day.date)}</Text>
     <Text modifiers={modifiers().font(15).fontWeight(day.isToday ? 'bold' : 'semibold').foregroundStyle(day.isToday ? theme.todayInk : theme.ink).lineLimit(1)}>{day.date.getDate()}</Text>
     <Text modifiers={modifiers().font(8).fontWeight('bold').foregroundStyle(shiftTextColor(day.shift, day.isToday, false, schedule, theme)).lineLimit(1).minScaleFactor(0.5)}>{rest ? '休' : day.shift}</Text>
@@ -198,8 +200,9 @@ function LargeWidget({ today, schedule, theme }: { today: ShiftDay; schedule: Sh
       <VStack alignment="trailing" spacing={4}>
         <Text modifiers={modifiers().font(9).fontWeight('medium').foregroundStyle(theme.secondary).lineLimit(1)}>{rest ? '今日休息' : '今日班次'}</Text>
         <HStack alignment="center" spacing={4} modifiers={modifiers()
-          .padding({ top: 5, leading: 10, bottom: 5, trailing: 10 })}
-          background={<RoundedRectangle cornerRadius={99} fill={shiftTint(today.shift, schedule, theme)} />}>
+          .padding({ top: 5, leading: 10, bottom: 5, trailing: 10 })
+          .background(shiftTint(today.shift, schedule, theme))
+          .clipShape('capsule')}>
           <Text modifiers={modifiers().font(13).fontWeight('bold').foregroundStyle(theme.todayInk).lineLimit(1).minScaleFactor(0.6)}>{today.shift}</Text>
         </HStack>
       </VStack>
@@ -221,8 +224,9 @@ function MonthCell({ cell, schedule, theme }: { cell: CalendarCell; schedule: Sh
   const rest = isRestShift(day.shift)
   return <VStack alignment="center" spacing={1} modifiers={modifiers()
     .padding({ top: 3, leading: 1, bottom: 3, trailing: 1 })
-    .frame({ maxWidth: 'infinity', maxHeight: 'infinity' })}
-    background={<RoundedRectangle cornerRadius={9} fill={cellFill(day.shift, day.isToday, isAdjacentMonth, schedule, theme)} />}>
+    .frame({ maxWidth: 'infinity', maxHeight: 'infinity' })
+    .background(cellFill(day.shift, day.isToday, isAdjacentMonth, schedule, theme))
+    .clipShape({ rounded: 9 })}>
     <Text modifiers={modifiers().font(12).fontWeight(day.isToday ? 'bold' : 'semibold').foregroundStyle(day.isToday ? theme.todayInk : isAdjacentMonth ? theme.secondary : theme.ink).lineLimit(1).minScaleFactor(0.7)}>{day.date.getDate()}</Text>
     <Text modifiers={modifiers().font(7.5).fontWeight('bold').foregroundStyle(shiftTextColor(day.shift, day.isToday, isAdjacentMonth, schedule, theme)).lineLimit(1).minScaleFactor(0.5)}>{rest ? '休' : day.shift}</Text>
   </VStack>
