@@ -18,7 +18,7 @@ import {
   formatWeekday,
   isRestShift,
   loadSchedule,
-  monthGridDays,
+  monthCalendarDays,
   nextMidnight,
   shiftDay,
   upcomingDays,
@@ -258,56 +258,53 @@ function DayRow({ day, schedule, theme, width, height }: { day: ShiftDay; schedu
   </HStack>
 }
 
-// 大号（可选）：当月 6 行月历 + 今日班次胶囊 + 循环图例。节点多，部分设备主屏渲染不出来。
+// 大号（可选）：当月月历。为压住小组件渲染预算，每个格子只用一个 Text（第一行日期、第二行班次），
+// 整块约 55—62 个节点；上一版每格 3 个节点、总计约 150 个，真机上会整块渲染失败。
 function LargeMonthWidget({ today, schedule, theme, box }: { today: ShiftDay; schedule: ShiftSchedule; theme: ShiftTheme; box: Box }) {
-  const cells = monthGridDays(schedule, today.date)
-  const rows = Array.from({ length: 6 }, (_, index) => cells.slice(index * 7, index * 7 + 7))
+  const cells = monthCalendarDays(schedule, today.date)
+  const rows: CalendarCell[][] = []
+  for (let index = 0; index < cells.length; index += 7) rows.push(cells.slice(index, index + 7))
   const rest = isRestShift(today.shift)
   const width = Math.max(140, box.width - LARGE_PADDING * 2)
   const cellWidth = Math.max(24, Math.floor((width - LARGE_GAP * 6) / 7))
-  const gridHeight = Math.max(120, box.height - LARGE_PADDING * 2 - 46 - 14 - 14 - 26)
-  const rowHeight = Math.max(24, Math.floor((gridHeight - LARGE_GAP * 5) / 6))
-  return <VStack alignment="leading" spacing={8} modifiers={modifiers()
+  const gridHeight = Math.max(96, box.height - LARGE_PADDING * 2 - 34 - 14 - 12 - 18)
+  const rowHeight = Math.max(20, Math.floor((gridHeight - LARGE_GAP * (rows.length - 1)) / rows.length))
+  return <VStack alignment="leading" spacing={6} modifiers={modifiers()
     .padding(LARGE_PADDING)
     .frame({ width: box.width, height: box.height, alignment: 'leading' })
     .widgetBackground(style(theme.background))}>
-    <HStack alignment="top" modifiers={modifiers().frame({ width, alignment: 'leading' })}>
-      <VStack alignment="leading" spacing={3}>
-        <Text modifiers={modifiers().font(22).fontWeight('bold').foregroundStyle(style(theme.ink)).lineLimit(1).minScaleFactor(0.7)}>{formatMonthTitle(today.date)}</Text>
-        <Text modifiers={modifiers().font(10).fontWeight('medium').foregroundStyle(style(theme.secondary)).lineLimit(1)}>{formatTodayTitle(today.date)}</Text>
-      </VStack>
+    <HStack alignment="center" spacing={6} modifiers={modifiers().frame({ width, alignment: 'leading' })}>
+      <Text modifiers={modifiers().font(17).fontWeight('bold').foregroundStyle(style(theme.ink)).lineLimit(1).minScaleFactor(0.7)}>{formatMonthTitle(today.date)}</Text>
       <Spacer />
-      <VStack alignment="trailing" spacing={4}>
-        <Text modifiers={modifiers().font(9).fontWeight('medium').foregroundStyle(style(theme.secondary)).lineLimit(1)}>{rest ? '今日休息' : '今日班次'}</Text>
-        <HStack alignment="center" spacing={4} modifiers={modifiers()
-          .padding({ top: 5, leading: 10, bottom: 5, trailing: 10 })}
-          background={<RoundedRectangle cornerRadius={99} fill={style(shiftTint(today.shift, schedule, theme))} />}>
-          <Text modifiers={modifiers().font(13).fontWeight('bold').foregroundStyle(style(theme.todayInk)).lineLimit(1).minScaleFactor(0.6)}>{today.shift}</Text>
-        </HStack>
-      </VStack>
+      <Text modifiers={modifiers().font(11).fontWeight('semibold').foregroundStyle(style(theme.todayInk)).lineLimit(1).minScaleFactor(0.6).padding({ top: 4, leading: 9, bottom: 4, trailing: 9 }).background(style(shiftTint(today.shift, schedule, theme)))}>{rest ? '休息' : today.shift}</Text>
     </HStack>
     <HStack alignment="center" spacing={LARGE_GAP} modifiers={modifiers().frame({ width, alignment: 'leading' })}>
-      {WEEKDAY_LABELS.map(label => <Text key={`weekday-${label}`} modifiers={modifiers().font(9.5).fontWeight('semibold').foregroundStyle(style(theme.secondary)).frame({ width: cellWidth, alignment: 'center' })}>{label}</Text>)}
+      {WEEKDAY_LABELS.map(label => <Text key={`weekday-${label}`} modifiers={modifiers().font(9).fontWeight('semibold').foregroundStyle(style(theme.secondary)).frame({ width: cellWidth, alignment: 'center' })}>{label}</Text>)}
     </HStack>
     <VStack alignment="center" spacing={LARGE_GAP} modifiers={modifiers().frame({ width, alignment: 'leading' })}>
       {rows.map((row, rowIndex) => <HStack key={`row-${rowIndex}`} alignment="center" spacing={LARGE_GAP} modifiers={modifiers().frame({ width, alignment: 'leading' })}>
         {row.map(cell => <MonthCell key={cell.day.dateKey} cell={cell} schedule={schedule} theme={theme} width={cellWidth} height={rowHeight} />)}
       </HStack>)}
     </VStack>
-    <Legend schedule={schedule} theme={theme} width={width} />
+    <Text modifiers={modifiers().font(8.5).fontWeight('medium').foregroundStyle(style(theme.secondary)).lineLimit(1).frame({ width, alignment: 'leading' })}>{`${schedule.shifts.length}天循环 · ${schedule.shifts.join(' / ')}`}</Text>
   </VStack>
 }
 
+// 单格只用一个 Text：第一行日期、第二行班次，文字色和底色一起区分班次类型。
 function MonthCell({ cell, schedule, theme, width, height }: { cell: CalendarCell; schedule: ShiftSchedule; theme: ShiftTheme; width: number; height: number }) {
   const { day, isAdjacentMonth } = cell
   const rest = isRestShift(day.shift)
-  return <VStack alignment="center" spacing={1} modifiers={modifiers()
-    .padding({ top: 2, bottom: 2 })
-    .frame({ width, height })
+  const ink = day.isToday ? theme.todayInk : isAdjacentMonth ? theme.secondary : shiftTextColor(day.shift, false, false, schedule, theme)
+  return <Text modifiers={modifiers()
+    .font(10)
+    .fontWeight(day.isToday ? 'bold' : 'medium')
+    .foregroundStyle(style(ink))
+    .lineLimit(2)
+    .minScaleFactor(0.5)
+    .frame({ width, height, alignment: 'center' })
     .background(style(cellFill(day.shift, day.isToday, isAdjacentMonth, schedule, theme)))}>
-    <Text modifiers={modifiers().font(12).fontWeight(day.isToday ? 'bold' : 'semibold').foregroundStyle(style(day.isToday ? theme.todayInk : isAdjacentMonth ? theme.secondary : theme.ink)).lineLimit(1).minScaleFactor(0.7)}>{day.date.getDate()}</Text>
-    <Text modifiers={modifiers().font(7.5).fontWeight('bold').foregroundStyle(style(shiftTextColor(day.shift, day.isToday, isAdjacentMonth, schedule, theme))).lineLimit(1).minScaleFactor(0.5)}>{rest ? '休' : day.shift}</Text>
-  </VStack>
+    {`${day.date.getDate()}\n${rest ? '休' : day.shift}`}
+  </Text>
 }
 
 function Legend({ schedule, theme, width }: { schedule: ShiftSchedule; theme: ShiftTheme; width: number }) {

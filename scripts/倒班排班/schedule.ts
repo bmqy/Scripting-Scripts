@@ -183,20 +183,6 @@ export function monthCalendarDays(schedule: ShiftSchedule, date: Date): Calendar
   })
 }
 
-// 固定 6 行 42 格：与原生版一致，前后月补位，避免大号组件在 5/6 周之间跳动。
-export function monthGridDays(schedule: ShiftSchedule, date: Date): CalendarCell[] {
-  const firstDay = new Date(date.getFullYear(), date.getMonth(), 1)
-  const lead = (firstDay.getDay() + 6) % 7
-
-  return Array.from({ length: 42 }, (_, index) => {
-    const cellDate = new Date(date.getFullYear(), date.getMonth(), index - lead + 1)
-    return {
-      day: shiftDay(cellDate, schedule),
-      isAdjacentMonth: cellDate.getMonth() !== date.getMonth() || cellDate.getFullYear() !== date.getFullYear(),
-    }
-  })
-}
-
 // 当前自然周（周一至周日），中号组件顶部使用。
 export function weekDays(schedule: ShiftSchedule, reference = new Date()): ShiftDay[] {
   const start = dayStart(reference)
