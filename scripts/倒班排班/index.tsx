@@ -231,7 +231,7 @@ function SettingsPage() {
       </Section>
       <Section>
         <Text font="footnote" foregroundStyle="secondaryLabel">
-          小号突出今天，中号显示本周与循环图例，大号显示当月月历；翻月请在 App 内查看。
+          小号显示今日与明天，中号显示本周七天与循环图例，大号显示整月日历；翻月请在 App 内查看。
         </Text>
         <Text font="footnote" foregroundStyle="secondaryLabel" listRowSeparator="hidden">
           版本 {SCRIPT_VERSION}

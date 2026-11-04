@@ -204,7 +204,12 @@ export function formatMonthTitle(date: Date) {
 }
 
 export function formatDateLabel(date: Date) {
-  return `${date.getMonth() + 1}月${date.getDate()}日·${WEEKDAYS[date.getDay()]}`
+  return `${date.getMonth() + 1}月${date.getDate()}日 · ${WEEKDAYS[date.getDay()]}`
+}
+
+// 中号/大号顶部副标题：与原版一致使用「M月d日·星期X」。
+export function formatLongDateLabel(date: Date) {
+  return `${date.getMonth() + 1}月${date.getDate()}日·星期${formatWeekday(date)}`
 }
 
 export function nextMidnight(reference = new Date()) {
