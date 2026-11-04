@@ -208,7 +208,7 @@ function WeekCell({ day, schedule, theme, width, height }: { day: ShiftDay; sche
     .background(style(cellFill(day.shift, day.isToday, false, schedule, theme)))}>
     <Text modifiers={modifiers().font(8.5).fontWeight('medium').foregroundStyle(style(day.isToday ? theme.todayInk : theme.secondary)).lineLimit(1)}>{formatWeekday(day.date)}</Text>
     <Text modifiers={modifiers().font(15).fontWeight(day.isToday ? 'bold' : 'semibold').foregroundStyle(style(day.isToday ? theme.todayInk : theme.ink)).lineLimit(1)}>{day.date.getDate()}</Text>
-    <Text modifiers={modifiers().font(8).fontWeight('bold').foregroundStyle(style(shiftTextColor(day.shift, day.isToday, false, schedule, theme))).lineLimit(1).minScaleFactor(0.5)}>{rest ? '休' : day.shift}</Text>
+    <Text modifiers={modifiers().font(8).fontWeight('bold').foregroundStyle(style(shiftTextColor(day.shift, day.isToday, false, schedule, theme))).lineLimit(1).minScaleFactor(0.5)}>{day.shift}</Text>
     <Circle fill={style(rest ? theme.secondary : shiftTint(day.shift, schedule, theme))} frame={{ width: 4, height: 4 }} />
   </VStack>
 }
@@ -248,7 +248,6 @@ function LargeMonthWidget({ today, schedule, theme, box }: { today: ShiftDay; sc
 // 单格只用一个 Text：第一行日期、第二行班次，文字色和底色一起区分班次类型。
 function MonthCell({ cell, schedule, theme, width, height }: { cell: CalendarCell; schedule: ShiftSchedule; theme: ShiftTheme; width: number; height: number }) {
   const { day, isAdjacentMonth } = cell
-  const rest = isRestShift(day.shift)
   const ink = day.isToday ? theme.todayInk : isAdjacentMonth ? theme.secondary : shiftTextColor(day.shift, false, false, schedule, theme)
   return <Text modifiers={modifiers()
     .font(10)
@@ -258,7 +257,7 @@ function MonthCell({ cell, schedule, theme, width, height }: { cell: CalendarCel
     .minScaleFactor(0.5)
     .frame({ width, height, alignment: 'center' })
     .background(style(cellFill(day.shift, day.isToday, isAdjacentMonth, schedule, theme)))}>
-    {`${day.date.getDate()}\n${rest ? '休' : day.shift}`}
+    {`${day.date.getDate()}\n${day.shift}`}
   </Text>
 }
 
