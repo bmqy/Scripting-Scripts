@@ -2,7 +2,6 @@ import {
   Button,
   Circle,
   DatePicker,
-  FlowLayout,
   Form,
   HStack,
   Image,
@@ -57,7 +56,7 @@ const MONTH_COLUMN_GAP = 3
 const MONTH_CELL_HEIGHT = 64
 const MONTH_CELL_RADIUS = 9
 // 与 script.json 的 version 保持一致，方便确认 App 里跑的是哪一版。
-const SCRIPT_VERSION = '1.10.1'
+const SCRIPT_VERSION = '1.11.0'
 // 打开某个班次的响铃开关时先填入的默认时间，用户可再调整。
 const DEFAULT_RING_TIME = '07:00'
 
@@ -249,30 +248,6 @@ function splitShiftTokens(value: string) {
   return tokens
 }
 
-// 循环班次的标签：点右侧 × 删除；颜色与月历、小组件里的班次色保持一致。
-function ShiftTag({ name, onRemove }: { name: string; onRemove: () => void }) {
-  const color = shiftColor(name)
-  return <HStack alignment="center" spacing={4} modifiers={modifiers()
-    .padding({ top: 5, bottom: 5, leading: 9, trailing: 5 })
-    .background(roundedFill(shiftBackground(name), 14))}>
-    <Text
-      font="footnote"
-      fontWeight="semibold"
-      foregroundStyle={paint(color)}
-      lineLimit={1}
-      minScaleFactor={0.8}
-    >{name}</Text>
-    <Button buttonStyle="borderless" action={onRemove}>
-      <Image
-        systemName="xmark.circle.fill"
-        font={14}
-        foregroundStyle={paint(color)}
-        frame={{ width: 22, height: 22 }}
-      />
-    </Button>
-  </HStack>
-}
-
 function SettingsPage() {
   const initial = loadSchedule()
   const [anchorTimestamp, setAnchorTimestamp] = useState(new Date(`${initial.anchorDate}T12:00:00`).getTime())
@@ -393,6 +368,20 @@ function SettingsPage() {
     return mergeShiftNames(shiftTags, tokens).names
   }
 
+  // 上下移动班次：起始班次按名字跟着走，调整循环顺序不会改变“起始日期对应哪个班次”。
+  const moveShiftTag = (name: string, offset: number) => {
+    const index = shiftTags.indexOf(name)
+    const target = index + offset
+    if (index < 0 || target < 0 || target >= shiftTags.length) return
+    const next = [...shiftTags]
+    next.splice(index, 1)
+    next.splice(target, 0, name)
+    const anchorName = shiftTags[anchorShiftIndex]
+    setShiftTags(next)
+    if (anchorName) setAnchorShiftIndex(Math.max(0, next.indexOf(anchorName)))
+  }
+
+
   // 保存按钮的可用状态与真实保存条件保持同一口径：草稿里已经打好的第二个班次也算数。
   const canSave = collectShiftTags().length >= 2
 
@@ -479,22 +468,45 @@ function SettingsPage() {
       <Section
         header={<Text>循环班次与响铃</Text>}
         footer={<VStack alignment="leading" spacing={6} modifiers={modifiers().frame({ maxWidth: 'infinity', alignment: 'leading' })}>
-          <Text font="footnote" foregroundStyle="secondaryLabel">在输入框里输入班次名，按空格或回车就会加成一个标签（离开输入框也会自动加入），点标签右侧的 × 删除；至少两个、最多 {SHIFT_NAME_LIMIT} 个班次，打开开关的班次会按所选方式响铃。</Text>
+          <Text font="footnote" foregroundStyle="secondaryLabel">列表顺序就是循环顺序：点行尾的 ↑ ↓ 上下调整，点 × 删除该班次；在列表最后的输入框里输入班次名，按空格或回车即可添加到末尾。至少两个、最多 {SHIFT_NAME_LIMIT} 个班次，打开开关的班次会按所选方式响铃。</Text>
           <Text font="footnote" foregroundStyle="secondaryLabel">{reminderModeHint(reminderMode)}</Text>
           <Text font="footnote" foregroundStyle="secondaryLabel">开关、时间或方式改动后，点上方“保存排班并刷新小组件”生效；“重排响铃提醒”会先保存再重排。</Text>
         </VStack>}
       >
-        <FlowLayout
-          spacing={6}
-          horizontalSpacing={6}
-          verticalSpacing={6}
-          modifiers={modifiers().frame({ maxWidth: 'infinity', alignment: 'leading' }).padding({ vertical: 2 })}
-        >
-          {shiftTags.map(name => <ShiftTag key={name} name={name} onRemove={() => removeShiftTag(name)} />)}
-          {shiftTags.length === 0
-            ? <Text font="footnote" foregroundStyle="secondaryLabel">还没有班次，先在下面添加</Text>
-            : null}
-        </FlowLayout>
+        {shiftTags.map((shift, index) => {
+          const time = alarmTimes[shift]
+          const isFirst = index === 0
+          const isLast = index === shiftTags.length - 1
+          return <HStack key={`shift-${shift}`} alignment="center" spacing={6}>
+            <Circle fill={paint(shiftColor(shift))} frame={{ width: 7, height: 7 }} />
+            <Toggle
+              title={shift}
+              value={Boolean(time)}
+              onChanged={(enabled) => setRingTime(shift, enabled ? time ?? DEFAULT_RING_TIME : '')}
+            />
+            {time
+              ? <DatePicker
+                title=""
+                value={timestampForRingTime(time)}
+                onChanged={(timestamp) => setRingTime(shift, ringTimeFromTimestamp(timestamp))}
+                displayedComponents={['hourAndMinute']}
+                datePickerStyle="compact"
+              />
+              : null}
+            <Button buttonStyle="borderless" disabled={isFirst} action={() => moveShiftTag(shift, -1)}>
+              <Image systemName="chevron.up" font={13} foregroundStyle={paint(isFirst ? '#CFC8BE' : '#8A7F74')} frame={{ width: 26, height: 26 }} />
+            </Button>
+            <Button buttonStyle="borderless" disabled={isLast} action={() => moveShiftTag(shift, 1)}>
+              <Image systemName="chevron.down" font={13} foregroundStyle={paint(isLast ? '#CFC8BE' : '#8A7F74')} frame={{ width: 26, height: 26 }} />
+            </Button>
+            <Button buttonStyle="borderless" action={() => removeShiftTag(shift)}>
+              <Image systemName="xmark.circle.fill" font={15} foregroundStyle={paint('#C9563F')} frame={{ width: 26, height: 26 }} />
+            </Button>
+          </HStack>
+        })}
+        {shiftTags.length === 0
+          ? <Text font="footnote" foregroundStyle="secondaryLabel" listRowSeparator="hidden">还没有班次，在下面输入添加</Text>
+          : null}
         <TextField
           title="添加班次"
           value={draftShift}
@@ -515,26 +527,6 @@ function SettingsPage() {
         >
           {REMINDER_MODE_OPTIONS.map((option, index) => <Text tag={index} key={option.value}>{option.label}</Text>)}
         </Picker>
-        {shiftTags.map(shift => {
-          const time = alarmTimes[shift]
-          return <HStack key={`ring-${shift}`} alignment="center" spacing={8}>
-            <Circle fill={paint(shiftColor(shift))} frame={{ width: 7, height: 7 }} />
-            <Toggle
-              title={shift}
-              value={Boolean(time)}
-              onChanged={(enabled) => setRingTime(shift, enabled ? time ?? DEFAULT_RING_TIME : '')}
-            />
-            {time
-              ? <DatePicker
-                title=""
-                value={timestampForRingTime(time)}
-                onChanged={(timestamp) => setRingTime(shift, ringTimeFromTimestamp(timestamp))}
-                displayedComponents={['hourAndMinute']}
-                datePickerStyle="compact"
-              />
-              : null}
-          </HStack>
-        })}
         <Button title="保存排班并刷新小组件" buttonStyle="borderedProminent" disabled={!canSave} action={() => { void save() }} />
         <Button title="重排响铃提醒" buttonStyle="bordered" disabled={!canSave} action={() => { void resyncReminders() }} />
         <Text font="footnote" foregroundStyle="secondaryLabel" listRowSeparator="hidden">
