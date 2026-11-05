@@ -1,5 +1,7 @@
 export type ShiftStyle = 'aurora' | 'editorial' | 'soft'
 
+export type ReminderMode = 'calendar' | 'notification'
+
 export type ShiftSchedule = {
   anchorDate: string
   anchorShiftIndex: number
@@ -7,6 +9,8 @@ export type ShiftSchedule = {
   style: ShiftStyle
   // 每个班次可单独指定一个响铃时间（HH:mm）；没有对应键表示该班次不响铃。
   alarms: Record<string, string>
+  // 提醒的落地方式：写入系统日历的闹铃事件，或排定本地通知。
+  reminderMode: ReminderMode
 }
 
 export type RingOccurrence = {
@@ -41,8 +45,13 @@ const WEEKDAYS = ['周日', '周一', '周二', '周三', '周四', '周五', '�
 const DEFAULT_SHIFTS = ['白班', '夜班', '休息']
 const STYLES: ShiftStyle[] = ['aurora', 'editorial', 'soft']
 const DEFAULT_STYLE: ShiftStyle = 'editorial'
-// 一次性本地通知无法跨周期重复，只能按天排定；这里决定每次同步向前排多少天。
-export const REMINDER_HORIZON_DAYS = 21
+const REMINDER_MODES: ReminderMode[] = ['calendar', 'notification']
+const DEFAULT_REMINDER_MODE: ReminderMode = 'calendar'
+// 日历提醒由系统日历负责触发，可以一次排很远；本地通知受 iOS 待发送数量限制，只能排较短窗口。
+export const CALENDAR_REMINDER_HORIZON_DAYS = 90
+export const NOTIFICATION_REMINDER_HORIZON_DAYS = 21
+// upcomingRingOccurrences 不传 days 时的默认窗口，与通知保持一致。
+const DEFAULT_REMINDER_HORIZON_DAYS = NOTIFICATION_REMINDER_HORIZON_DAYS
 
 function storage() {
   return (globalThis as unknown as { Storage?: StorageStore }).Storage
@@ -132,7 +141,7 @@ export function upcomingRingOccurrences(
   options: { days?: number; now?: Date } = {},
 ): RingOccurrence[] {
   const now = options.now ?? new Date()
-  const days = Math.max(0, Math.trunc(options.days ?? REMINDER_HORIZON_DAYS))
+  const days = Math.max(0, Math.trunc(options.days ?? DEFAULT_REMINDER_HORIZON_DAYS))
   const start = dayStart(now)
   const occurrences: RingOccurrence[] = []
   for (let index = 0; index < days; index += 1) {
@@ -154,6 +163,7 @@ export function defaultSchedule(reference = new Date()): ShiftSchedule {
     shifts: [...DEFAULT_SHIFTS],
     style: DEFAULT_STYLE,
     alarms: {},
+    reminderMode: DEFAULT_REMINDER_MODE,
   }
 }
 
@@ -167,6 +177,9 @@ export function normalizeSchedule(value?: Partial<ShiftSchedule> | null, referen
     ? Math.min(Math.max(Math.trunc(value.anchorShiftIndex), 0), normalizedShifts.length - 1)
     : 0
   const style = STYLES.includes(value?.style as ShiftStyle) ? value!.style as ShiftStyle : DEFAULT_STYLE
+  const reminderMode = REMINDER_MODES.includes(value?.reminderMode as ReminderMode)
+    ? value!.reminderMode as ReminderMode
+    : DEFAULT_REMINDER_MODE
   const alarms: Record<string, string> = {}
   const rawAlarms = value?.alarms
   if (rawAlarms && typeof rawAlarms === 'object') {
@@ -182,6 +195,7 @@ export function normalizeSchedule(value?: Partial<ShiftSchedule> | null, referen
     shifts: normalizedShifts,
     style,
     alarms,
+    reminderMode,
   }
 }
 
