@@ -5,6 +5,15 @@ export type ShiftSchedule = {
   anchorShiftIndex: number
   shifts: string[]
   style: ShiftStyle
+  // 每个班次可单独指定一个响铃时间（HH:mm）；没有对应键表示该班次不响铃。
+  alarms: Record<string, string>
+}
+
+export type RingOccurrence = {
+  date: Date
+  dateKey: string
+  shift: string
+  time: string
 }
 
 export type ShiftDay = {
@@ -32,9 +41,30 @@ const WEEKDAYS = ['周日', '周一', '周二', '周三', '周四', '周五', '�
 const DEFAULT_SHIFTS = ['白班', '夜班', '休息']
 const STYLES: ShiftStyle[] = ['aurora', 'editorial', 'soft']
 const DEFAULT_STYLE: ShiftStyle = 'editorial'
+// 一次性本地通知无法跨周期重复，只能按天排定；这里决定每次同步向前排多少天。
+export const REMINDER_HORIZON_DAYS = 21
 
 function storage() {
   return (globalThis as unknown as { Storage?: StorageStore }).Storage
+}
+
+export function readStoredValue<T>(key: string): T | null {
+  try {
+    const value = storage()?.get<T>(key)
+    return value && typeof value === 'object' ? (value as T) : null
+  } catch {
+    return null
+  }
+}
+
+export function writeStoredValue(key: string, value: unknown) {
+  try {
+    const store = storage()
+    if (!store) return false
+    return store.set(key, value) !== false
+  } catch {
+    return false
+  }
 }
 
 function pad(value: number) {
@@ -57,12 +87,64 @@ function parseShiftName(value: unknown) {
   return value.replace(/\s+/g, ' ').trim().slice(0, 12)
 }
 
+function dedupeShiftNames(names: string[]) {
+  const result: string[] = []
+  names.forEach(name => {
+    // 响铃时间按班次名做键，重名班次没有意义，这里顺手去重。
+    if (name && !result.includes(name) && result.length < 8) result.push(name)
+  })
+  return result
+}
+
 export function parseShiftNames(value: string) {
-  return value
-    .split(/[,，、;；\n]+/)
-    .map(parseShiftName)
-    .filter(Boolean)
-    .slice(0, 8)
+  return dedupeShiftNames(value.split(/[,，、;；\n]+/).map(parseShiftName).filter(Boolean))
+}
+
+// 班次响铃时间统一存成 24 小时制 HH:mm；空值表示该班次不设置闹铃。
+export function parseRingTime(value: unknown): string | null {
+  if (typeof value !== 'string') return null
+  const match = /^(\d{1,2}):(\d{2})$/.exec(value.trim())
+  if (!match) return null
+  const hour = Number(match[1])
+  const minute = Number(match[2])
+  if (!Number.isInteger(hour) || hour > 23 || !Number.isInteger(minute) || minute > 59) return null
+  return `${pad(hour)}:${pad(minute)}`
+}
+
+export function ringTimeForShift(schedule: ShiftSchedule, shift: string) {
+  return schedule.alarms[shift] ?? null
+}
+
+export function ringTimeForDate(schedule: ShiftSchedule, date: Date) {
+  return ringTimeForShift(schedule, shiftForDate(date, schedule))
+}
+
+export function ringDateFor(date: Date, time: string): Date | null {
+  const normalized = parseRingTime(time)
+  if (!normalized) return null
+  const [hour, minute] = normalized.split(':').map(Number)
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate(), hour, minute, 0, 0)
+}
+
+// 未来若干天里所有「某个班次 + 已配置响铃时间」的日子；已经过去的时刻会被跳过。
+export function upcomingRingOccurrences(
+  schedule: ShiftSchedule,
+  options: { days?: number; now?: Date } = {},
+): RingOccurrence[] {
+  const now = options.now ?? new Date()
+  const days = Math.max(0, Math.trunc(options.days ?? REMINDER_HORIZON_DAYS))
+  const start = dayStart(now)
+  const occurrences: RingOccurrence[] = []
+  for (let index = 0; index < days; index += 1) {
+    const date = new Date(start.getFullYear(), start.getMonth(), start.getDate() + index)
+    const shift = shiftForDate(date, schedule)
+    const time = ringTimeForShift(schedule, shift)
+    if (!time) continue
+    const ringDate = ringDateFor(date, time)
+    if (!ringDate || ringDate.getTime() <= now.getTime()) continue
+    occurrences.push({ date, dateKey: dateKey(date), shift, time })
+  }
+  return occurrences
 }
 
 export function defaultSchedule(reference = new Date()): ShiftSchedule {
@@ -71,45 +153,44 @@ export function defaultSchedule(reference = new Date()): ShiftSchedule {
     anchorShiftIndex: 0,
     shifts: [...DEFAULT_SHIFTS],
     style: DEFAULT_STYLE,
+    alarms: {},
   }
 }
 
 export function normalizeSchedule(value?: Partial<ShiftSchedule> | null, reference = new Date()): ShiftSchedule {
   const fallback = defaultSchedule(reference)
   const shifts = Array.isArray(value?.shifts)
-    ? value.shifts.map(parseShiftName).filter(Boolean).slice(0, 8)
+    ? dedupeShiftNames(value.shifts.map(parseShiftName).filter(Boolean))
     : []
   const normalizedShifts = shifts.length >= 2 ? shifts : fallback.shifts
   const anchorShiftIndex = typeof value?.anchorShiftIndex === 'number' && Number.isFinite(value.anchorShiftIndex)
     ? Math.min(Math.max(Math.trunc(value.anchorShiftIndex), 0), normalizedShifts.length - 1)
     : 0
   const style = STYLES.includes(value?.style as ShiftStyle) ? value!.style as ShiftStyle : DEFAULT_STYLE
+  const alarms: Record<string, string> = {}
+  const rawAlarms = value?.alarms
+  if (rawAlarms && typeof rawAlarms === 'object') {
+    for (const shift of normalizedShifts) {
+      const time = parseRingTime((rawAlarms as Record<string, unknown>)[shift])
+      if (time) alarms[shift] = time
+    }
+  }
 
   return {
     anchorDate: validDateKey(value?.anchorDate) ? value!.anchorDate : fallback.anchorDate,
     anchorShiftIndex,
     shifts: normalizedShifts,
     style,
+    alarms,
   }
 }
 
 export function loadSchedule(reference = new Date()): ShiftSchedule {
-  try {
-    const saved = storage()?.get<Partial<ShiftSchedule>>(STORAGE_KEY)
-    return normalizeSchedule(saved && typeof saved === 'object' ? saved : null, reference)
-  } catch {
-    return defaultSchedule(reference)
-  }
+  return normalizeSchedule(readStoredValue<Partial<ShiftSchedule>>(STORAGE_KEY), reference)
 }
 
 export function saveSchedule(value: Partial<ShiftSchedule>) {
-  try {
-    const store = storage()
-    if (!store) return false
-    return store.set(STORAGE_KEY, normalizeSchedule(value)) !== false
-  } catch {
-    return false
-  }
+  return writeStoredValue(STORAGE_KEY, normalizeSchedule(value))
 }
 
 function utcDayNumber(value: string) {

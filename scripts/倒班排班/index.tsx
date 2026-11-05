@@ -13,13 +13,16 @@ import {
   Spacer,
   Text,
   TextField,
+  Toggle,
   Widget,
+  useEffect,
   useState,
   VStack,
   modifiers,
   type ShapeStyle,
 } from 'scripting'
 import {
+  REMINDER_HORIZON_DAYS,
   dateKey,
   loadSchedule,
   monthCalendarDays,
@@ -30,10 +33,19 @@ import {
   type ShiftSchedule,
   type ShiftStyle,
 } from './schedule'
+import {
+  formatReminderSyncTime,
+  formatReminderTarget,
+  loadReminderState,
+  syncRingReminders,
+  type ReminderSyncState,
+} from './reminders'
 
 const MONTH_COLUMN_GAP = 4
 // 与 script.json 的 version 保持一致，方便确认 App 里跑的是哪一版。
-const SCRIPT_VERSION = '1.3.1'
+const SCRIPT_VERSION = '1.5.0'
+// 打开某个班次的响铃开关时先填入的默认时间，用户可再调整。
+const DEFAULT_RING_TIME = '07:00'
 
 const STYLE_OPTIONS: { value: ShiftStyle; label: string }[] = [
   { value: 'aurora', label: '极光' },
@@ -58,6 +70,32 @@ function shiftBackground(shift: string): ShapeStyle {
   if (/下夜/.test(shift)) return paint('#DCEFED')
   if (/夜|晚/.test(shift)) return paint('#E2E8F4')
   return paint('#F7E8C8')
+}
+
+// DatePicker 只认时间戳，这里在「今天 + HH:mm」之间来回转换，避免引入额外的日期库。
+function timestampForRingTime(time: string) {
+  const [hour, minute] = time.split(':').map(Number)
+  const now = new Date()
+  return new Date(now.getFullYear(), now.getMonth(), now.getDate(), hour || 0, minute || 0).getTime()
+}
+
+function ringTimeFromTimestamp(timestamp: number) {
+  const date = new Date(timestamp)
+  return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
+}
+
+function saveMessage(schedule: ShiftSchedule, state: ReminderSyncState) {
+  const base = `已保存：${schedule.anchorDate} 为「${schedule.shifts[schedule.anchorShiftIndex]}」`
+  if (state.error) return `${base}；响铃提醒：${state.error}`
+  if (state.total === 0) return `${base}；未设置响铃时间`
+  return `${base}；已排定 ${state.scheduled} 个响铃，下一次 ${formatReminderTarget(state.next)}`
+}
+
+function reminderStateText(state: ReminderSyncState | null) {
+  if (!state) return '尚未排定响铃提醒，保存一次或点“重排响铃提醒”即可。'
+  if (state.error) return `上次同步 ${formatReminderSyncTime(state.syncedAt)}：${state.error}`
+  if (state.total === 0) return `上次同步 ${formatReminderSyncTime(state.syncedAt)}：当前没有响铃时间。`
+  return `上次同步 ${formatReminderSyncTime(state.syncedAt)}：待发送 ${state.scheduled} 个，下一次 ${formatReminderTarget(state.next)}`
 }
 
 function MonthCalendarPage({ schedule }: { schedule: ShiftSchedule }) {
@@ -119,16 +157,33 @@ function SettingsPage() {
   const [sequenceInput, setSequenceInput] = useState(current.shifts.join('、'))
   const [anchorShiftIndex, setAnchorShiftIndex] = useState(current.anchorShiftIndex)
   const [styleIndex, setStyleIndex] = useState(Math.max(0, STYLE_OPTIONS.findIndex(option => option.value === current.style)))
+  const [alarmTimes, setAlarmTimes] = useState<Record<string, string>>({ ...current.alarms })
+  const [reminderState, setReminderState] = useState<ReminderSyncState | null>(loadReminderState())
   const [message, setMessage] = useState('')
   const parsedShifts = parseShiftNames(sequenceInput)
   const pickerShifts = parsedShifts.length >= 2 ? parsedShifts : current.shifts
 
-  const save = () => {
+  // 每次打开脚本都把提醒窗口向后顺延一次，避免长期不打开时提醒断档。
+  useEffect(() => {
+    void syncRingReminders(loadSchedule()).then(setReminderState)
+  }, [])
+
+  const setRingTime = (shift: string, time: string) => {
+    setAlarmTimes(previous => {
+      const next = { ...previous }
+      if (time) next[shift] = time
+      else delete next[shift]
+      return next
+    })
+  }
+
+  const save = async () => {
     const next = normalizeSchedule({
       anchorDate: dateKey(new Date(anchorTimestamp)),
       anchorShiftIndex,
       shifts: parsedShifts,
       style: STYLE_OPTIONS[styleIndex].value,
+      alarms: alarmTimes,
     })
     const saved = saveSchedule(next)
     if (!saved) {
@@ -137,8 +192,21 @@ function SettingsPage() {
     }
     setSequenceInput(next.shifts.join('、'))
     setAnchorShiftIndex(next.anchorShiftIndex)
+    setAlarmTimes(next.alarms)
     Widget.reloadAll()
-    setMessage(`已保存：${next.anchorDate} 为「${next.shifts[next.anchorShiftIndex]}」`)
+    const state = await syncRingReminders(next)
+    setReminderState(state)
+    setMessage(saveMessage(next, state))
+  }
+
+  const resyncReminders = async () => {
+    const state = await syncRingReminders(loadSchedule())
+    setReminderState(state)
+    setMessage(state.error
+      ? `响铃提醒未完全排定：${state.error}`
+      : state.total === 0
+        ? '当前没有设置响铃时间'
+        : `已排定 ${state.scheduled} 个响铃，下一次 ${formatReminderTarget(state.next)}`)
   }
 
   return <NavigationStack>
@@ -151,7 +219,7 @@ function SettingsPage() {
         onChanged: (isPresented) => {
           if (!isPresented) setMessage('')
         },
-        duration: 3,
+        duration: 4,
         position: 'bottom',
         backgroundColor: '#2F2925',
         cornerRadius: 12,
@@ -195,7 +263,35 @@ function SettingsPage() {
         <Text font="footnote" foregroundStyle="secondaryLabel" listRowSeparator="hidden">
           用“、”或逗号分隔，至少填写两个班次，最多支持八项。
         </Text>
-        <Button title="保存排班并刷新小组件" buttonStyle="borderedProminent" action={save} />
+        <Button title="保存排班并刷新小组件" buttonStyle="borderedProminent" action={() => { void save() }} />
+      </Section>
+      <Section header={<Text>响铃提醒</Text>}>
+        {pickerShifts.map((shift, index) => {
+          const time = alarmTimes[shift]
+          return <HStack key={`ring-${shift}-${index}`} alignment="center" spacing={8}>
+            <Toggle
+              title={shift}
+              value={Boolean(time)}
+              onChanged={(enabled) => setRingTime(shift, enabled ? time ?? DEFAULT_RING_TIME : '')}
+            />
+            {time
+              ? <DatePicker
+                title=""
+                value={timestampForRingTime(time)}
+                onChanged={(timestamp) => setRingTime(shift, ringTimeFromTimestamp(timestamp))}
+                displayedComponents={['hourAndMinute']}
+                datePickerStyle="compact"
+              />
+              : null}
+          </HStack>
+        })}
+        <Button title="重排响铃提醒" buttonStyle="borderless" action={() => { void resyncReminders() }} />
+        <Text font="footnote" foregroundStyle="secondaryLabel" listRowSeparator="hidden">
+          每个班次可单独指定响铃时间，默认不响铃；保存后按未来 {REMINDER_HORIZON_DAYS} 天的排班排定本地通知，每次打开脚本会顺延重排。提醒走 Scripting 的通知，静音或专注模式下是否响铃取决于系统通知设置。
+        </Text>
+        <Text font="footnote" foregroundStyle="secondaryLabel" listRowSeparator="hidden">
+          {reminderStateText(reminderState)}
+        </Text>
       </Section>
       <Section header={<Text>排班查询</Text>}>
         <NavigationLink destination={<MonthCalendarPage schedule={current} />}>
@@ -231,7 +327,7 @@ function SettingsPage() {
       </Section>
       <Section>
         <Text font="footnote" foregroundStyle="secondaryLabel">
-          小号显示今日与明天，中号显示本周七天与循环图例，大号显示整月日历；翻月请在 App 内查看。
+          小号显示今日与明天，中号显示本周七天与循环图例，大号显示整月日历；设置了响铃的班次会在对应位置显示铃铛和时间。翻月请在 App 内查看。
         </Text>
         <Text font="footnote" foregroundStyle="secondaryLabel" listRowSeparator="hidden">
           版本 {SCRIPT_VERSION}

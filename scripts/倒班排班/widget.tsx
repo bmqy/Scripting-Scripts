@@ -23,6 +23,7 @@ import {
   loadSchedule,
   monthCalendarDays,
   nextMidnight,
+  ringTimeForDate,
   shiftDay,
   upcomingDays,
   weekDays,
@@ -182,6 +183,7 @@ type Box = { width: number; height: number }
 // 小号：顶部日期 + 图标，中间大字号今日班次，底部明天预告卡片。
 function SmallWidget({ day, tomorrow, schedule, theme, box }: { day: ShiftDay; tomorrow: ShiftDay; schedule: ShiftSchedule; theme: ShiftTheme; box: Box }) {
   const width = Math.max(80, box.width - SMALL_PADDING * 2)
+  const ring = ringTimeForDate(schedule, day.date)
   return <VStack alignment="leading" spacing={0} modifiers={modifiers()
     .padding(SMALL_PADDING)
     .frame({ width: box.width, height: box.height, alignment: 'leading' })
@@ -192,9 +194,12 @@ function SmallWidget({ day, tomorrow, schedule, theme, box }: { day: ShiftDay; t
       <Image systemName="calendar.badge.clock" font={10} foregroundStyle={style(shiftTint(day.shift, schedule, theme))} />
     </HStack>
     <Spacer />
-    <HStack alignment="center" spacing={5}>
+    <HStack alignment="center" spacing={5} modifiers={modifiers().frame({ width, alignment: 'leading' })}>
       <RoundedRectangle cornerRadius={1.5} fill={style(shiftTint(day.shift, schedule, theme))} frame={{ width: 3, height: 12 }} />
       <Text modifiers={modifiers().font(10).fontWeight('semibold').foregroundStyle(style(theme.secondary))}>今天</Text>
+      {ring ? <Spacer /> : null}
+      {ring ? <Image systemName="bell.fill" font={8.5} foregroundStyle={style(theme.secondary)} /> : null}
+      {ring ? <Text modifiers={modifiers().font(9.5).fontWeight('medium').foregroundStyle(style(theme.secondary)).lineLimit(1)}>{ring}</Text> : null}
     </HStack>
     <Text fontDesign="rounded" modifiers={modifiers().font(30).fontWeight('bold').foregroundStyle(style(theme.ink)).lineLimit(1).minScaleFactor(0.45).padding({ top: 3 })}>{day.shift}</Text>
     <Spacer />
@@ -214,6 +219,7 @@ function SmallWidget({ day, tomorrow, schedule, theme, box }: { day: ShiftDay; t
 // 中号：今日概览 + 本周七天（周几/日期/班次/色点）+ 循环图例。
 function MediumWidget({ today, week, schedule, theme, box }: { today: ShiftDay; week: ShiftDay[]; schedule: ShiftSchedule; theme: ShiftTheme; box: Box }) {
   const rest = isRestShift(today.shift)
+  const ring = ringTimeForDate(schedule, today.date)
   const width = Math.max(120, box.width - MEDIUM_PADDING * 2)
   const cellWidth = Math.max(26, Math.floor((width - MEDIUM_GAP * 6) / 7))
   return <VStack alignment="leading" spacing={9} modifiers={modifiers()
@@ -226,7 +232,10 @@ function MediumWidget({ today, week, schedule, theme, box }: { today: ShiftDay; 
         <Text fontDesign="rounded" modifiers={modifiers().font(17).fontWeight('bold').foregroundStyle(style(theme.ink)).lineLimit(1).minScaleFactor(0.7)}>{rest ? '今日 · 休息日' : `今日 · ${today.shift}`}</Text>
       </VStack>
       <Spacer />
-      <Text fontDesign="rounded" modifiers={modifiers().font(11).fontWeight('semibold').foregroundStyle(style(theme.secondary)).lineLimit(1)}>{formatMonthTitle(today.date)}</Text>
+      <VStack alignment="trailing" spacing={3}>
+        <Text fontDesign="rounded" modifiers={modifiers().font(11).fontWeight('semibold').foregroundStyle(style(theme.secondary)).lineLimit(1)}>{formatMonthTitle(today.date)}</Text>
+        {ring ? <Text modifiers={modifiers().font(9.5).fontWeight('medium').foregroundStyle(style(theme.secondary)).lineLimit(1)}>{`闹铃 ${ring}`}</Text> : null}
+      </VStack>
     </HStack>
     <HStack alignment="center" spacing={MEDIUM_GAP} modifiers={modifiers().frame({ width, height: WEEK_CELL_HEIGHT, alignment: 'leading' })}>
       {week.map(day => <WeekCell key={day.dateKey} day={day} schedule={schedule} theme={theme} width={cellWidth} />)}
@@ -271,6 +280,7 @@ function LargeMonthWidget({ today, schedule, theme, box }: { today: ShiftDay; sc
   const rows: CalendarCell[][] = []
   for (let index = 0; index < cells.length; index += 7) rows.push(cells.slice(index, index + 7))
   const rest = isRestShift(today.shift)
+  const ring = ringTimeForDate(schedule, today.date)
   const width = Math.max(140, box.width - LARGE_PADDING * 2)
   const cellWidth = Math.max(24, Math.floor((width - LARGE_COLUMN_GAP * 6) / 7))
   const gridHeight = Math.max(96, box.height - LARGE_PADDING * 2 - 24 - 38 - 12 - 13)
@@ -288,6 +298,10 @@ function LargeMonthWidget({ today, schedule, theme, box }: { today: ShiftDay; sc
       <VStack alignment="trailing" spacing={4}>
         <Text modifiers={modifiers().font(9).fontWeight('medium').foregroundStyle(style(theme.secondary)).lineLimit(1)}>{rest ? '今日休息' : '今日班次'}</Text>
         <Text fontDesign="rounded" modifiers={modifiers().font(14).fontWeight('bold').foregroundStyle(style(theme.todayInk)).lineLimit(1).minScaleFactor(0.6).padding({ top: 4, leading: 10, bottom: 4, trailing: 10 }).background(capsuleFill(shiftTint(today.shift, schedule, theme)))}>{today.shift}</Text>
+        {ring ? <HStack alignment="center" spacing={2.5}>
+          <Image systemName="bell.fill" font={8} foregroundStyle={style(theme.secondary)} />
+          <Text modifiers={modifiers().font(9).fontWeight('medium').foregroundStyle(style(theme.secondary)).lineLimit(1)}>{ring}</Text>
+        </HStack> : null}
       </VStack>
     </HStack>
     <HStack alignment="center" spacing={LARGE_COLUMN_GAP} modifiers={modifiers().frame({ width, alignment: 'leading' })}>
@@ -324,10 +338,13 @@ function AccessoryCircularWidget({ day, schedule, theme }: { day: ShiftDay; sche
 }
 
 function AccessoryRectangularWidget({ day, schedule, theme }: { day: ShiftDay; schedule: ShiftSchedule; theme: ShiftTheme }) {
+  const ring = ringTimeForDate(schedule, day.date)
   return <VStack alignment="leading" spacing={2} modifiers={modifiers().frame({ maxWidth: 'infinity', alignment: 'leading' })}>
     <HStack alignment="center" spacing={5}>
       <RoundedRectangle cornerRadius={1.5} fill={style(shiftTint(day.shift, schedule, theme))} frame={{ width: 3, height: 11 }} />
       <Text modifiers={modifiers().font(12).fontWeight('semibold').foregroundStyle(style(shiftTint(day.shift, schedule, theme))).lineLimit(1)}>{day.shift}</Text>
+      {ring ? <Image systemName="bell.fill" font={9} foregroundStyle={style(theme.secondary)} /> : null}
+      {ring ? <Text modifiers={modifiers().font(9).fontWeight('medium').foregroundStyle(style(theme.secondary)).lineLimit(1)}>{ring}</Text> : null}
       <Spacer />
       <Text modifiers={modifiers().font(10).fontWeight('medium').foregroundStyle(style(theme.secondary)).lineLimit(1)}>{formatMonthDay(day.date)}</Text>
     </HStack>
