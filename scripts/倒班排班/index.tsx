@@ -46,7 +46,7 @@ import {
 
 const MONTH_COLUMN_GAP = 4
 // 与 script.json 的 version 保持一致，方便确认 App 里跑的是哪一版。
-const SCRIPT_VERSION = '1.6.0'
+const SCRIPT_VERSION = '1.6.1'
 // 打开某个班次的响铃开关时先填入的默认时间，用户可再调整。
 const DEFAULT_RING_TIME = '07:00'
 
@@ -96,14 +96,16 @@ function saveMessage(schedule: ShiftSchedule, state: ReminderSyncState) {
   const base = `已保存：${schedule.anchorDate} 为「${schedule.shifts[schedule.anchorShiftIndex]}」`
   if (state.error) return `${base}；${formatReminderMode(state.mode)}：${state.error}`
   if (state.total === 0) return `${base}；未设置响铃时间`
-  return `${base}；${formatReminderMode(state.mode)}已排定 ${state.scheduled} 个，下一次 ${formatReminderTarget(state.next)}`
+  const summary = `${formatReminderMode(state.mode)}已排定 ${state.scheduled} 个，下一次 ${formatReminderTarget(state.next)}`
+  return state.note ? `${base}；${summary}；${state.note}` : `${base}；${summary}`
 }
 
 function reminderStateText(state: ReminderSyncState | null) {
   if (!state) return '尚未排定响铃提醒，保存一次或点“重排响铃提醒”即可。'
-  if (state.error) return `上次同步 ${formatReminderSyncTime(state.syncedAt)}（${formatReminderMode(state.mode)}）：${state.error}`
-  if (state.total === 0) return `上次同步 ${formatReminderSyncTime(state.syncedAt)}：当前没有响铃时间。`
-  return `上次同步 ${formatReminderSyncTime(state.syncedAt)}（${formatReminderMode(state.mode)}）：已排定 ${state.scheduled} 个，下一次 ${formatReminderTarget(state.next)}`
+  const noteSuffix = state.note ? `；${state.note}` : ''
+  if (state.error) return `上次同步 ${formatReminderSyncTime(state.syncedAt)}（${formatReminderMode(state.mode)}）：${state.error}${noteSuffix}`
+  if (state.total === 0) return `上次同步 ${formatReminderSyncTime(state.syncedAt)}：当前没有响铃时间。${noteSuffix}`
+  return `上次同步 ${formatReminderSyncTime(state.syncedAt)}（${formatReminderMode(state.mode)}）：已排定 ${state.scheduled} 个，下一次 ${formatReminderTarget(state.next)}${noteSuffix}`
 }
 
 function MonthCalendarPage({ schedule }: { schedule: ShiftSchedule }) {
@@ -307,7 +309,7 @@ function SettingsPage() {
         <Button title="重排响铃提醒" buttonStyle="borderless" action={() => { void resyncReminders() }} />
         <Text font="footnote" foregroundStyle="secondaryLabel" listRowSeparator="hidden">
           {reminderMode === 'calendar'
-            ? `日历提醒会在系统日历里建一个「倒班提醒」专用日历，把未来 ${CALENDAR_REMINDER_HORIZON_DAYS} 天的响铃写成带闹铃的事件（需要日历权限，低版本系统也能用）；改回通知提醒或清空响铃时会删除这个专用日历。`
+            ? `日历提醒会在系统日历里建一个「倒班提醒」专用日历，把未来 ${CALENDAR_REMINDER_HORIZON_DAYS} 天的响铃写成带闹铃的事件（需要日历权限，低版本系统也能用）；系统不允许创建多个日历时会退回写入默认日历。改回通知提醒或清空响铃时会清掉这些事件。`
             : `通知提醒会排定未来 ${NOTIFICATION_REMINDER_HORIZON_DAYS} 天的本地通知（需要通知权限），不写入系统日历；每次打开脚本会顺延重排。`}
         </Text>
         <Text font="footnote" foregroundStyle="secondaryLabel" listRowSeparator="hidden">

@@ -20,7 +20,7 @@
     "zh": "查看自定义倒班排班，支持为每个班次单独设置日历或通知响铃提醒",
     "en": "View a custom shift schedule and set an optional calendar or notification ring reminder for each shift."
   },
-  "version": "1.6.0",
+  "version": "1.6.1",
   "color": "rgba(224, 122, 95, 1)",
   "contributors": [],
   "name": "倒班排班"

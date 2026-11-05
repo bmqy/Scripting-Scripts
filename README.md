@@ -53,11 +53,12 @@
 
 #### 响铃提醒说明
 
-- **日历提醒（默认）**：在系统日历里创建一个名为「倒班提醒」的专用日历，把未来 90 天里每个响铃写成一条带[绝对时间闹铃](https://scriptingapp.github.io/guide/Device%20Capabilities/EventAlarm.md)的[日历事件](https://scriptingapp.github.io/guide/Device%20Capabilities/CalendarEvent.md)（起止 5 分钟、标记为“空闲”）。提醒由系统日历负责触发，不需要脚本常驻，也不受本地通知数量限制，适合不方便用系统闹钟的旧版本系统。改回通知方式或清空所有响铃时间时，会删除这个专用日历。
+- **日历提醒（默认）**：在系统日历里创建一个名为「倒班提醒」的专用日历，把未来 90 天里每个响铃写成一条带[绝对时间闹铃](https://scriptingapp.github.io/guide/Device%20Capabilities/EventAlarm.md)的[日历事件](https://scriptingapp.github.io/guide/Device%20Capabilities/CalendarEvent.md)（起止 5 分钟、标记为“空闲”）。提醒由系统日历负责触发，不需要脚本常驻，也不受本地通知数量限制，适合不方便用系统闹钟的旧版本系统。改回通知方式或清空所有响铃时间时，会清掉这些事件并删除专用日历。
+- 如果系统不允许脚本建日历（部分运行时版本对 [`Calendar.create`](https://scriptingapp.github.io/guide/Device%20Capabilities/Calendar.md) 的 `sourceType` 校验和文档不一致，会报 `invalid 'sourceType'`），脚本会依次尝试其他来源类型，仍失败则退回写入系统默认日历，并在状态行提示；此时只清理脚本自己创建的事件，不会动你自己的日程。
 - **通知提醒**：使用 [`Notification.schedule`](https://scriptingapp.github.io/guide/Device%20Capabilities/Notification/) 排定未来 21 天的本地通知，不写入系统日历；受 iOS 待发送通知数量限制，打开脚本时会顺延重排。
 - 两种方式都只能在 App 脚本里排定（小组件进程不负责排定），所以排班或响铃时间改动后要重新运行脚本保存一次。
 - 日历闹铃和通知一样由系统按通知设置发声：静音开关、专注模式、“时效性通知”开关都会影响是否响铃。**它不是 Clock 里的系统闹钟**——真正会持续响铃的系统闹钟需要 iOS 26+ 的 [`AlarmManager`](https://scriptingapp.github.io/guide/Changelog/3.0.0/Alarm/AlarmManager.md)（AlarmKit），本脚本暂未使用。
-- 日历权限被拒绝时，日历提醒会自动降级成本地通知，并在设置页的状态行里提示原因。
+- 日历完全不可用（没授权、没有可写日历）时，会自动降级成本地通知，并在设置页的状态行里提示原因。
 - 每个班次只有一个响铃时间；休息类班次也可以设置，不想响就把开关关掉。
 
 如果某个尺寸的小组件只显示系统占位骨架，而其他尺寸正常，通常是该视图的节点数超出小组件内存/时间预算：中号约 59 个节点可以正常渲染，早期“大号月历 + 每格两个文本”约 150 个节点则整块渲染失败。现在大号月历约 72—79 个节点（每格合并成一个文本），已落在可渲染区间；若某个尺寸仍为占位骨架，可先用本仓库的“小组件自检”脚本确认扩展本身是否正常。
