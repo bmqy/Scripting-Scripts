@@ -49,7 +49,8 @@ import {
 
 // 月历格子的横向间距与高度：间距压到 3，让整行格子尽可能铺满屏幕宽度。
 const MONTH_COLUMN_GAP = 3
-const MONTH_CELL_HEIGHT = 56
+// 64pt 高度足够放「16pt 日期 + 两行 12pt 班次名」，超长班次名会缩小而不会截断。
+const MONTH_CELL_HEIGHT = 64
 const MONTH_CELL_RADIUS = 9
 // 与 script.json 的 version 保持一致，方便确认 App 里跑的是哪一版。
 const SCRIPT_VERSION = '1.9.0'
@@ -120,9 +121,15 @@ function ringTimeFromTimestamp(timestamp: number) {
 // 提醒方式的说明只保留当前选中方式的一条，避免两种方式的说明同时占版面。
 function reminderModeHint(mode: ReminderMode) {
   if (mode === 'calendar') {
-    return `日历提醒会在系统日历里建一个「倒班提醒」专用日历，把未来 ${CALENDAR_REMINDER_HORIZON_DAYS} 天的响铃写成带闹铃的事件（需要日历权限，低版本系统也能用；按日历的通知设置发声，静音或专注模式会影响）。`
+    return `日历提醒会在系统日历里建一个「倒班提醒」专用日历，把未来 ${CALENDAR_REMINDER_HORIZON_DAYS} 天的响铃写成带闹铃的事件（需要日历权限，低版本系统也能用；按日历的通知设置发声，静音或专注模式会影响）。改用系统闹钟或清空响铃时会清掉这些事件。`
   }
   return `系统闹钟使用 iOS 26+ 的 AlarmKit（需要闹钟权限），会提前排定未来 ${ALARM_REMINDER_HORIZON_DAYS} 天的闹钟，像时钟闹钟一样全屏响铃并占用 Clock 的闹钟列表；系统不支持时会自动改用日历提醒。`
+}
+
+// 排班签名：判断存储里的排班是否仍是这次同步所基于的那一份，避免首屏同步覆盖用户刚保存的新设置。
+function scheduleSignature(schedule: ShiftSchedule) {
+  const alarms = Object.keys(schedule.alarms).sort().map(key => `${key}=${schedule.alarms[key]}`).join(',')
+  return [schedule.anchorDate, schedule.anchorShiftIndex, schedule.shifts.join('/'), schedule.style, schedule.reminderMode, alarms].join('|')
 }
 
 function saveMessage(schedule: ShiftSchedule, state: ReminderSyncState) {
@@ -141,27 +148,28 @@ function reminderStateText(state: ReminderSyncState | null) {
   return `上次同步 ${formatReminderSyncTime(state.syncedAt)}（${formatReminderMode(state.mode)}）：已排定 ${state.scheduled} 个，下一次 ${formatReminderTarget(state.next)}${noteSuffix}`
 }
 
-// 月历单格：一行日期 + 一行班次，整格按班次上色，让 7 列铺满屏宽而不是一圈白边。
+// 月历单格：一行日期 + 最多两行班次，整格按班次上色，让 7 列铺满屏宽而不是一圈白边。
 function MonthDayCell({ cell }: { cell: CalendarCell }) {
   const { day, isAdjacentMonth } = cell
   const colors = monthCellColors(day, isAdjacentMonth)
-  return <VStack alignment="center" spacing={3} modifiers={modifiers()
-    .padding({ top: 5, bottom: 5 })
-    .frame({ maxWidth: 'infinity', height: MONTH_CELL_HEIGHT, alignment: 'center' })
+  return <VStack alignment="center" spacing={2} modifiers={modifiers()
+    .padding({ top: 4, bottom: 4, leading: 1, trailing: 1 })
+    .frame({ height: MONTH_CELL_HEIGHT })
+    .frame({ maxWidth: 'infinity', alignment: 'center' })
     .background(roundedFill(monthCellBackground(day, isAdjacentMonth), MONTH_CELL_RADIUS))}>
     <Text
       font="callout"
       fontWeight={day.isToday ? 'bold' : 'semibold'}
       foregroundStyle={paint(colors.date)}
       lineLimit={1}
-      minScaleFactor={0.8}
     >{day.date.getDate()}</Text>
     <Text
       font="caption"
       fontWeight="semibold"
       foregroundStyle={paint(colors.shift)}
-      lineLimit={1}
-      minScaleFactor={0.55}
+      lineLimit={2}
+      minScaleFactor={0.8}
+      multilineTextAlignment="center"
     >{day.shift}</Text>
   </VStack>
 }
@@ -248,10 +256,13 @@ function SettingsPage() {
   // 同步结果可能降级（例如系统低于 iOS 26，系统闹钟改用日历提醒）：
   // 把界面选择器和保存的排班都校正成实际生效的方式，避免“上面选系统闹钟、下面说日历提醒”。
   const applySyncedMode = (state: ReminderSyncState, schedule: ShiftSchedule) => {
-    setSavedSchedule(schedule)
-    if (state.mode === schedule.reminderMode) return schedule
+    if (state.mode === schedule.reminderMode) {
+      setSavedSchedule(schedule)
+      return schedule
+    }
     const corrected = normalizeSchedule({ ...schedule, reminderMode: state.mode })
-    saveSchedule(corrected)
+    // 只有存储里仍是这次同步所用的排班时才回写，避免首屏同步与用户保存并发时用旧排班覆盖新设置。
+    if (scheduleSignature(loadSchedule()) === scheduleSignature(schedule)) saveSchedule(corrected)
     setReminderModeIndex(Math.max(0, REMINDER_MODE_OPTIONS.findIndex(option => option.value === state.mode)))
     setSavedSchedule(corrected)
     return corrected
@@ -291,6 +302,8 @@ function SettingsPage() {
       setMessage('保存失败，请检查 Scripting 的本地存储后重试。')
       return null
     }
+    // 排班已经落盘，先让月历页/“今天”提示用上新排班，不必等响铃同步完成。
+    setSavedSchedule(next)
     setSequenceInput(next.shifts.join('、'))
     setAnchorShiftIndex(next.anchorShiftIndex)
     setAlarmTimes(next.alarms)
@@ -337,7 +350,7 @@ function SettingsPage() {
     >
       <Section
         header={<Text>排班基准</Text>}
-        footer={<Text>起始日期当天对应所选班次，之后按循环顺序每天推进一格。</Text>}
+        footer={<Text font="footnote" foregroundStyle="secondaryLabel">起始日期当天对应所选班次，之后按循环顺序每天推进一格。</Text>}
       >
         <DatePicker
           title="起始日期"
@@ -358,9 +371,9 @@ function SettingsPage() {
       <Section
         header={<Text>循环班次与响铃</Text>}
         footer={<VStack alignment="leading" spacing={6} modifiers={modifiers().frame({ maxWidth: 'infinity', alignment: 'leading' })}>
-          <Text>用“、”或逗号分隔，至少填写两个班次、最多八项；打开开关的班次会按所选方式响铃。</Text>
-          <Text>{reminderModeHint(reminderMode)}</Text>
-          <Text>开关、时间或方式改动后，点下方“保存排班并刷新小组件”生效；“重排响铃提醒”会先保存再重排。</Text>
+          <Text font="footnote" foregroundStyle="secondaryLabel">用“、”或逗号分隔，至少填写两个班次、最多八项；打开开关的班次会按所选方式响铃。</Text>
+          <Text font="footnote" foregroundStyle="secondaryLabel">{reminderModeHint(reminderMode)}</Text>
+          <Text font="footnote" foregroundStyle="secondaryLabel">开关、时间或方式改动后，点上方“保存排班并刷新小组件”生效；“重排响铃提醒”会先保存再重排。</Text>
         </VStack>}
       >
         <TextField
@@ -417,13 +430,13 @@ function SettingsPage() {
               <Text font="footnote" foregroundStyle="secondaryLabel">上下月翻看每天的班次</Text>
             </VStack>
             <Spacer />
-            <Text font="footnote" foregroundStyle="secondaryLabel">今天 {todayShift}</Text>
+            <Text font="footnote" foregroundStyle="secondaryLabel" lineLimit={1} minScaleFactor={0.8}>今天 {todayShift}</Text>
           </HStack>
         </NavigationLink>
       </Section>
       <Section
         header={<Text>外观与预览</Text>}
-        footer={<Text>选择风格后点上面“保存排班并刷新小组件”生效；App 内预览只用于检查排版，主屏显示异常时以此判断是脚本问题还是小组件配置问题。</Text>}
+        footer={<Text font="footnote" foregroundStyle="secondaryLabel">选择风格后点上面“保存排班并刷新小组件”生效；App 内预览只用于检查排版，主屏显示异常时以此判断是脚本问题还是小组件配置问题。</Text>}
       >
         <Picker
           title="配色风格"
@@ -439,7 +452,7 @@ function SettingsPage() {
           <Button title="大号" buttonStyle="bordered" action={() => { void Widget.preview({ family: 'systemLarge' }) }} />
         </HStack>
       </Section>
-      <Section footer={<Text>版本 {SCRIPT_VERSION}</Text>}>
+      <Section footer={<Text font="footnote" foregroundStyle="secondaryLabel">版本 {SCRIPT_VERSION}</Text>}>
         <Text font="footnote" foregroundStyle="secondaryLabel" listRowSeparator="hidden">
           小号显示今日与明天，中号显示本周七天与循环图例，大号显示整月日历；设置了响铃的班次会在对应位置显示铃铛和时间。
         </Text>
