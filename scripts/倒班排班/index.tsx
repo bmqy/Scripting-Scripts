@@ -22,8 +22,8 @@ import {
   type ShapeStyle,
 } from 'scripting'
 import {
+  ALARM_REMINDER_HORIZON_DAYS,
   CALENDAR_REMINDER_HORIZON_DAYS,
-  NOTIFICATION_REMINDER_HORIZON_DAYS,
   dateKey,
   loadSchedule,
   monthCalendarDays,
@@ -46,13 +46,13 @@ import {
 
 const MONTH_COLUMN_GAP = 4
 // 与 script.json 的 version 保持一致，方便确认 App 里跑的是哪一版。
-const SCRIPT_VERSION = '1.6.2'
+const SCRIPT_VERSION = '1.7.0'
 // 打开某个班次的响铃开关时先填入的默认时间，用户可再调整。
 const DEFAULT_RING_TIME = '07:00'
 
 const REMINDER_MODE_OPTIONS: { value: ReminderMode; label: string }[] = [
   { value: 'calendar', label: '日历提醒' },
-  { value: 'notification', label: '通知提醒' },
+  { value: 'alarm', label: '系统闹钟' },
 ]
 
 const STYLE_OPTIONS: { value: ShiftStyle; label: string }[] = [
@@ -318,11 +318,11 @@ function SettingsPage() {
         <Button title="重排响铃提醒" buttonStyle="borderless" action={() => { void resyncReminders() }} />
         <Text font="footnote" foregroundStyle="secondaryLabel" listRowSeparator="hidden">
           {reminderMode === 'calendar'
-            ? `日历提醒会在系统日历里建一个「倒班提醒」专用日历，把未来 ${CALENDAR_REMINDER_HORIZON_DAYS} 天的响铃写成带闹铃的事件（需要日历权限，低版本系统也能用）；系统不允许创建多个日历时会退回写入默认日历。改回通知提醒或清空响铃时会清掉这些事件。`
-            : `通知提醒会排定未来 ${NOTIFICATION_REMINDER_HORIZON_DAYS} 天的本地通知（需要通知权限），不写入系统日历；每次打开脚本会顺延重排。`}
+            ? `日历提醒会在系统日历里建一个「倒班提醒」专用日历，把未来 ${CALENDAR_REMINDER_HORIZON_DAYS} 天的响铃写成带闹铃的事件（需要日历权限，低版本系统也能用）；系统不允许创建多个日历时会退回写入默认日历。改用系统闹钟或清空响铃时会清掉这些事件。`
+            : `系统闹钟使用 iOS 26+ 的 AlarmKit（需要闹钟权限），像 Clock 闹钟一样全屏响铃；会提前排定未来 ${ALARM_REMINDER_HORIZON_DAYS} 天的闹钟并占用 Clock 的闹钟列表。当前系统不支持时会自动改用日历提醒。`}
         </Text>
         <Text font="footnote" foregroundStyle="secondaryLabel" listRowSeparator="hidden">
-          日历/通知都由系统在静音与专注模式下按通知设置发声，不是 Clock 里的系统闹钟（那需要 iOS 26+ 的 AlarmKit）。修改开关、时间或方式后，点“保存排班并刷新小组件”或“重排响铃提醒”才会生效（重排会先保存当前设置）。
+          日历提醒按系统日历的通知设置发声（静音/专注模式会影响）；系统闹钟是真正的闹钟，会全屏响铃。修改开关、时间或方式后，点“保存排班并刷新小组件”或“重排响铃提醒”才会生效（重排会先保存当前设置）。
         </Text>
         <Text font="footnote" foregroundStyle="secondaryLabel" listRowSeparator="hidden">
           {reminderStateText(reminderState)}

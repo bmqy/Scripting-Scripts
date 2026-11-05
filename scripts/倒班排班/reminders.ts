@@ -1,16 +1,16 @@
 // 班次响铃提醒：
 // - 日历提醒：把每个响铃写成系统日历里带绝对时间闹铃的事件（EventKit，所有 iOS 版本可用）；
-// - 通知提醒：用 Notification.schedule 排定本地通知（受 iOS 待发送数量限制，窗口更短）。
+// - 系统闹钟：用 AlarmKit（iOS 26+）排真正会全屏响铃的闹钟。
 // 官方文档：
 //   https://scriptingapp.github.io/guide/Device%20Capabilities/CalendarEvent.md
 //   https://scriptingapp.github.io/guide/Device%20Capabilities/EventAlarm.md
 //   https://scriptingapp.github.io/guide/Device%20Capabilities/Calendar.md
-//   https://scriptingapp.github.io/guide/Device%20Capabilities/Notification/
-// 日历和通知都只能由 App 脚本写入，小组件进程不负责排定；打开脚本或保存排班时会重新同步。
+//   https://scriptingapp.github.io/guide/Changelog/3.0.0/Alarm/AlarmManager.md
+// 日历和闹钟都只能由 App 脚本排定，小组件进程不负责排定；打开脚本或保存排班时会重新同步。
 import { Notification } from 'scripting'
 import {
+  ALARM_REMINDER_HORIZON_DAYS,
   CALENDAR_REMINDER_HORIZON_DAYS,
-  NOTIFICATION_REMINDER_HORIZON_DAYS,
   loadSchedule,
   readStoredValue,
   ringDateFor,
@@ -22,13 +22,13 @@ import {
 } from './schedule'
 
 const REMINDER_STATE_KEY = 'shift-ring-reminders-v1'
-const THREAD_IDENTIFIER = 'shift-ring-reminders'
 // 专用日历：所有响铃事件只放这里，整体重建或删除时不会碰到用户自己的日程。
 const CALENDAR_TITLE = '倒班提醒'
 const CALENDAR_COLOR = '#D86F55'
 const EVENT_TITLE_PREFIX = '倒班提醒 · '
 const EVENT_NOTES = '由「倒班排班」脚本自动生成的响铃提醒，重新保存排班时会自动重建，请勿手动修改。'
 const EVENT_MINUTES = 5
+const ALARM_TINT_COLOR = '#D86F55'
 const DAY_MS = 24 * 60 * 60 * 1000
 // Calendar.create 的 sourceType 取自 CalendarSourceType；文档写的是 'local'，
 // 但不同运行时版本对大小写的处理并不一致（真机上报过 invalid 'sourceType'），所以按候选值依次尝试。
@@ -42,18 +42,19 @@ export type RingReminderTarget = {
 
 export type ReminderSyncState = {
   syncedAt: number
-  // 实际使用的提醒方式：日历权限不可用时会从 calendar 降级成 notification。
+  // 实际使用的提醒方式：系统闹钟不可用时会降级成日历提醒。
   mode: ReminderMode
   scheduled: number
   total: number
   next: RingReminderTarget | null
   error: string | null
-  // 不算失败、但需要让用户知道的降级信息（例如没建成专用日历，改用系统默认日历）。
+  // 不算失败、但需要让用户知道的降级信息（例如系统不支持闹钟、没建成专用日历）。
   note: string | null
   calendarIdentifier: string | null
   // true 表示事件写在专用日历里（可以整体清理）；false 表示写在系统默认日历里（只能按 identifier 清理）。
   dedicatedCalendar: boolean
   eventIdentifiers: string[]
+  alarmIdentifiers: string[]
   planKey: string | null
 }
 
@@ -74,6 +75,54 @@ type CalendarSyncResult = {
   note: string | null
 }
 
+type AlarmSyncResult = {
+  occurrences: RingOccurrence[]
+  scheduled: number
+  alarmIdentifiers: string[]
+  fatal: boolean
+  error: string | null
+}
+
+// AlarmManager 是 iOS 26+ 的全局 API，旧系统上直接引用会抛错，这里统一用 globalThis 探测。
+type AlarmKit = {
+  isAvailable: boolean
+  schedule(id: string, configuration: unknown): Promise<unknown>
+  cancel(id: string): Promise<boolean>
+  alarms(): Promise<{ id: string }[]>
+  Schedule: { fixed(date: Date): unknown }
+  Attributes: { create(options: Record<string, unknown>): unknown | null }
+  AlertPresentation: { create(options: Record<string, unknown>): unknown | null }
+  Configuration: { alarm(options: Record<string, unknown>): unknown | null }
+  Sound: { default(): unknown }
+}
+
+function alarmKit(): AlarmKit | null {
+  const manager = (globalThis as unknown as { AlarmManager?: AlarmKit }).AlarmManager
+  if (!manager || manager.isAvailable !== true) return null
+  return manager
+}
+
+function newAlarmId() {
+  const uuid = (globalThis as unknown as { UUID?: { string(): string } }).UUID
+  if (!uuid) throw new Error('当前环境不支持 UUID')
+  return uuid.string()
+}
+
+// 提前请求一次“闹钟”能力（每个脚本单独授权）；拿不到就让 schedule 自己报错。
+async function requestAlarmAccess(): Promise<string | null> {
+  try {
+    const script = (globalThis as unknown as {
+      Script?: { requestAccess?: (apis: string[]) => Promise<string[]> }
+    }).Script
+    if (!script?.requestAccess) return null
+    const granted = await script.requestAccess(['alarms'])
+    if (Array.isArray(granted) && !granted.includes('alarms')) return '没有获得闹钟权限'
+    return null
+  } catch {
+    return null
+  }
+}
+
 function errorMessage(error: unknown) {
   if (error instanceof Error && error.message) return error.message
   const text = String(error)
@@ -90,57 +139,105 @@ function planKeyOf(occurrences: RingOccurrence[]) {
 }
 
 export function formatReminderMode(mode: ReminderMode) {
-  return mode === 'calendar' ? '日历提醒' : '通知提醒'
+  return mode === 'alarm' ? '系统闹钟' : '日历提醒'
 }
 
-// CalendarNotificationTrigger 按日历组件匹配触发时间，一次性通知即可精确到某天的某个时刻。
-function notificationTriggerFor(occurrence: RingOccurrence) {
-  const [hour, minute] = occurrence.time.split(':').map(Number)
-  return new CalendarNotificationTrigger({
-    dateMatching: new DateComponents({
-      year: occurrence.date.getFullYear(),
-      month: occurrence.date.getMonth() + 1,
-      day: occurrence.date.getDate(),
-      hour,
-      minute,
-    }),
-    repeats: false,
+// ---------- 系统闹钟（AlarmKit，iOS 26+） ----------
+
+function buildAlarmConfiguration(manager: AlarmKit, occurrence: RingOccurrence, ringDate: Date) {
+  const alert = manager.AlertPresentation.create({ title: `${EVENT_TITLE_PREFIX}${occurrence.shift}` })
+  if (!alert) throw new Error('无法创建闹钟提示内容')
+  const attributes = manager.Attributes.create({
+    alert,
+    tintColor: ALARM_TINT_COLOR,
+    metadata: {
+      shift: occurrence.shift,
+      date: occurrence.dateKey,
+      time: occurrence.time,
+    },
   })
+  if (!attributes) throw new Error('无法创建闹钟外观配置')
+  const configuration = manager.Configuration.alarm({
+    schedule: manager.Schedule.fixed(ringDate),
+    attributes,
+    sound: manager.Sound.default(),
+  })
+  if (!configuration) throw new Error('无法创建闹钟配置')
+  return configuration
 }
 
-async function scheduleNotificationReminders(occurrences: RingOccurrence[]) {
-  let scheduled = 0
+// 只取消脚本自己排的闹钟：先拿系统闹钟列表，对不上号（已响过/被删）的直接跳过。
+async function cancelAlarmReminders(identifiers: string[]): Promise<string | null> {
+  const manager = alarmKit()
+  if (!manager || identifiers.length === 0) return null
+  let error: string | null = null
+  let existingIds: Set<string> | null = null
+  try {
+    const existing = await manager.alarms()
+    existingIds = new Set(existing.map(item => item.id))
+  } catch {
+    // 拿不到列表就按保存的 id 逐个取消。
+  }
+  for (const identifier of identifiers) {
+    if (existingIds && !existingIds.has(identifier)) continue
+    try {
+      await manager.cancel(identifier)
+    } catch (cancelError) {
+      if (!error) error = errorMessage(cancelError)
+    }
+  }
+  return error
+}
+
+async function syncAlarmReminders(
+  schedule: ShiftSchedule,
+  now: Date,
+  previous: ReminderSyncState | null,
+): Promise<AlarmSyncResult> {
+  const occurrences = upcomingRingOccurrences(schedule, { days: ALARM_REMINDER_HORIZON_DAYS, now })
   let error: string | null = null
 
+  // 先取消上一轮排的闹钟，避免同一时间重复响。
+  if (previous?.alarmIdentifiers?.length) {
+    const cancelError = await cancelAlarmReminders(previous.alarmIdentifiers)
+    if (cancelError && !error) error = cancelError
+  }
+
+  if (occurrences.length === 0) {
+    return { occurrences, scheduled: 0, alarmIdentifiers: [], fatal: false, error }
+  }
+
+  const permissionError = await requestAlarmAccess()
+  if (permissionError) {
+    return { occurrences, scheduled: 0, alarmIdentifiers: [], fatal: true, error: permissionError }
+  }
+
+  const manager = alarmKit()
+  if (!manager) {
+    return { occurrences, scheduled: 0, alarmIdentifiers: [], fatal: true, error: '当前系统不支持系统闹钟（需要 iOS 26+）' }
+  }
+
+  const identifiers: string[] = []
+  let scheduled = 0
   for (const occurrence of occurrences) {
+    const ringDate = ringDateFor(occurrence.date, occurrence.time)
+    if (!ringDate) continue
     try {
-      await Notification.schedule({
-        title: `倒班提醒 · ${occurrence.shift}`,
-        body: `今天${occurrence.shift}，${occurrence.time} 响铃。`,
-        threadIdentifier: THREAD_IDENTIFIER,
-        interruptionLevel: 'timeSensitive',
-        trigger: notificationTriggerFor(occurrence),
-      })
+      const identifier = newAlarmId()
+      await manager.schedule(identifier, buildAlarmConfiguration(manager, occurrence, ringDate))
+      identifiers.push(identifier)
       scheduled += 1
     } catch (scheduleError) {
       if (!error) error = errorMessage(scheduleError)
+      // 第一条就失败通常是权限或系统能力问题，没必要把剩下几十条都试一遍。
+      if (scheduled === 0) break
     }
   }
 
-  // 通知权限被关闭时 schedule 不一定报错，这里用待发送数量再确认一次。
-  if (!error && occurrences.length > 0) {
-    try {
-      const pending = await Promise.resolve(Notification.getAllPendingsOfCurrentScript())
-      if (Array.isArray(pending) && pending.length < scheduled) {
-        error = `系统当前只保留 ${pending.length} 个待发送提醒，请检查 Scripting 的通知权限。`
-      }
-    } catch {
-      // 查询待发送列表失败不影响已经排定好的提醒，忽略即可。
-    }
-  }
-
-  return { scheduled, error }
+  return { occurrences, scheduled, alarmIdentifiers: identifiers, fatal: false, error }
 }
+
+// ---------- 日历提醒（EventKit，全版本可用） ----------
 
 // 优先按存下来的 identifier 找专用日历，其次按标题找，避免重复创建。
 async function findReminderCalendar(identifier: string | null): Promise<Calendar | null> {
@@ -216,7 +313,7 @@ async function resolveReminderCalendar(previous: ReminderSyncState | null): Prom
     return {
       calendar: fallback,
       dedicated: false,
-      note: `系统不允许创建「${CALENDAR_TITLE}」专用日历（${errorMessage(lastError)}），已改为写入默认日历「${fallback.title}」，留意的提醒会和普通日程混在一起。`,
+      note: `系统不允许创建「${CALENDAR_TITLE}」专用日历（${errorMessage(lastError)}），已改为写入默认日历「${fallback.title}」，响铃提醒会和普通日程混在一起。`,
     }
   }
 
@@ -282,7 +379,7 @@ async function clearPreviousCalendarReminders(
     if (target && target.dedicated && target.calendar.identifier === previousCalendar.identifier) {
       await clearDedicatedCalendarEvents(previousCalendar)
     } else {
-      // 换到别的日历或改回通知方式：整个专用日历（连带事件）一起删掉。
+      // 换到别的日历或改用系统闹钟：整个专用日历（连带事件）一起删掉。
       await previousCalendar.remove()
     }
   } catch (removeError) {
@@ -293,7 +390,7 @@ async function clearPreviousCalendarReminders(
 
 // 不同运行时对 availability 等可选字段的接受程度不同，失败时退一步用更少的字段重试。
 async function createCalendarReminder(calendar: Calendar, occurrence: RingOccurrence, ringDate: Date) {
-  const build = (withOptionalFields: boolean, withAlarm: boolean) => {
+  const build = (withOptionalFields: boolean) => {
     const event = new CalendarEvent()
     event.title = `${EVENT_TITLE_PREFIX}${occurrence.shift}`
     if (withOptionalFields) {
@@ -303,16 +400,16 @@ async function createCalendarReminder(calendar: Calendar, occurrence: RingOccurr
     event.calendar = calendar
     event.startDate = ringDate
     event.endDate = new Date(ringDate.getTime() + EVENT_MINUTES * 60 * 1000)
-    if (withAlarm) event.addAlarm(EventAlarm.fromAbsoluteDate(ringDate))
+    event.addAlarm(EventAlarm.fromAbsoluteDate(ringDate))
     return event
   }
 
   try {
-    const event = build(true, true)
+    const event = build(true)
     await event.save()
     return event
   } catch {
-    const event = build(false, true)
+    const event = build(false)
     await event.save()
     return event
   }
@@ -409,29 +506,60 @@ async function syncCalendarReminders(
   }
 }
 
+// ---------- 同步入口 ----------
+
 async function syncRingRemindersNow(schedule: ShiftSchedule, now: Date): Promise<ReminderSyncState> {
   const previous = loadReminderState()
-  const mode = schedule.reminderMode
+  const requestedMode = schedule.reminderMode
+  let mode: ReminderMode = requestedMode
   let error: string | null = null
   let note: string | null = null
+
+  // 旧版本用过的本地通知提醒：清掉，避免和现在的两种方式重复提醒。
+  try {
+    await Promise.resolve(Notification.removeAllPendingsOfCurrentScript())
+  } catch {
+    // 没有通知权限也不影响日历/闹钟。
+  }
+
+  // 改掉系统闹钟或日历方式后，清掉上一轮留下的东西。
+  if (requestedMode !== 'alarm' && previous?.alarmIdentifiers?.length) {
+    const cancelError = await cancelAlarmReminders(previous.alarmIdentifiers)
+    if (cancelError && !error) error = cancelError
+  }
+  if (requestedMode !== 'calendar' && previous?.mode === 'calendar') {
+    const cleanupError = await clearPreviousCalendarReminders(previous, null)
+    if (cleanupError && !error) error = cleanupError
+  }
+
+  if (mode === 'alarm' && !alarmKit()) {
+    mode = 'calendar'
+    note = '当前系统不支持系统闹钟（需要 iOS 26+），已改用日历提醒。'
+  }
+
+  let occurrences: RingOccurrence[] = []
   let scheduled = 0
-  let actualMode: ReminderMode = mode
   let calendarIdentifier: string | null = null
   let dedicatedCalendar = false
   let eventIdentifiers: string[] = []
-  let occurrences: RingOccurrence[] = []
+  let alarmIdentifiers: string[] = []
 
-  // 本脚本名下的本地通知总是先清空，避免切换提醒方式后还留着旧提醒。
-  try {
-    await Promise.resolve(Notification.removeAllPendingsOfCurrentScript())
-  } catch (removeError) {
-    error = errorMessage(removeError)
-  }
+  if (mode === 'alarm') {
+    const result = await syncAlarmReminders(schedule, now, previous)
+    occurrences = result.occurrences
+    scheduled = result.scheduled
+    alarmIdentifiers = result.alarmIdentifiers
 
-  // 改回通知方式：上一轮的日历事件/专用日历也要清掉。
-  if (mode !== 'calendar') {
-    const cleanupError = await clearPreviousCalendarReminders(previous, null)
-    if (cleanupError && !error) error = cleanupError
+    const failed = result.occurrences.length > 0 && (result.fatal || result.scheduled === 0)
+    if (failed) {
+      // 系统闹钟排不出来（权限被拒、系统能力缺失等）：撤掉可能已经建好的，退回日历提醒。
+      if (result.alarmIdentifiers.length > 0) await cancelAlarmReminders(result.alarmIdentifiers)
+      mode = 'calendar'
+      note = `${result.error ?? '系统闹钟没有排定成功'}，已改用日历提醒。`
+      alarmIdentifiers = []
+    } else if (result.error && !error) {
+      error = result.error
+    }
   }
 
   if (mode === 'calendar') {
@@ -441,43 +569,23 @@ async function syncRingRemindersNow(schedule: ShiftSchedule, now: Date): Promise
     calendarIdentifier = result.calendarIdentifier
     dedicatedCalendar = result.dedicatedCalendar
     eventIdentifiers = result.eventIdentifiers
-    note = result.note
+    if (result.note && !note) note = result.note
     if (result.error && !error) error = result.error
-
-    // 日历完全不可用（没权限、没有可写日历等）时降级成本地通知，保证提醒还能响。
-    if (occurrences.length > 0 && (result.fatal || scheduled === 0)) {
-      const fallback = upcomingRingOccurrences(schedule, { days: NOTIFICATION_REMINDER_HORIZON_DAYS, now })
-      const notificationResult = await scheduleNotificationReminders(fallback)
-      actualMode = 'notification'
-      occurrences = fallback
-      scheduled = notificationResult.scheduled
-      calendarIdentifier = null
-      dedicatedCalendar = false
-      eventIdentifiers = []
-      note = null
-      const reason = result.error ?? '日历提醒没有写入成功'
-      error = `${reason}，已临时改用本地通知；允许 Scripting 访问日历后可重新排定日历提醒。`
-      if (notificationResult.error) error += `通知也未能排定：${notificationResult.error}`
-    }
-  } else {
-    occurrences = upcomingRingOccurrences(schedule, { days: NOTIFICATION_REMINDER_HORIZON_DAYS, now })
-    const notificationResult = await scheduleNotificationReminders(occurrences)
-    scheduled = notificationResult.scheduled
-    if (notificationResult.error && !error) error = notificationResult.error
   }
 
   const state: ReminderSyncState = {
     syncedAt: now.getTime(),
-    mode: actualMode,
+    mode,
     scheduled,
     total: occurrences.length,
     next: occurrences.length > 0 ? targetOf(occurrences[0]) : null,
     error,
     note,
-    calendarIdentifier: actualMode === 'calendar' ? calendarIdentifier : null,
-    dedicatedCalendar: actualMode === 'calendar' ? dedicatedCalendar : false,
-    eventIdentifiers: actualMode === 'calendar' ? eventIdentifiers : [],
-    planKey: actualMode === 'calendar' ? planKeyOf(occurrences) : null,
+    calendarIdentifier: mode === 'calendar' ? calendarIdentifier : null,
+    dedicatedCalendar: mode === 'calendar' ? dedicatedCalendar : false,
+    eventIdentifiers: mode === 'calendar' ? eventIdentifiers : [],
+    alarmIdentifiers: mode === 'alarm' ? alarmIdentifiers : [],
+    planKey: mode === 'calendar' ? planKeyOf(occurrences) : null,
   }
   writeStoredValue(REMINDER_STATE_KEY, state)
   return state
@@ -504,12 +612,11 @@ export function loadReminderState(): ReminderSyncState | null {
     && typeof next.dateKey === 'string'
     && typeof next.shift === 'string'
     && typeof next.time === 'string'
-  const identifiers = Array.isArray(saved.eventIdentifiers)
-    ? saved.eventIdentifiers.filter((item): item is string => typeof item === 'string')
-    : []
+  const strings = (value: unknown): string[] =>
+    Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : []
   return {
     syncedAt: saved.syncedAt,
-    mode: saved.mode === 'notification' ? 'notification' : 'calendar',
+    mode: saved.mode === 'alarm' ? 'alarm' : 'calendar',
     scheduled: typeof saved.scheduled === 'number' ? saved.scheduled : 0,
     total: typeof saved.total === 'number' ? saved.total : 0,
     next: validNext ? { dateKey: next!.dateKey, shift: next!.shift, time: next!.time } : null,
@@ -517,7 +624,8 @@ export function loadReminderState(): ReminderSyncState | null {
     note: typeof saved.note === 'string' ? saved.note : null,
     calendarIdentifier: typeof saved.calendarIdentifier === 'string' ? saved.calendarIdentifier : null,
     dedicatedCalendar: saved.dedicatedCalendar !== false,
-    eventIdentifiers: identifiers,
+    eventIdentifiers: strings(saved.eventIdentifiers),
+    alarmIdentifiers: strings(saved.alarmIdentifiers),
     planKey: typeof saved.planKey === 'string' ? saved.planKey : null,
   }
 }

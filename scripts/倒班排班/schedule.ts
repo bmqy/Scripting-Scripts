@@ -1,6 +1,6 @@
 export type ShiftStyle = 'aurora' | 'editorial' | 'soft'
 
-export type ReminderMode = 'calendar' | 'notification'
+export type ReminderMode = 'calendar' | 'alarm'
 
 export type ShiftSchedule = {
   anchorDate: string
@@ -9,7 +9,7 @@ export type ShiftSchedule = {
   style: ShiftStyle
   // 每个班次可单独指定一个响铃时间（HH:mm）；没有对应键表示该班次不响铃。
   alarms: Record<string, string>
-  // 提醒的落地方式：写入系统日历的闹铃事件，或排定本地通知。
+  // 提醒的落地方式：写入系统日历的闹铃事件，或排系统闹钟（iOS 26+ 的 AlarmKit）。
   reminderMode: ReminderMode
 }
 
@@ -45,13 +45,13 @@ const WEEKDAYS = ['周日', '周一', '周二', '周三', '周四', '周五', '�
 const DEFAULT_SHIFTS = ['白班', '夜班', '休息']
 const STYLES: ShiftStyle[] = ['aurora', 'editorial', 'soft']
 const DEFAULT_STYLE: ShiftStyle = 'editorial'
-const REMINDER_MODES: ReminderMode[] = ['calendar', 'notification']
+const REMINDER_MODES: ReminderMode[] = ['calendar', 'alarm']
 const DEFAULT_REMINDER_MODE: ReminderMode = 'calendar'
-// 日历提醒由系统日历负责触发，可以一次排很远；本地通知受 iOS 待发送数量限制，只能排较短窗口。
+// 日历提醒由系统日历负责触发，可以一次排很远；系统闹钟是一条条一次性闹钟，排太多会占满 Clock 列表。
 export const CALENDAR_REMINDER_HORIZON_DAYS = 90
-export const NOTIFICATION_REMINDER_HORIZON_DAYS = 21
-// upcomingRingOccurrences 不传 days 时的默认窗口，与通知保持一致。
-const DEFAULT_REMINDER_HORIZON_DAYS = NOTIFICATION_REMINDER_HORIZON_DAYS
+export const ALARM_REMINDER_HORIZON_DAYS = 14
+// upcomingRingOccurrences 不传 days 时的默认窗口。
+const DEFAULT_REMINDER_HORIZON_DAYS = ALARM_REMINDER_HORIZON_DAYS
 
 function storage() {
   return (globalThis as unknown as { Storage?: StorageStore }).Storage
@@ -177,6 +177,7 @@ export function normalizeSchedule(value?: Partial<ShiftSchedule> | null, referen
     ? Math.min(Math.max(Math.trunc(value.anchorShiftIndex), 0), normalizedShifts.length - 1)
     : 0
   const style = STYLES.includes(value?.style as ShiftStyle) ? value!.style as ShiftStyle : DEFAULT_STYLE
+  // 旧版本有过的“通知提醒”已经移除，历史数据统一回落到日历提醒。
   const reminderMode = REMINDER_MODES.includes(value?.reminderMode as ReminderMode)
     ? value!.reminderMode as ReminderMode
     : DEFAULT_REMINDER_MODE
