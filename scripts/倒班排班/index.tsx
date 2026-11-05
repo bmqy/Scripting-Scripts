@@ -2,8 +2,10 @@ import {
   Button,
   Circle,
   DatePicker,
+  FlowLayout,
   Form,
   HStack,
+  Image,
   NavigationLink,
   Picker,
   Navigation,
@@ -53,9 +55,11 @@ const MONTH_COLUMN_GAP = 3
 const MONTH_CELL_HEIGHT = 64
 const MONTH_CELL_RADIUS = 9
 // 与 script.json 的 version 保持一致，方便确认 App 里跑的是哪一版。
-const SCRIPT_VERSION = '1.9.0'
+const SCRIPT_VERSION = '1.10.0'
 // 打开某个班次的响铃开关时先填入的默认时间，用户可再调整。
 const DEFAULT_RING_TIME = '07:00'
+// 循环班次最多 8 项，与 schedule.ts 的去重上限保持一致。
+const SHIFT_TAG_LIMIT = 8
 
 const REMINDER_MODE_OPTIONS: { value: ReminderMode; label: string }[] = [
   { value: 'calendar', label: '日历提醒' },
@@ -236,10 +240,38 @@ function MonthCalendarPage({ schedule }: { schedule: ShiftSchedule }) {
   </ScrollView>
 }
 
+// 标签输入里，空格、换行和常见分隔符都视为“一项输入完成”。
+function splitShiftTokens(value: string) {
+  const tokens: string[] = []
+  value.split(/[\s,，、;；]+/).forEach(part => {
+    tokens.push(...parseShiftNames(part))
+  })
+  return tokens
+}
+
+// 循环班次的标签：点右侧 × 删除；颜色与月历、小组件里的班次色保持一致。
+function ShiftTag({ name, onRemove }: { name: string; onRemove: () => void }) {
+  const color = shiftColor(name)
+  return <HStack alignment="center" spacing={4} modifiers={modifiers()
+    .padding({ top: 5, bottom: 5, leading: 9, trailing: 7 })
+    .background(roundedFill(shiftBackground(name), 14))}>
+    <Text font="footnote" fontWeight="semibold" foregroundStyle={paint(color)}>{name}</Text>
+    <Button buttonStyle="plain" action={onRemove}>
+      <Image
+        systemName="xmark.circle.fill"
+        font={13}
+        foregroundStyle={paint(color)}
+        frame={{ width: 18, height: 18 }}
+      />
+    </Button>
+  </HStack>
+}
+
 function SettingsPage() {
   const initial = loadSchedule()
   const [anchorTimestamp, setAnchorTimestamp] = useState(new Date(`${initial.anchorDate}T12:00:00`).getTime())
-  const [sequenceInput, setSequenceInput] = useState(initial.shifts.join('、'))
+  const [shiftTags, setShiftTags] = useState<string[]>(initial.shifts)
+  const [draftShift, setDraftShift] = useState('')
   const [anchorShiftIndex, setAnchorShiftIndex] = useState(initial.anchorShiftIndex)
   const [styleIndex, setStyleIndex] = useState(Math.max(0, STYLE_OPTIONS.findIndex(option => option.value === initial.style)))
   const [reminderModeIndex, setReminderModeIndex] = useState(Math.max(0, REMINDER_MODE_OPTIONS.findIndex(option => option.value === initial.reminderMode)))
@@ -248,10 +280,44 @@ function SettingsPage() {
   // 已保存的排班：月历页和“今天”提示都读它，保存后立即同步，不会继续显示旧排班。
   const [savedSchedule, setSavedSchedule] = useState(initial)
   const [message, setMessage] = useState('')
-  const parsedShifts = parseShiftNames(sequenceInput)
-  const pickerShifts = parsedShifts.length >= 2 ? parsedShifts : initial.shifts
   const reminderMode = REMINDER_MODE_OPTIONS[reminderModeIndex]?.value ?? initial.reminderMode
   const todayShift = shiftDay(new Date(), savedSchedule).shift
+
+  // 加入标签：自动去重、最多 8 项；输入框里以空格/换行/分隔符结尾时把已输入内容整体加进来。
+  const addShiftTokens = (tokens: string[]) => {
+    if (!tokens.length) return
+    const next = [...shiftTags]
+    tokens.forEach(token => {
+      if (!next.includes(token) && next.length < SHIFT_TAG_LIMIT) next.push(token)
+    })
+    if (next.length === shiftTags.length) {
+      setMessage(shiftTags.length >= SHIFT_TAG_LIMIT ? `最多添加 ${SHIFT_TAG_LIMIT} 个班次` : '这个班次已经在循环里了')
+      return
+    }
+    setShiftTags(next)
+  }
+
+  const handleDraftChange = (value: string) => {
+    if (/[\s,，、;；]/.test(value)) {
+      addShiftTokens(splitShiftTokens(value))
+      setDraftShift('')
+      return
+    }
+    setDraftShift(value)
+  }
+
+  const removeShiftTag = (name: string) => {
+    const nextTags = shiftTags.filter(item => item !== name)
+    setShiftTags(nextTags)
+    // 标签减少后把“起始班次”的选择夹到有效范围内，并丢掉已删除班次的响铃时间。
+    setAnchorShiftIndex(index => Math.max(0, Math.min(index, nextTags.length - 1)))
+    setAlarmTimes(previous => {
+      if (!(name in previous)) return previous
+      const next = { ...previous }
+      delete next[name]
+      return next
+    })
+  }
 
   // 同步结果可能降级（例如系统低于 iOS 26，系统闹钟改用日历提醒）：
   // 把界面选择器和保存的排班都校正成实际生效的方式，避免“上面选系统闹钟、下面说日历提醒”。
@@ -287,24 +353,41 @@ function SettingsPage() {
   }
 
   // 用界面上当前的值组装排班，保证“保存”和“重排”看到的都是同一份设置。
-  const buildSchedule = () => normalizeSchedule({
+  const buildSchedule = (tags: string[]) => normalizeSchedule({
     anchorDate: dateKey(new Date(anchorTimestamp)),
     anchorShiftIndex,
-    shifts: parsedShifts,
+    shifts: tags,
     style: STYLE_OPTIONS[styleIndex].value,
     alarms: alarmTimes,
     reminderMode,
   })
 
+  // 输入框里还没按空格/回车的内容也要算进去，避免点了保存却丢掉刚打的班次名。
+  const collectShiftTags = () => {
+    const tokens = splitShiftTokens(draftShift)
+    if (!tokens.length) return shiftTags
+    const next = [...shiftTags]
+    tokens.forEach(token => {
+      if (!next.includes(token) && next.length < SHIFT_TAG_LIMIT) next.push(token)
+    })
+    return next
+  }
+
   const persistAndSync = async () => {
-    const next = buildSchedule()
+    const tags = collectShiftTags()
+    if (tags.length < 2) {
+      setMessage('至少需要两个班次才能保存')
+      return null
+    }
+    const next = buildSchedule(tags)
     if (!saveSchedule(next)) {
       setMessage('保存失败，请检查 Scripting 的本地存储后重试。')
       return null
     }
     // 排班已经落盘，先让月历页/“今天”提示用上新排班，不必等响铃同步完成。
     setSavedSchedule(next)
-    setSequenceInput(next.shifts.join('、'))
+    setShiftTags(next.shifts)
+    setDraftShift('')
     setAnchorShiftIndex(next.anchorShiftIndex)
     setAlarmTimes(next.alarms)
     Widget.reloadAll()
@@ -359,35 +442,47 @@ function SettingsPage() {
           displayedComponents={['date']}
           datePickerStyle="compact"
         />
-        <Picker
-          title="起始班次"
-          value={anchorShiftIndex}
-          onChanged={setAnchorShiftIndex}
-          pickerStyle="menu"
-        >
-          {pickerShifts.map((shift, index) => <Text tag={index} key={`${shift}-${index}`}>{shift}</Text>)}
-        </Picker>
+        {shiftTags.length > 0
+          ? <Picker
+            title="起始班次"
+            value={Math.min(anchorShiftIndex, shiftTags.length - 1)}
+            onChanged={setAnchorShiftIndex}
+            pickerStyle="menu"
+          >
+            {shiftTags.map((shift, index) => <Text tag={index} key={`${shift}-${index}`}>{shift}</Text>)}
+          </Picker>
+          : null}
       </Section>
       <Section
         header={<Text>循环班次与响铃</Text>}
         footer={<VStack alignment="leading" spacing={6} modifiers={modifiers().frame({ maxWidth: 'infinity', alignment: 'leading' })}>
-          <Text font="footnote" foregroundStyle="secondaryLabel">用“、”或逗号分隔，至少填写两个班次、最多八项；打开开关的班次会按所选方式响铃。</Text>
+          <Text font="footnote" foregroundStyle="secondaryLabel">在输入框里输入班次名，按空格或回车就会加成一个标签，点标签右侧的 × 删除；至少两个、最多八个班次，打开开关的班次会按所选方式响铃。</Text>
           <Text font="footnote" foregroundStyle="secondaryLabel">{reminderModeHint(reminderMode)}</Text>
           <Text font="footnote" foregroundStyle="secondaryLabel">开关、时间或方式改动后，点上方“保存排班并刷新小组件”生效；“重排响铃提醒”会先保存再重排。</Text>
         </VStack>}
       >
+        <FlowLayout
+          spacing={6}
+          horizontalSpacing={6}
+          verticalSpacing={6}
+          modifiers={modifiers().frame({ maxWidth: 'infinity', alignment: 'leading' }).padding({ vertical: 2 })}
+        >
+          {shiftTags.map(name => <ShiftTag key={name} name={name} onRemove={() => removeShiftTag(name)} />)}
+          {shiftTags.length === 0
+            ? <Text font="footnote" foregroundStyle="secondaryLabel">还没有班次，先在下面添加</Text>
+            : null}
+        </FlowLayout>
         <TextField
-          title="班次顺序"
-          value={sequenceInput}
-          onChanged={(value) => {
-            setSequenceInput(value)
-            const nextShifts = parseShiftNames(value)
-            if (nextShifts.length >= 2) {
-              setAnchorShiftIndex(index => Math.min(index, nextShifts.length - 1))
-            }
-          }}
-          prompt="白班、夜班、休息"
+          title="添加班次"
+          value={draftShift}
+          onChanged={handleDraftChange}
+          prompt="输入后按空格或回车"
+          axis="vertical"
+          lineLimit={{ min: 1, max: 3 }}
         />
+        {shiftTags.length < 2
+          ? <Text font="footnote" foregroundStyle={paint('#D86F55')} listRowSeparator="hidden">至少需要两个班次才能保存</Text>
+          : null}
         <Picker
           title="提醒方式"
           value={reminderModeIndex}
@@ -396,9 +491,9 @@ function SettingsPage() {
         >
           {REMINDER_MODE_OPTIONS.map((option, index) => <Text tag={index} key={option.value}>{option.label}</Text>)}
         </Picker>
-        {pickerShifts.map((shift, index) => {
+        {shiftTags.map(shift => {
           const time = alarmTimes[shift]
-          return <HStack key={`ring-${shift}-${index}`} alignment="center" spacing={8}>
+          return <HStack key={`ring-${shift}`} alignment="center" spacing={8}>
             <Circle fill={paint(shiftColor(shift))} frame={{ width: 7, height: 7 }} />
             <Toggle
               title={shift}
@@ -416,8 +511,8 @@ function SettingsPage() {
               : null}
           </HStack>
         })}
-        <Button title="保存排班并刷新小组件" buttonStyle="borderedProminent" action={() => { void save() }} />
-        <Button title="重排响铃提醒" buttonStyle="bordered" action={() => { void resyncReminders() }} />
+        <Button title="保存排班并刷新小组件" buttonStyle="borderedProminent" disabled={shiftTags.length < 2} action={() => { void save() }} />
+        <Button title="重排响铃提醒" buttonStyle="bordered" disabled={shiftTags.length < 2} action={() => { void resyncReminders() }} />
         <Text font="footnote" foregroundStyle="secondaryLabel" listRowSeparator="hidden">
           {reminderStateText(reminderState)}
         </Text>
