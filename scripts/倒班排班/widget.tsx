@@ -10,6 +10,7 @@ import {
   Text,
   VStack,
   Widget,
+  ZStack,
   modifiers,
   type ShapeStyle,
 } from 'scripting'
@@ -184,6 +185,7 @@ type Box = { width: number; height: number }
 function SmallWidget({ day, tomorrow, schedule, theme, box }: { day: ShiftDay; tomorrow: ShiftDay; schedule: ShiftSchedule; theme: ShiftTheme; box: Box }) {
   const width = Math.max(80, box.width - SMALL_PADDING * 2)
   const ring = ringTimeForDate(schedule, day.date)
+  const tomorrowRing = ringTimeForDate(schedule, tomorrow.date)
   return <VStack alignment="leading" spacing={0} modifiers={modifiers()
     .padding(SMALL_PADDING)
     .frame({ width: box.width, height: box.height, alignment: 'leading' })
@@ -211,6 +213,7 @@ function SmallWidget({ day, tomorrow, schedule, theme, box }: { day: ShiftDay; t
       <Text modifiers={modifiers().font(9.5).fontWeight('medium').foregroundStyle(style(theme.secondary))}>明天</Text>
       <Text fontDesign="rounded" modifiers={modifiers().font(13).fontWeight('semibold').foregroundStyle(style(theme.ink)).lineLimit(1).minScaleFactor(0.6)}>{tomorrow.shift}</Text>
       <Spacer />
+      {tomorrowRing ? <Image systemName="bell.fill" font={8.5} foregroundStyle={style(theme.secondary)} /> : null}
       <Text modifiers={modifiers().font(9).fontWeight('medium').foregroundStyle(style(theme.secondary))}>{formatMonthDay(tomorrow.date)}</Text>
     </HStack>
   </VStack>
@@ -244,11 +247,12 @@ function MediumWidget({ today, week, schedule, theme, box }: { today: ShiftDay; 
   </VStack>
 }
 
-// 中号周格子：周几 / 日期 / 班次 / 色点，今天整格实色高亮。
+// 中号周格子：周几 / 日期 / 班次 / 色点，今天整格实色高亮；有响铃的格子右上角带小铃铛。
 function WeekCell({ day, schedule, theme, width }: { day: ShiftDay; schedule: ShiftSchedule; theme: ShiftTheme; width: number }) {
   const rest = isRestShift(day.shift)
   const color = shiftTint(day.shift, schedule, theme)
-  return <VStack alignment="center" spacing={5} modifiers={modifiers()
+  const ring = ringTimeForDate(schedule, day.date)
+  const content = <VStack alignment="center" spacing={5} modifiers={modifiers()
     .frame({ width, height: WEEK_CELL_HEIGHT })
     .background(rectFill(cellFill(day.shift, day.isToday, false, schedule, theme), WEEK_CELL_RADIUS))}>
     <Text modifiers={modifiers().font(8.5).fontWeight('medium').foregroundStyle(style(day.isToday ? theme.ink : theme.secondary)).lineLimit(1)}>{formatWeekday(day.date)}</Text>
@@ -256,6 +260,17 @@ function WeekCell({ day, schedule, theme, width }: { day: ShiftDay; schedule: Sh
     <Text modifiers={modifiers().font(8).fontWeight('bold').foregroundStyle(style(day.isToday ? theme.todayInk : rest ? theme.secondary : color)).lineLimit(1).minScaleFactor(0.5)}>{day.shift}</Text>
     <Circle fill={style(rest ? pair(CLEAR) : color)} frame={{ width: 4, height: 4 }} />
   </VStack>
+
+  if (!ring) return content
+  return <ZStack alignment="topTrailing" modifiers={modifiers().frame({ width, height: WEEK_CELL_HEIGHT })}>
+    {content}
+    <Image
+      systemName="bell.fill"
+      font={6.5}
+      foregroundStyle={style(day.isToday ? theme.todayInk : theme.secondary)}
+      modifiers={modifiers().padding({ top: 2, trailing: 2.5 })}
+    />
+  </ZStack>
 }
 
 // 循环图例：中号带「N天循环」前缀，大号只有色点 + 班次名。
@@ -318,7 +333,8 @@ function LargeMonthWidget({ today, schedule, theme, box }: { today: ShiftDay; sc
 
 function MonthCell({ cell, schedule, theme, width, height }: { cell: CalendarCell; schedule: ShiftSchedule; theme: ShiftTheme; width: number; height: number }) {
   const { day, isAdjacentMonth } = cell
-  return <Text fontDesign="rounded" modifiers={modifiers()
+  const ring = ringTimeForDate(schedule, day.date)
+  const content = <Text fontDesign="rounded" modifiers={modifiers()
     .font(10.5)
     .fontWeight(day.isToday ? 'bold' : 'semibold')
     .foregroundStyle(style(shiftTextColor(day.shift, day.isToday, isAdjacentMonth, schedule, theme)))
@@ -328,6 +344,18 @@ function MonthCell({ cell, schedule, theme, width, height }: { cell: CalendarCel
     .background(rectFill(cellFill(day.shift, day.isToday, isAdjacentMonth, schedule, theme), MONTH_CELL_RADIUS))}>
     {`${day.date.getDate()}\n${day.shift}`}
   </Text>
+
+  // 有响铃的日期在格子右上角放一个小铃铛（只多出 ZStack + Image 两个节点，尽量压在渲染预算内）。
+  if (!ring) return content
+  return <ZStack alignment="topTrailing" modifiers={modifiers().frame({ width, height })}>
+    {content}
+    <Image
+      systemName="bell.fill"
+      font={6}
+      foregroundStyle={style(isAdjacentMonth ? theme.adjacent : theme.secondary)}
+      modifiers={modifiers().padding({ top: 1.5, trailing: 2 })}
+    />
+  </ZStack>
 }
 
 function AccessoryCircularWidget({ day, schedule, theme }: { day: ShiftDay; schedule: ShiftSchedule; theme: ShiftTheme }) {
