@@ -1,5 +1,6 @@
 import {
   Button,
+  Circle,
   DatePicker,
   Form,
   HStack,
@@ -31,7 +32,9 @@ import {
   parseShiftNames,
   saveSchedule,
   shiftDay,
+  type CalendarCell,
   type ReminderMode,
+  type ShiftDay,
   type ShiftSchedule,
   type ShiftStyle,
 } from './schedule'
@@ -44,9 +47,12 @@ import {
   type ReminderSyncState,
 } from './reminders'
 
-const MONTH_COLUMN_GAP = 4
+// 月历格子的横向间距与高度：间距压到 3，让整行格子尽可能铺满屏幕宽度。
+const MONTH_COLUMN_GAP = 3
+const MONTH_CELL_HEIGHT = 56
+const MONTH_CELL_RADIUS = 9
 // 与 script.json 的 version 保持一致，方便确认 App 里跑的是哪一版。
-const SCRIPT_VERSION = '1.8.0'
+const SCRIPT_VERSION = '1.9.0'
 // 打开某个班次的响铃开关时先填入的默认时间，用户可再调整。
 const DEFAULT_RING_TIME = '07:00'
 
@@ -66,18 +72,37 @@ function paint(color: string): ShapeStyle {
   return color as unknown as ShapeStyle
 }
 
-function shiftColor(shift: string): ShapeStyle {
-  if (/休|假/.test(shift)) return paint('#758B73')
-  if (/下夜/.test(shift)) return paint('#347B7D')
-  if (/夜|晚/.test(shift)) return paint('#425786')
-  return paint('#B87517')
+// 圆角填充：用 { style, shape } 写法一次画好背景，不必给每个格子再加一个圆角矩形节点。
+function roundedFill(color: string, cornerRadius: number): ShapeStyle {
+  return { style: color, shape: { type: 'rect', cornerRadius, style: 'continuous' } } as unknown as ShapeStyle
 }
 
-function shiftBackground(shift: string): ShapeStyle {
-  if (/休|假/.test(shift)) return paint('#E2EBDD')
-  if (/下夜/.test(shift)) return paint('#DCEFED')
-  if (/夜|晚/.test(shift)) return paint('#E2E8F4')
-  return paint('#F7E8C8')
+// 与小组件保持同一套班次配色，方便在 App 里对照主屏效果。
+function shiftColor(shift: string) {
+  if (/休|假/.test(shift)) return '#758B73'
+  if (/下夜/.test(shift)) return '#347B7D'
+  if (/夜|晚/.test(shift)) return '#425786'
+  return '#B87517'
+}
+
+function shiftBackground(shift: string) {
+  if (/休|假/.test(shift)) return '#E2EBDD'
+  if (/下夜/.test(shift)) return '#DCEFED'
+  if (/夜|晚/.test(shift)) return '#E2E8F4'
+  return '#F7E8C8'
+}
+
+// 月历格子：今天用实色高亮，其余日期用班次淡色铺底，前后月只留极淡的底色。
+function monthCellBackground(day: ShiftDay, isAdjacentMonth: boolean) {
+  if (day.isToday) return shiftColor(day.shift)
+  if (isAdjacentMonth) return '#F4F2EE'
+  return shiftBackground(day.shift)
+}
+
+function monthCellColors(day: ShiftDay, isAdjacentMonth: boolean) {
+  if (day.isToday) return { date: '#FFFFFF', shift: '#FFFFFF' }
+  if (isAdjacentMonth) return { date: '#C3BDB5', shift: '#C3BDB5' }
+  return { date: '#6B6258', shift: shiftColor(day.shift) }
 }
 
 // DatePicker 只认时间戳，这里在「今天 + HH:mm」之间来回转换，避免引入额外的日期库。
@@ -90,6 +115,14 @@ function timestampForRingTime(time: string) {
 function ringTimeFromTimestamp(timestamp: number) {
   const date = new Date(timestamp)
   return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
+}
+
+// 提醒方式的说明只保留当前选中方式的一条，避免两种方式的说明同时占版面。
+function reminderModeHint(mode: ReminderMode) {
+  if (mode === 'calendar') {
+    return `日历提醒会在系统日历里建一个「倒班提醒」专用日历，把未来 ${CALENDAR_REMINDER_HORIZON_DAYS} 天的响铃写成带闹铃的事件（需要日历权限，低版本系统也能用；按日历的通知设置发声，静音或专注模式会影响）。`
+  }
+  return `系统闹钟使用 iOS 26+ 的 AlarmKit（需要闹钟权限），会提前排定未来 ${ALARM_REMINDER_HORIZON_DAYS} 天的闹钟，像时钟闹钟一样全屏响铃并占用 Clock 的闹钟列表；系统不支持时会自动改用日历提醒。`
 }
 
 function saveMessage(schedule: ShiftSchedule, state: ReminderSyncState) {
@@ -106,6 +139,31 @@ function reminderStateText(state: ReminderSyncState | null) {
   if (state.error) return `上次同步 ${formatReminderSyncTime(state.syncedAt)}（${formatReminderMode(state.mode)}）：${state.error}${noteSuffix}`
   if (state.total === 0) return `上次同步 ${formatReminderSyncTime(state.syncedAt)}：当前没有响铃时间。${noteSuffix}`
   return `上次同步 ${formatReminderSyncTime(state.syncedAt)}（${formatReminderMode(state.mode)}）：已排定 ${state.scheduled} 个，下一次 ${formatReminderTarget(state.next)}${noteSuffix}`
+}
+
+// 月历单格：一行日期 + 一行班次，整格按班次上色，让 7 列铺满屏宽而不是一圈白边。
+function MonthDayCell({ cell }: { cell: CalendarCell }) {
+  const { day, isAdjacentMonth } = cell
+  const colors = monthCellColors(day, isAdjacentMonth)
+  return <VStack alignment="center" spacing={3} modifiers={modifiers()
+    .padding({ top: 5, bottom: 5 })
+    .frame({ maxWidth: 'infinity', height: MONTH_CELL_HEIGHT, alignment: 'center' })
+    .background(roundedFill(monthCellBackground(day, isAdjacentMonth), MONTH_CELL_RADIUS))}>
+    <Text
+      font="callout"
+      fontWeight={day.isToday ? 'bold' : 'semibold'}
+      foregroundStyle={paint(colors.date)}
+      lineLimit={1}
+      minScaleFactor={0.8}
+    >{day.date.getDate()}</Text>
+    <Text
+      font="caption"
+      fontWeight="semibold"
+      foregroundStyle={paint(colors.shift)}
+      lineLimit={1}
+      minScaleFactor={0.55}
+    >{day.shift}</Text>
+  </VStack>
 }
 
 function MonthCalendarPage({ schedule }: { schedule: ShiftSchedule }) {
@@ -127,61 +185,75 @@ function MonthCalendarPage({ schedule }: { schedule: ShiftSchedule }) {
     setMonthTimestamp(new Date(current.getFullYear(), current.getMonth(), 1).getTime())
   }
 
-  return <NavigationStack>
-    <ScrollView navigationTitle="月历排班" navigationBarTitleDisplayMode="inline">
-      <VStack alignment="leading" spacing={18} modifiers={modifiers().padding(16)}>
-        <HStack alignment="center" spacing={8}>
-          <Button title="‹ 上月" buttonStyle="borderless" action={() => changeMonth(-1)} />
-          <Spacer />
-          <Text font="title2" fontWeight="bold" foregroundStyle={paint('#302A25')}>{monthTitle}</Text>
-          <Spacer />
-          <Button title="下月 ›" buttonStyle="borderless" action={() => changeMonth(1)} />
+  // 直接放在设置页 NavigationStack 的 NavigationLink 里，不再自己套一层导航栈，避免重复留白。
+  return <ScrollView
+    navigationTitle="月历排班"
+    navigationBarTitleDisplayMode="inline"
+    contentMargins={0}
+  >
+    <VStack alignment="leading" spacing={10} modifiers={modifiers()
+      .padding({ top: 8, bottom: 16, leading: 8, trailing: 8 })
+      .frame({ maxWidth: 'infinity', alignment: 'leading' })}>
+      <HStack alignment="center" spacing={8} modifiers={modifiers().frame({ maxWidth: 'infinity' })}>
+        <Button title="‹ 上月" buttonStyle="borderless" action={() => changeMonth(-1)} />
+        <Spacer />
+        <Text font="title3" fontWeight="bold" foregroundStyle={paint('#302A25')}>{monthTitle}</Text>
+        <Spacer />
+        <Button title="下月 ›" buttonStyle="borderless" action={() => changeMonth(1)} />
+      </HStack>
+      <VStack spacing={MONTH_COLUMN_GAP} modifiers={modifiers().frame({ maxWidth: 'infinity' })}>
+        <HStack spacing={MONTH_COLUMN_GAP} modifiers={modifiers().frame({ maxWidth: 'infinity' })}>
+          {weekdays.map(day => <Text
+            key={`weekday-${day}`}
+            font="caption"
+            fontWeight="semibold"
+            foregroundStyle={paint('#8B8177')}
+            frame={{ maxWidth: 'infinity', alignment: 'center' }}
+          >{day}</Text>)}
         </HStack>
-        <VStack spacing={MONTH_COLUMN_GAP} modifiers={modifiers().frame({ maxWidth: 'infinity' })}>
-          <HStack spacing={MONTH_COLUMN_GAP} modifiers={modifiers().frame({ maxWidth: 'infinity' })}>
-            {weekdays.map(day => <Text key={`weekday-${day}`} font="caption" fontWeight="semibold" foregroundStyle={paint('#8B8177')} frame={{ maxWidth: 'infinity', alignment: 'center' }}>{day}</Text>)}
-          </HStack>
-          {weeks.map((week, weekIndex) => <HStack key={`week-${weekIndex}`} spacing={MONTH_COLUMN_GAP} modifiers={modifiers().frame({ maxWidth: 'infinity' })}>
-            {week.map(({ day, isAdjacentMonth }) => <VStack key={day.dateKey} alignment="center" spacing={5} modifiers={modifiers()
-              .padding({ top: 6, leading: 2, bottom: 6, trailing: 2 })
-              .frame({ maxWidth: 'infinity', height: 68, alignment: 'center' })
-              .background(isAdjacentMonth ? paint('#F2F2F2') : day.isToday ? shiftBackground(day.shift) : paint('#FFFDFC'))}>
-              <Text font="callout" fontWeight={day.isToday ? 'bold' : isAdjacentMonth ? 'regular' : 'medium'} foregroundStyle={isAdjacentMonth ? paint('#A8A8A8') : day.isToday ? shiftColor(day.shift) : paint('#8B8177')}>{day.date.getDate()}</Text>
-              <Text font="caption" fontWeight="semibold" foregroundStyle={isAdjacentMonth ? paint('#A8A8A8') : shiftColor(day.shift)} padding={{ top: 2, leading: 4, bottom: 2, trailing: 4 }} background={isAdjacentMonth ? paint('#FFFDFC') : day.isToday ? paint('#FFFDFC') : shiftBackground(day.shift)} lineLimit={1} minScaleFactor={0.65}>{day.shift}</Text>
-            </VStack>)}
-          </HStack>)}
-        </VStack>
-        <HStack alignment="center" spacing={6}>
-          <Text font="footnote" foregroundStyle={paint('#8B8177')}>今天：{today.shift}</Text>
-          <Spacer />
-          <Button title="回到本月" buttonStyle="bordered" action={returnToCurrentMonth} />
-        </HStack>
+        {weeks.map((week, weekIndex) => <HStack
+          key={`week-${weekIndex}`}
+          spacing={MONTH_COLUMN_GAP}
+          modifiers={modifiers().frame({ maxWidth: 'infinity' })}
+        >
+          {week.map(cell => <MonthDayCell key={cell.day.dateKey} cell={cell} />)}
+        </HStack>)}
       </VStack>
-    </ScrollView>
-  </NavigationStack>
+      <HStack alignment="center" spacing={8} modifiers={modifiers().frame({ maxWidth: 'infinity' })}>
+        <Text font="footnote" foregroundStyle={paint('#8B8177')}>今天：{today.shift}</Text>
+        <Spacer />
+        <Button title="回到本月" buttonStyle="bordered" controlSize="small" action={returnToCurrentMonth} />
+      </HStack>
+    </VStack>
+  </ScrollView>
 }
 
 function SettingsPage() {
-  const current = loadSchedule()
-  const [anchorTimestamp, setAnchorTimestamp] = useState(new Date(`${current.anchorDate}T12:00:00`).getTime())
-  const [sequenceInput, setSequenceInput] = useState(current.shifts.join('、'))
-  const [anchorShiftIndex, setAnchorShiftIndex] = useState(current.anchorShiftIndex)
-  const [styleIndex, setStyleIndex] = useState(Math.max(0, STYLE_OPTIONS.findIndex(option => option.value === current.style)))
-  const [reminderModeIndex, setReminderModeIndex] = useState(Math.max(0, REMINDER_MODE_OPTIONS.findIndex(option => option.value === current.reminderMode)))
-  const [alarmTimes, setAlarmTimes] = useState<Record<string, string>>({ ...current.alarms })
+  const initial = loadSchedule()
+  const [anchorTimestamp, setAnchorTimestamp] = useState(new Date(`${initial.anchorDate}T12:00:00`).getTime())
+  const [sequenceInput, setSequenceInput] = useState(initial.shifts.join('、'))
+  const [anchorShiftIndex, setAnchorShiftIndex] = useState(initial.anchorShiftIndex)
+  const [styleIndex, setStyleIndex] = useState(Math.max(0, STYLE_OPTIONS.findIndex(option => option.value === initial.style)))
+  const [reminderModeIndex, setReminderModeIndex] = useState(Math.max(0, REMINDER_MODE_OPTIONS.findIndex(option => option.value === initial.reminderMode)))
+  const [alarmTimes, setAlarmTimes] = useState<Record<string, string>>({ ...initial.alarms })
   const [reminderState, setReminderState] = useState<ReminderSyncState | null>(loadReminderState())
+  // 已保存的排班：月历页和“今天”提示都读它，保存后立即同步，不会继续显示旧排班。
+  const [savedSchedule, setSavedSchedule] = useState(initial)
   const [message, setMessage] = useState('')
   const parsedShifts = parseShiftNames(sequenceInput)
-  const pickerShifts = parsedShifts.length >= 2 ? parsedShifts : current.shifts
-  const reminderMode = REMINDER_MODE_OPTIONS[reminderModeIndex]?.value ?? current.reminderMode
+  const pickerShifts = parsedShifts.length >= 2 ? parsedShifts : initial.shifts
+  const reminderMode = REMINDER_MODE_OPTIONS[reminderModeIndex]?.value ?? initial.reminderMode
+  const todayShift = shiftDay(new Date(), savedSchedule).shift
 
   // 同步结果可能降级（例如系统低于 iOS 26，系统闹钟改用日历提醒）：
   // 把界面选择器和保存的排班都校正成实际生效的方式，避免“上面选系统闹钟、下面说日历提醒”。
   const applySyncedMode = (state: ReminderSyncState, schedule: ShiftSchedule) => {
+    setSavedSchedule(schedule)
     if (state.mode === schedule.reminderMode) return schedule
     const corrected = normalizeSchedule({ ...schedule, reminderMode: state.mode })
     saveSchedule(corrected)
     setReminderModeIndex(Math.max(0, REMINDER_MODE_OPTIONS.findIndex(option => option.value === state.mode)))
+    setSavedSchedule(corrected)
     return corrected
   }
 
@@ -263,7 +335,10 @@ function SettingsPage() {
         message,
       }}
     >
-      <Section header={<Text>排班基准</Text>}>
+      <Section
+        header={<Text>排班基准</Text>}
+        footer={<Text>起始日期当天对应所选班次，之后按循环顺序每天推进一格。</Text>}
+      >
         <DatePicker
           title="起始日期"
           value={anchorTimestamp}
@@ -279,11 +354,15 @@ function SettingsPage() {
         >
           {pickerShifts.map((shift, index) => <Text tag={index} key={`${shift}-${index}`}>{shift}</Text>)}
         </Picker>
-        <Text font="footnote" foregroundStyle="secondaryLabel" listRowSeparator="hidden">
-          起始日期当天对应所选班次，之后按循环顺序每天推进一格。
-        </Text>
       </Section>
-      <Section header={<Text>循环班次</Text>}>
+      <Section
+        header={<Text>循环班次与响铃</Text>}
+        footer={<VStack alignment="leading" spacing={6} modifiers={modifiers().frame({ maxWidth: 'infinity', alignment: 'leading' })}>
+          <Text>用“、”或逗号分隔，至少填写两个班次、最多八项；打开开关的班次会按所选方式响铃。</Text>
+          <Text>{reminderModeHint(reminderMode)}</Text>
+          <Text>开关、时间或方式改动后，点下方“保存排班并刷新小组件”生效；“重排响铃提醒”会先保存再重排。</Text>
+        </VStack>}
+      >
         <TextField
           title="班次顺序"
           value={sequenceInput}
@@ -296,12 +375,6 @@ function SettingsPage() {
           }}
           prompt="白班、夜班、休息"
         />
-        <Text font="footnote" foregroundStyle="secondaryLabel" listRowSeparator="hidden">
-          用“、”或逗号分隔，至少填写两个班次，最多支持八项。
-        </Text>
-        <Button title="保存排班并刷新小组件" buttonStyle="borderedProminent" action={() => { void save() }} />
-      </Section>
-      <Section header={<Text>响铃提醒</Text>}>
         <Picker
           title="提醒方式"
           value={reminderModeIndex}
@@ -313,6 +386,7 @@ function SettingsPage() {
         {pickerShifts.map((shift, index) => {
           const time = alarmTimes[shift]
           return <HStack key={`ring-${shift}-${index}`} alignment="center" spacing={8}>
+            <Circle fill={paint(shiftColor(shift))} frame={{ width: 7, height: 7 }} />
             <Toggle
               title={shift}
               value={Boolean(time)}
@@ -329,29 +403,28 @@ function SettingsPage() {
               : null}
           </HStack>
         })}
-        <Button title="重排响铃提醒" buttonStyle="borderless" action={() => { void resyncReminders() }} />
-        <Text font="footnote" foregroundStyle="secondaryLabel" listRowSeparator="hidden">
-          {reminderMode === 'calendar'
-            ? `日历提醒会在系统日历里建一个「倒班提醒」专用日历，把未来 ${CALENDAR_REMINDER_HORIZON_DAYS} 天的响铃写成带闹铃的事件（需要日历权限，低版本系统也能用）；系统不允许创建多个日历时会退回写入默认日历。改用系统闹钟或清空响铃时会清掉这些事件。`
-            : `系统闹钟使用 iOS 26+ 的 AlarmKit（需要闹钟权限），像 Clock 闹钟一样全屏响铃；会提前排定未来 ${ALARM_REMINDER_HORIZON_DAYS} 天的闹钟并占用 Clock 的闹钟列表。当前系统不支持时会自动改用日历提醒。`}
-        </Text>
-        <Text font="footnote" foregroundStyle="secondaryLabel" listRowSeparator="hidden">
-          日历提醒按系统日历的通知设置发声（静音/专注模式会影响）；系统闹钟是真正的闹钟，会全屏响铃。修改开关、时间或方式后，点“保存排班并刷新小组件”或“重排响铃提醒”才会生效（重排会先保存当前设置）。
-        </Text>
+        <Button title="保存排班并刷新小组件" buttonStyle="borderedProminent" action={() => { void save() }} />
+        <Button title="重排响铃提醒" buttonStyle="bordered" action={() => { void resyncReminders() }} />
         <Text font="footnote" foregroundStyle="secondaryLabel" listRowSeparator="hidden">
           {reminderStateText(reminderState)}
         </Text>
       </Section>
       <Section header={<Text>排班查询</Text>}>
-        <NavigationLink destination={<MonthCalendarPage schedule={current} />}>
-          <HStack alignment="center" spacing={10}>
-            <Text foregroundStyle={paint('#D86F55')}>月历排班</Text>
+        <NavigationLink destination={<MonthCalendarPage schedule={savedSchedule} />}>
+          <HStack alignment="center" spacing={10} modifiers={modifiers().frame({ maxWidth: 'infinity' })}>
+            <VStack alignment="leading" spacing={2}>
+              <Text foregroundStyle={paint('#D86F55')}>月历排班</Text>
+              <Text font="footnote" foregroundStyle="secondaryLabel">上下月翻看每天的班次</Text>
+            </VStack>
             <Spacer />
-            <Text font="footnote" foregroundStyle="secondaryLabel">在 App 内翻看其他月份</Text>
+            <Text font="footnote" foregroundStyle="secondaryLabel">今天 {todayShift}</Text>
           </HStack>
         </NavigationLink>
       </Section>
-      <Section header={<Text>外观</Text>}>
+      <Section
+        header={<Text>外观与预览</Text>}
+        footer={<Text>选择风格后点上面“保存排班并刷新小组件”生效；App 内预览只用于检查排版，主屏显示异常时以此判断是脚本问题还是小组件配置问题。</Text>}
+      >
         <Picker
           title="配色风格"
           value={styleIndex}
@@ -360,26 +433,15 @@ function SettingsPage() {
         >
           {STYLE_OPTIONS.map((option, index) => <Text tag={index} key={option.value}>{option.label}</Text>)}
         </Picker>
-        <Text font="footnote" foregroundStyle="secondaryLabel" listRowSeparator="hidden">
-          选择风格后点上方“保存排班并刷新小组件”生效。
-        </Text>
-      </Section>
-      <Section header={<Text>组件预览</Text>}>
-        <HStack alignment="center" spacing={8}>
+        <HStack alignment="center" spacing={8} listRowSeparator="hidden">
           <Button title="小号" buttonStyle="bordered" action={() => { void Widget.preview({ family: 'systemSmall' }) }} />
           <Button title="中号" buttonStyle="bordered" action={() => { void Widget.preview({ family: 'systemMedium' }) }} />
           <Button title="大号" buttonStyle="bordered" action={() => { void Widget.preview({ family: 'systemLarge' }) }} />
         </HStack>
-        <Text font="footnote" foregroundStyle="secondaryLabel" listRowSeparator="hidden">
-          App 内预览只用于检查排版；主屏显示异常时请以此判断是脚本问题还是小组件配置问题。
-        </Text>
       </Section>
-      <Section>
-        <Text font="footnote" foregroundStyle="secondaryLabel">
-          小号显示今日与明天，中号显示本周七天与循环图例，大号显示整月日历；设置了响铃的班次会在对应位置显示铃铛和时间。翻月请在 App 内查看。
-        </Text>
+      <Section footer={<Text>版本 {SCRIPT_VERSION}</Text>}>
         <Text font="footnote" foregroundStyle="secondaryLabel" listRowSeparator="hidden">
-          版本 {SCRIPT_VERSION}
+          小号显示今日与明天，中号显示本周七天与循环图例，大号显示整月日历；设置了响铃的班次会在对应位置显示铃铛和时间。
         </Text>
       </Section>
     </Form>

@@ -20,7 +20,7 @@
     "zh": "查看自定义倒班排班，支持为每个班次单独设置日历提醒或系统闹钟",
     "en": "View a custom shift schedule and set an optional calendar reminder or system alarm for each shift."
   },
-  "version": "1.8.0",
+  "version": "1.9.0",
   "color": "rgba(224, 122, 95, 1)",
   "contributors": [],
   "name": "倒班排班"
