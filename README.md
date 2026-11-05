@@ -55,7 +55,7 @@
 
 - **日历提醒（默认）**：在系统日历里创建一个名为「倒班提醒」的专用日历，把未来 90 天里每个响铃写成一条带[绝对时间闹铃](https://scriptingapp.github.io/guide/Device%20Capabilities/EventAlarm.md)的[日历事件](https://scriptingapp.github.io/guide/Device%20Capabilities/CalendarEvent.md)（起止 5 分钟、标记为“空闲”）。提醒由系统日历负责触发，不需要脚本常驻，也不受通知数量限制，低版本系统也能用；缺点是它按普通通知发声，静音/专注模式会压掉。改用系统闹钟或清空所有响铃时间时，会清掉这些事件并删除专用日历。
 - 如果系统不允许脚本建日历（部分运行时版本对 [`Calendar.create`](https://scriptingapp.github.io/guide/Device%20Capabilities/Calendar.md) 的 `sourceType` 校验和文档不一致，会报 `invalid 'sourceType'`），脚本会依次尝试其他来源类型，仍失败则退回写入系统默认日历，并在状态行提示；此时只清理脚本自己创建的事件，不会动你自己的日程。
-- **系统闹钟**：使用 [`AlarmManager`](https://scriptingapp.github.io/guide/Changelog/3.0.0/Alarm/AlarmManager.md)（iOS 26+ 的 AlarmKit）为未来 14 天的每个响铃排一条一次性闹钟，会像 Clock 闹钟一样全屏响铃、需要手动停止，静音/专注模式基本压不住。代价是占用 Clock 的闹钟列表（14 天窗口内最多 14 条），所以要每隔一段时间打开一次脚本顺延；系统低于 iOS 26 或拿不到闹钟权限时，会自动改用日历提醒并在状态行提示。
+- **系统闹钟**：使用 [`AlarmManager`](https://scriptingapp.github.io/guide/Changelog/3.0.0/Alarm/AlarmManager.md)（iOS 26+ 的 AlarmKit）为未来 14 天的每个响铃排一条一次性闹钟，会像 Clock 闹钟一样全屏响铃、需要手动停止，静音/专注模式基本压不住。代价是占用 Clock 的闹钟列表（14 天窗口内最多 14 条），所以要每隔一段时间打开一次脚本顺延；系统低于 iOS 26 或拿不到闹钟权限时，会自动改用日历提醒，并把界面上的方式切成「日历提醒」（状态行写明原因），等系统/权限恢复后重新选一次「系统闹钟」即可。
 - 两种方式都只能在 App 脚本里排定（小组件进程不负责排定），所以排班或响铃时间改动后要重新运行脚本保存一次；“重排响铃提醒”会先保存界面上的当前设置（包括刚改的开关、时间和提醒方式）再重排，不会用旧排班覆盖新设置。
 - 每个班次只有一个响铃时间；休息类班次也可以设置，不想响就把开关关掉。
 

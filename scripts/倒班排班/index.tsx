@@ -46,7 +46,7 @@ import {
 
 const MONTH_COLUMN_GAP = 4
 // 与 script.json 的 version 保持一致，方便确认 App 里跑的是哪一版。
-const SCRIPT_VERSION = '1.7.0'
+const SCRIPT_VERSION = '1.7.1'
 // 打开某个班次的响铃开关时先填入的默认时间，用户可再调整。
 const DEFAULT_RING_TIME = '07:00'
 
@@ -175,9 +175,23 @@ function SettingsPage() {
   const pickerShifts = parsedShifts.length >= 2 ? parsedShifts : current.shifts
   const reminderMode = REMINDER_MODE_OPTIONS[reminderModeIndex]?.value ?? current.reminderMode
 
+  // 同步结果可能降级（例如系统低于 iOS 26，系统闹钟改用日历提醒）：
+  // 把界面选择器和保存的排班都校正成实际生效的方式，避免“上面选系统闹钟、下面说日历提醒”。
+  const applySyncedMode = (state: ReminderSyncState, schedule: ShiftSchedule) => {
+    if (state.mode === schedule.reminderMode) return schedule
+    const corrected = normalizeSchedule({ ...schedule, reminderMode: state.mode })
+    saveSchedule(corrected)
+    setReminderModeIndex(Math.max(0, REMINDER_MODE_OPTIONS.findIndex(option => option.value === state.mode)))
+    return corrected
+  }
+
   // 每次打开脚本都把提醒窗口向后顺延一次，避免长期不打开时提醒断档。
   useEffect(() => {
-    void syncRingReminders(loadSchedule()).then(setReminderState)
+    const loaded = loadSchedule()
+    void syncRingReminders(loaded).then(state => {
+      setReminderState(state)
+      applySyncedMode(state, loaded)
+    })
   }, [])
 
   const setRingTime = (shift: string, time: string) => {
@@ -211,7 +225,7 @@ function SettingsPage() {
     Widget.reloadAll()
     const state = await syncRingReminders(next)
     setReminderState(state)
-    return { saved: next, state }
+    return { saved: applySyncedMode(state, next), state }
   }
 
   const save = async () => {
