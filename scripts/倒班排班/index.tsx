@@ -27,8 +27,10 @@ import {
 import {
   ALARM_REMINDER_HORIZON_DAYS,
   CALENDAR_REMINDER_HORIZON_DAYS,
+  SHIFT_NAME_LIMIT,
   dateKey,
   loadSchedule,
+  mergeShiftNames,
   monthCalendarDays,
   normalizeSchedule,
   parseShiftNames,
@@ -55,11 +57,9 @@ const MONTH_COLUMN_GAP = 3
 const MONTH_CELL_HEIGHT = 64
 const MONTH_CELL_RADIUS = 9
 // 与 script.json 的 version 保持一致，方便确认 App 里跑的是哪一版。
-const SCRIPT_VERSION = '1.10.0'
+const SCRIPT_VERSION = '1.10.1'
 // 打开某个班次的响铃开关时先填入的默认时间，用户可再调整。
 const DEFAULT_RING_TIME = '07:00'
-// 循环班次最多 8 项，与 schedule.ts 的去重上限保持一致。
-const SHIFT_TAG_LIMIT = 8
 
 const REMINDER_MODE_OPTIONS: { value: ReminderMode; label: string }[] = [
   { value: 'calendar', label: '日历提醒' },
@@ -253,15 +253,21 @@ function splitShiftTokens(value: string) {
 function ShiftTag({ name, onRemove }: { name: string; onRemove: () => void }) {
   const color = shiftColor(name)
   return <HStack alignment="center" spacing={4} modifiers={modifiers()
-    .padding({ top: 5, bottom: 5, leading: 9, trailing: 7 })
+    .padding({ top: 5, bottom: 5, leading: 9, trailing: 5 })
     .background(roundedFill(shiftBackground(name), 14))}>
-    <Text font="footnote" fontWeight="semibold" foregroundStyle={paint(color)}>{name}</Text>
-    <Button buttonStyle="plain" action={onRemove}>
+    <Text
+      font="footnote"
+      fontWeight="semibold"
+      foregroundStyle={paint(color)}
+      lineLimit={1}
+      minScaleFactor={0.8}
+    >{name}</Text>
+    <Button buttonStyle="borderless" action={onRemove}>
       <Image
         systemName="xmark.circle.fill"
-        font={13}
+        font={14}
         foregroundStyle={paint(color)}
-        frame={{ width: 18, height: 18 }}
+        frame={{ width: 22, height: 22 }}
       />
     </Button>
   </HStack>
@@ -283,34 +289,52 @@ function SettingsPage() {
   const reminderMode = REMINDER_MODE_OPTIONS[reminderModeIndex]?.value ?? initial.reminderMode
   const todayShift = shiftDay(new Date(), savedSchedule).shift
 
-  // 加入标签：自动去重、最多 8 项；输入框里以空格/换行/分隔符结尾时把已输入内容整体加进来。
-  const addShiftTokens = (tokens: string[]) => {
-    if (!tokens.length) return
-    const next = [...shiftTags]
-    tokens.forEach(token => {
-      if (!next.includes(token) && next.length < SHIFT_TAG_LIMIT) next.push(token)
-    })
-    if (next.length === shiftTags.length) {
-      setMessage(shiftTags.length >= SHIFT_TAG_LIMIT ? `最多添加 ${SHIFT_TAG_LIMIT} 个班次` : '这个班次已经在循环里了')
+  // 提交输入框内容：全部接受才清空输入框；被拒（重名或超上限）的名字留在输入框里并提示，不再静默丢弃。
+  const applyShiftValue = (value: string) => {
+    const tokens = splitShiftTokens(value)
+    if (!tokens.length) {
+      setDraftShift('')
       return
     }
-    setShiftTags(next)
+    const { names, rejected } = mergeShiftNames(shiftTags, tokens)
+    // 用函数式更新，避免“输入框失焦提交”和“点标签删除”落在同一批更新里互相覆盖。
+    setShiftTags(previous => {
+      const merged = mergeShiftNames(previous, tokens).names
+      return merged.length === previous.length ? previous : merged
+    })
+    if (rejected.length) {
+      setMessage(names.length >= SHIFT_NAME_LIMIT
+        ? `最多添加 ${SHIFT_NAME_LIMIT} 个班次`
+        : `班次已在循环里：${rejected.join('、')}`)
+      setDraftShift(rejected.join('、'))
+      return
+    }
+    setDraftShift('')
   }
 
   const handleDraftChange = (value: string) => {
     if (/[\s,，、;；]/.test(value)) {
-      addShiftTokens(splitShiftTokens(value))
-      setDraftShift('')
+      applyShiftValue(value)
       return
     }
     setDraftShift(value)
   }
 
+  // 离开输入框（例如直接点保存）也把还没提交的班次名加进去，避免白打一遍。
+  const commitDraftShift = () => {
+    if (draftShift.trim()) applyShiftValue(draftShift)
+  }
+
   const removeShiftTag = (name: string) => {
+    // 起始班次按“名字”记住再定位，删掉前面的班次时起算点不会跟着前一天漂移。
+    const anchorName = shiftTags[anchorShiftIndex]
+    setShiftTags(previous => {
+      const next = previous.filter(item => item !== name)
+      return next.length === previous.length ? previous : next
+    })
     const nextTags = shiftTags.filter(item => item !== name)
-    setShiftTags(nextTags)
-    // 标签减少后把“起始班次”的选择夹到有效范围内，并丢掉已删除班次的响铃时间。
-    setAnchorShiftIndex(index => Math.max(0, Math.min(index, nextTags.length - 1)))
+    const anchorIndex = anchorName && anchorName !== name ? nextTags.indexOf(anchorName) : -1
+    setAnchorShiftIndex(anchorIndex >= 0 ? anchorIndex : Math.max(0, Math.min(anchorShiftIndex, nextTags.length - 1)))
     setAlarmTimes(previous => {
       if (!(name in previous)) return previous
       const next = { ...previous }
@@ -366,12 +390,11 @@ function SettingsPage() {
   const collectShiftTags = () => {
     const tokens = splitShiftTokens(draftShift)
     if (!tokens.length) return shiftTags
-    const next = [...shiftTags]
-    tokens.forEach(token => {
-      if (!next.includes(token) && next.length < SHIFT_TAG_LIMIT) next.push(token)
-    })
-    return next
+    return mergeShiftNames(shiftTags, tokens).names
   }
+
+  // 保存按钮的可用状态与真实保存条件保持同一口径：草稿里已经打好的第二个班次也算数。
+  const canSave = collectShiftTags().length >= 2
 
   const persistAndSync = async () => {
     const tags = collectShiftTags()
@@ -456,7 +479,7 @@ function SettingsPage() {
       <Section
         header={<Text>循环班次与响铃</Text>}
         footer={<VStack alignment="leading" spacing={6} modifiers={modifiers().frame({ maxWidth: 'infinity', alignment: 'leading' })}>
-          <Text font="footnote" foregroundStyle="secondaryLabel">在输入框里输入班次名，按空格或回车就会加成一个标签，点标签右侧的 × 删除；至少两个、最多八个班次，打开开关的班次会按所选方式响铃。</Text>
+          <Text font="footnote" foregroundStyle="secondaryLabel">在输入框里输入班次名，按空格或回车就会加成一个标签（离开输入框也会自动加入），点标签右侧的 × 删除；至少两个、最多 {SHIFT_NAME_LIMIT} 个班次，打开开关的班次会按所选方式响铃。</Text>
           <Text font="footnote" foregroundStyle="secondaryLabel">{reminderModeHint(reminderMode)}</Text>
           <Text font="footnote" foregroundStyle="secondaryLabel">开关、时间或方式改动后，点上方“保存排班并刷新小组件”生效；“重排响铃提醒”会先保存再重排。</Text>
         </VStack>}
@@ -476,13 +499,14 @@ function SettingsPage() {
           title="添加班次"
           value={draftShift}
           onChanged={handleDraftChange}
+          onBlur={commitDraftShift}
           prompt="输入后按空格或回车"
           axis="vertical"
           lineLimit={{ min: 1, max: 3 }}
         />
-        {shiftTags.length < 2
-          ? <Text font="footnote" foregroundStyle={paint('#D86F55')} listRowSeparator="hidden">至少需要两个班次才能保存</Text>
-          : null}
+        {canSave
+          ? null
+          : <Text font="footnote" foregroundStyle={paint('#D86F55')} listRowSeparator="hidden">至少需要两个班次才能保存</Text>}
         <Picker
           title="提醒方式"
           value={reminderModeIndex}
@@ -511,8 +535,8 @@ function SettingsPage() {
               : null}
           </HStack>
         })}
-        <Button title="保存排班并刷新小组件" buttonStyle="borderedProminent" disabled={shiftTags.length < 2} action={() => { void save() }} />
-        <Button title="重排响铃提醒" buttonStyle="bordered" disabled={shiftTags.length < 2} action={() => { void resyncReminders() }} />
+        <Button title="保存排班并刷新小组件" buttonStyle="borderedProminent" disabled={!canSave} action={() => { void save() }} />
+        <Button title="重排响铃提醒" buttonStyle="bordered" disabled={!canSave} action={() => { void resyncReminders() }} />
         <Text font="footnote" foregroundStyle="secondaryLabel" listRowSeparator="hidden">
           {reminderStateText(reminderState)}
         </Text>

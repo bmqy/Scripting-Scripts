@@ -96,17 +96,33 @@ function parseShiftName(value: unknown) {
   return value.replace(/\s+/g, ' ').trim().slice(0, 12)
 }
 
+// 循环班次的数量上限：设置页的标签输入和数据归一化共用这一份，避免两处硬编码走偏。
+export const SHIFT_NAME_LIMIT = 8
+
 function dedupeShiftNames(names: string[]) {
   const result: string[] = []
   names.forEach(name => {
     // 响铃时间按班次名做键，重名班次没有意义，这里顺手去重。
-    if (name && !result.includes(name) && result.length < 8) result.push(name)
+    if (name && !result.includes(name) && result.length < SHIFT_NAME_LIMIT) result.push(name)
   })
   return result
 }
 
 export function parseShiftNames(value: string) {
   return dedupeShiftNames(value.split(/[,，、;；\n]+/).map(parseShiftName).filter(Boolean))
+}
+
+// 把新输入的班次合并进已有列表：去重并按上限截断，同时返回被拒的名字，方便界面提示而不是静默丢弃。
+export function mergeShiftNames(current: string[], incoming: string[]) {
+  const names = [...current]
+  const rejected: string[] = []
+  incoming.forEach(value => {
+    const name = parseShiftName(value)
+    if (!name) return
+    if (names.includes(name) || names.length >= SHIFT_NAME_LIMIT) rejected.push(name)
+    else names.push(name)
+  })
+  return { names, rejected }
 }
 
 // 班次响铃时间统一存成 24 小时制 HH:mm；空值表示该班次不设置闹铃。
