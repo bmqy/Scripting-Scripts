@@ -46,7 +46,7 @@ import {
 
 const MONTH_COLUMN_GAP = 4
 // 与 script.json 的 version 保持一致，方便确认 App 里跑的是哪一版。
-const SCRIPT_VERSION = '1.6.1'
+const SCRIPT_VERSION = '1.6.2'
 // 打开某个班次的响铃开关时先填入的默认时间，用户可再调整。
 const DEFAULT_RING_TIME = '07:00'
 
@@ -189,19 +189,21 @@ function SettingsPage() {
     })
   }
 
-  const save = async () => {
-    const next = normalizeSchedule({
-      anchorDate: dateKey(new Date(anchorTimestamp)),
-      anchorShiftIndex,
-      shifts: parsedShifts,
-      style: STYLE_OPTIONS[styleIndex].value,
-      alarms: alarmTimes,
-      reminderMode,
-    })
-    const saved = saveSchedule(next)
-    if (!saved) {
+  // 用界面上当前的值组装排班，保证“保存”和“重排”看到的都是同一份设置。
+  const buildSchedule = () => normalizeSchedule({
+    anchorDate: dateKey(new Date(anchorTimestamp)),
+    anchorShiftIndex,
+    shifts: parsedShifts,
+    style: STYLE_OPTIONS[styleIndex].value,
+    alarms: alarmTimes,
+    reminderMode,
+  })
+
+  const persistAndSync = async () => {
+    const next = buildSchedule()
+    if (!saveSchedule(next)) {
       setMessage('保存失败，请检查 Scripting 的本地存储后重试。')
-      return
+      return null
     }
     setSequenceInput(next.shifts.join('、'))
     setAnchorShiftIndex(next.anchorShiftIndex)
@@ -209,17 +211,24 @@ function SettingsPage() {
     Widget.reloadAll()
     const state = await syncRingReminders(next)
     setReminderState(state)
-    setMessage(saveMessage(next, state))
+    return { saved: next, state }
   }
 
+  const save = async () => {
+    const result = await persistAndSync()
+    if (result) setMessage(saveMessage(result.saved, result.state))
+  }
+
+  // 重排也要先保存界面上的修改，否则用户刚改的开关/时间会被已保存的旧排班覆盖。
   const resyncReminders = async () => {
-    const state = await syncRingReminders(loadSchedule())
-    setReminderState(state)
+    const result = await persistAndSync()
+    if (!result) return
+    const { state } = result
     setMessage(state.error
       ? `${formatReminderMode(state.mode)}未完全排定：${state.error}`
       : state.total === 0
-        ? '当前没有设置响铃时间'
-        : `${formatReminderMode(state.mode)}已排定 ${state.scheduled} 个，下一次 ${formatReminderTarget(state.next)}`)
+        ? '已保存并重排：当前没有设置响铃时间'
+        : `已保存并重排：${formatReminderMode(state.mode)} ${state.scheduled} 个，下一次 ${formatReminderTarget(state.next)}`)
   }
 
   return <NavigationStack>
@@ -313,7 +322,7 @@ function SettingsPage() {
             : `通知提醒会排定未来 ${NOTIFICATION_REMINDER_HORIZON_DAYS} 天的本地通知（需要通知权限），不写入系统日历；每次打开脚本会顺延重排。`}
         </Text>
         <Text font="footnote" foregroundStyle="secondaryLabel" listRowSeparator="hidden">
-          日历/通知都由系统在静音与专注模式下按通知设置发声，不是 Clock 里的系统闹钟（那需要 iOS 26+ 的 AlarmKit）。
+          日历/通知都由系统在静音与专注模式下按通知设置发声，不是 Clock 里的系统闹钟（那需要 iOS 26+ 的 AlarmKit）。修改开关、时间或方式后，点“保存排班并刷新小组件”或“重排响铃提醒”才会生效（重排会先保存当前设置）。
         </Text>
         <Text font="footnote" foregroundStyle="secondaryLabel" listRowSeparator="hidden">
           {reminderStateText(reminderState)}
